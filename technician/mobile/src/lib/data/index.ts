@@ -1,0 +1,23 @@
+/**
+ * Everything a screen needs to read or change data. Screens import from
+ * `@/lib/data` only — never lib/seed, lib/store or lib/mock — so swapping the
+ * mock for Firebase changes this folder and not a single screen.
+ */
+export { useResource, type Query } from './query'
+export {
+  JobStepError,
+  acceptJob,
+  addExtra,
+  completeJob,
+  markArrived,
+  markOnTheWay,
+  rejectJob,
+  startJob,
+  uploadPhoto,
+  useJob,
+  useJobs,
+  useRateCard,
+} from './jobs'
+export { setOnline, useEarnings, usePayouts, useProfile, useReviews } from './account'
+export { NetworkError } from '../mock/api'
+export type * from './types'
