@@ -10,6 +10,10 @@ type Lang = Settings['language']
  */
 const DICT: Record<Exclude<Lang, 'English'>, Record<string, string>> = {
   हिन्दी: {
+    'Couldn’t load this': 'लोड नहीं हो पाया',
+    'Check your internet and try again.': 'इंटरनेट चेक करें और फिर से कोशिश करें।',
+    'Try again': 'फिर से कोशिश करें',
+    'Trying again…': 'फिर से कोशिश हो रही है…',
     'ONLINE': 'ऑनलाइन',
     'OFFLINE': 'ऑफ़लाइन',
     Online: 'ऑनलाइन',
