@@ -101,7 +101,7 @@ export function register(input: Registration) {
     if (!PHONE.test(phone)) throw new AuthError('Enter a 10-digit mobile number.')
     if (!input.city) throw new AuthError('Pick your city.')
     if (input.skills.length === 0) throw new AuthError('Pick at least one service you do.')
-    updateCurrent((a) => ({ ...a, registration: { ...input, name: input.name.trim(), phone: `+91 ${phone}` }, status: 'applied' }))
+    updateCurrent((a) => ({ ...a, registration: { ...input, name: input.name.trim(), phone: `+91${phone}` }, status: 'applied' }))
   })
 }
 
