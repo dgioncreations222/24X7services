@@ -19,5 +19,22 @@ export {
   useRateCard,
 } from './jobs'
 export { setOnline, useEarnings, usePayouts, useProfile, useReviews } from './account'
+export {
+  AuthError,
+  REQUIRED_DOCS,
+  register,
+  sendPasswordReset,
+  signInWithEmail,
+  signInWithGoogle,
+  signOut,
+  startWorking,
+  submitKyc,
+  uploadKycDocument,
+  useCategories,
+  useCities,
+  useKyc,
+  useSession,
+  type KycState,
+} from './auth'
 export { NetworkError } from '../mock/api'
 export type * from './types'

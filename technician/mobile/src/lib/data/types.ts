@@ -147,6 +147,53 @@ export interface PartnerProfile {
   upiId?: string
 }
 
+/* ------------------------------------------------- Sign-in and onboarding */
+
+/**
+ * Where the signed-in person is on the way to taking jobs; decides which
+ * screens they may see. Follows the partner status diagram:
+ * registering → kyc_required → kyc_pending → approved / kyc_rejected → active.
+ */
+export type SessionStatus = 'signed_out' | 'registering' | 'kyc_required' | 'kyc_pending' | 'kyc_rejected' | 'approved' | 'active' | 'suspended'
+
+export interface Session {
+  status: SessionStatus
+  email?: string
+  name?: string
+  /** Why KYC was rejected, when it was. */
+  rejectReason?: string
+}
+
+/** The registration form. TODO(partner.ts): fields of Partner. */
+export interface Registration {
+  name: string
+  phone: string
+  city: string
+  /** TODO(catalog-v2): category ids. */
+  skills: string[]
+  experienceYears: number
+}
+
+/** TODO(partner.ts): KycDocument. */
+export type KycDocType = 'aadhaar' | 'pan' | 'photo' | 'bank'
+
+export interface KycDocument {
+  type: KycDocType
+  /** Local or uploaded file. */
+  fileUrl: string
+  status: 'uploaded' | 'pending' | 'approved' | 'rejected'
+  uploadedAt: number
+}
+
+/** Where payouts go: a bank account or a UPI id. */
+export type PayoutDetails = { accountName: string; accountNumber: string; ifsc: string } | { upiId: string }
+
+/** TODO(catalog-v2): Member 1's Category, as far as registration needs it. */
+export interface Category {
+  id: string
+  name: string
+}
+
 /** A review of this technician, from the customer's app. */
 export type PartnerReview = Pick<Review, 'id' | 'bookingId' | 'rating' | 'text' | 'createdAt'> & {
   authorName: string
