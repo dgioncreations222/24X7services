@@ -8,6 +8,7 @@ import { OffersManager } from '@/components/promo-offers'
 import { useToast } from '@/components/toast'
 import { Avatar, Button, Card, CardHeader, Chip, Field, Page, PageHeader, Segmented, inputClass } from '@/components/ui'
 import { ago } from '@/lib/format'
+import { BRAND } from '@/lib/brand'
 import { useStore } from '@/lib/store'
 import type { Broadcast } from '@/lib/types'
 
@@ -129,8 +130,8 @@ function Compose() {
           </p>
           <div className="rounded-xl bg-white/90 p-3 shadow-float backdrop-blur">
             <div className="flex items-center gap-2 text-[11px] font-bold text-muted">
-              <span className="grid size-5 place-items-center rounded bg-brand-ink text-[7px] font-extrabold text-white">24×7</span>
-              {audience === 'technicians' ? '24X7 PARTNER' : '24X7 SERVICES'} · now
+              <span className="grid size-5 place-items-center rounded bg-brand-ink text-[7px] font-extrabold text-white">{BRAND.mark}</span>
+              {(audience === 'technicians' ? `${BRAND.name} Partner` : BRAND.name).toUpperCase()} · now
             </div>
             <p className="mt-1.5 truncate text-[13px] font-extrabold text-ink">{title || 'Notification title'}</p>
             <p className="line-clamp-2 text-xs font-medium text-ink-2">{body || 'Your message appears here.'}</p>

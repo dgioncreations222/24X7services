@@ -184,7 +184,7 @@ export function seed(nowMs = Date.now()): Seed {
       id: first ? 'TCH-HYD-0472' : `TCH-HYD-0${applicant ? 600 + i : 300 + i * 13}`,
       name,
       phone: phone(r),
-      email: `${slug(name)}@partners.24x7services.in`,
+      email: `${slug(name)}@partners.customerservice.example`,
       area: a.area,
       lat: a.lat + (r() - 0.5) * 0.012,
       lng: a.lng + (r() - 0.5) * 0.012,
@@ -467,7 +467,7 @@ export function seed(nowMs = Date.now()): Seed {
   const broadcasts: Broadcast[] = [
     { id: 'BC-41', audience: 'technicians', title: 'Heavy rain alert tonight', body: 'Expect waterlogging near Madhapur and Kukatpally. Plan routes and update ETAs.', at: minsAgo(60 * 3), reach: 22 },
     { id: 'BC-40', audience: 'customers', title: 'Monsoon AC check-up — 20% off', body: 'Use MONSOON20 on any AC or fridge gas refill this week.', at: minsAgo(60 * 26), reach: 54 },
-    { id: 'BC-39', audience: 'all', title: 'Diwali hours', body: 'Emergency desk stays open 24×7 through the festival week.', at: minsAgo(60 * 72), reach: 80 },
+    { id: 'BC-39', audience: 'all', title: 'Diwali hours', body: 'Emergency desk stays open round the clock through the festival week.', at: minsAgo(60 * 72), reach: 80 },
   ]
 
   /* ----------------------------------------------------------- Activity */
@@ -512,12 +512,12 @@ export function seed(nowMs = Date.now()): Seed {
     emergencySlaMin: 45,
     areas: AREAS.map((a, i) => ({ pincode: a.pincode, area: a.area, active: i !== 11 })),
     team: [
-      { name: 'Aditi Rao', email: 'aditi.rao@24x7services.in', role: 'Super admin', lastActive: minsAgo(1) },
-      { name: 'Vivek Menon', email: 'vivek.menon@24x7services.in', role: 'Operations', lastActive: minsAgo(14) },
-      { name: 'Sravani K', email: 'sravani.k@24x7services.in', role: 'Dispatcher', lastActive: minsAgo(3) },
-      { name: 'Farah Khan', email: 'farah.khan@24x7services.in', role: 'Support', lastActive: minsAgo(9) },
-      { name: 'Rohan Das', email: 'rohan.das@24x7services.in', role: 'Support', lastActive: minsAgo(70) },
-      { name: 'Meghana Iyer', email: 'meghana.iyer@24x7services.in', role: 'Finance', lastActive: minsAgo(60 * 5) },
+      { name: 'Aditi Rao', email: 'aditi.rao@customerservice.example', role: 'Super admin', lastActive: minsAgo(1) },
+      { name: 'Vivek Menon', email: 'vivek.menon@customerservice.example', role: 'Operations', lastActive: minsAgo(14) },
+      { name: 'Sravani K', email: 'sravani.k@customerservice.example', role: 'Dispatcher', lastActive: minsAgo(3) },
+      { name: 'Farah Khan', email: 'farah.khan@customerservice.example', role: 'Support', lastActive: minsAgo(9) },
+      { name: 'Rohan Das', email: 'rohan.das@customerservice.example', role: 'Support', lastActive: minsAgo(70) },
+      { name: 'Meghana Iyer', email: 'meghana.iyer@customerservice.example', role: 'Finance', lastActive: minsAgo(60 * 5) },
     ],
   }
 

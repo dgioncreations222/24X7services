@@ -41,9 +41,10 @@ import type {
  */
 
 // v2: the control centre (roles, AI, content, catalogue) joined the state.
-const KEY = 'admin.state.v2'
+// v3: the 'ibm' brand became 'ifb'; older saves hold prices and logos keyed to it.
+const KEY = 'admin.state.v3'
 
-export const ADMIN = { name: 'Aditi Rao', role: 'Super Admin' as AdminRole, email: 'aditi.rao@24x7services.in' }
+export const ADMIN = { name: 'Aditi Rao', role: 'Super Admin' as AdminRole, email: 'aditi.rao@customerservice.example' }
 
 interface Persisted extends Seed, Control {
   signedIn: boolean

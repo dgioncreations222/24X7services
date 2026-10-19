@@ -8,7 +8,6 @@ import {
   Camera,
   ChevronRight,
   Headset,
-  History,
   LogOut,
   Mail,
   MapPin,
@@ -156,7 +155,6 @@ export default function ProfileScreen() {
         <Card>
           {(
             [
-              ['/history', 'Job History', History],
               ['/settings', 'Settings', Settings],
               ['/support', 'Help & Support', Headset],
             ] as [Href, string, LucideIcon][]

@@ -9,7 +9,7 @@ import { isActive } from '@/lib/status'
 import { useStore, useTick } from '@/lib/store'
 
 /**
- * The 24×7 desk: emergency requests only, with every action a technician
+ * The emergency desk: emergency requests only, with every action a technician
  * needs on the card itself — no detour through the detail screen.
  */
 export default function EmergencyScreen() {
@@ -20,7 +20,7 @@ export default function EmergencyScreen() {
 
   return (
     <>
-      <ScreenHeader back="/home" title="Emergency Jobs" subtitle="24×7 high-priority desk" />
+      <ScreenHeader back="/home" title="Emergency Jobs" subtitle="High-priority desk" />
       <Page className="gap-5">
         {/* Priority is carried by the rail, icon and numbers — the page stays white. */}
         <View className="relative overflow-hidden rounded-card border border-line bg-card shadow-card">
@@ -31,7 +31,7 @@ export default function EmergencyScreen() {
               <Icon as={Siren} className="size-5 text-danger" />
             </View>
             <View className="min-w-0 flex-1">
-              <Text className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-danger">24×7 priority desk</Text>
+              <Text className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-danger">Priority desk</Text>
               <Text className="text-sm font-medium text-muted">Accept within 2 min · arrive within 45 min</Text>
             </View>
           </View>

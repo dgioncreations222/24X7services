@@ -1,15 +1,16 @@
 import type { Metadata, Viewport } from 'next'
+import { BRAND } from '@/lib/brand'
 import { StoreProvider } from '@/lib/store'
 import { AppShell } from '@/components/AppShell'
 import './globals.css'
 
 export const metadata: Metadata = {
   title: {
-    default: '24X7 Admin Console',
-    template: '%s · 24X7 Admin',
+    default: `${BRAND.admin} Console`,
+    template: `%s · ${BRAND.admin}`,
   },
-  description: 'Run the 24×7 appliance service network — bookings, dispatch, customers, technicians, payments and support.',
-  applicationName: '24X7 Admin Console',
+  description: 'Run the appliance service network — bookings, dispatch, customers, technicians, payments and support.',
+  applicationName: `${BRAND.admin} Console`,
   icons: { icon: '/favicon.png' },
   robots: { index: false, follow: false },
 }

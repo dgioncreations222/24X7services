@@ -24,6 +24,7 @@ import {
   tr,
 } from '@/components/ui'
 import { inr } from '@/lib/catalog'
+import { BRAND } from '@/lib/brand'
 import { cn } from '@/lib/cn'
 import { ago, downloadCsv, longDate, matches, withinDays } from '@/lib/format'
 import { AREAS } from '@/lib/seed'
@@ -94,7 +95,7 @@ function Customers() {
       <PageHeader
         side="customer"
         title="Customers"
-        sub="Everyone booking through the 24X7 customer app"
+        sub={`Everyone booking through the ${BRAND.name} customer app`}
         actions={
           <Button variant="secondary" onClick={exportCsv}>
             <Download /> Export CSV

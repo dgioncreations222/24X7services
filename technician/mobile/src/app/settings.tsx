@@ -27,6 +27,7 @@ import { AvailabilitySettings } from '@/components/Availability'
 import { QrCode, downloadQr, upiLink } from '@/components/UpiQr'
 import { Avatar, Button, Card, Field, Icon, Page, ScreenHeader, SectionTitle, Segmented, Sheet, Tappable, Text, Toggle, inputClass } from '@/components/ui'
 import { chime } from '@/lib/chime'
+import { BRAND } from '@/lib/brand'
 import { cn } from '@/lib/cn'
 import { ago } from '@/lib/format'
 import { useT } from '@/lib/i18n'
@@ -143,7 +144,7 @@ export default function SettingsScreen() {
           <Icon as={LogOut} className="size-5 text-danger" />
           <Text className="text-base font-extrabold text-danger">{t('Logout')}</Text>
         </Tappable>
-        <Text className="text-center text-xs font-semibold text-faint">24X7 Technician Partner · v0.1.0</Text>
+        <Text className="text-center text-xs font-semibold text-faint">{BRAND.app} · v0.1.0</Text>
       </Page>
 
       <PaymentSheet
@@ -167,7 +168,7 @@ export default function SettingsScreen() {
             sub={passwordAge <= 0 ? 'Changed today' : `Last changed ${passwordAge} day${passwordAge === 1 ? '' : 's'} ago`}
             onPress={() => setSheet('password')}
           />
-          <Line icon={Smartphone} title="Fingerprint sign-in" sub={s.fingerprint ? 'On for this device' : 'Off · sign in with OTP'}>
+          <Line icon={Smartphone} title="Fingerprint sign-in" sub={s.fingerprint ? 'On for this device' : 'Off · sign in with your password'}>
             <Toggle
               checked={s.fingerprint}
               onChange={(v) => {

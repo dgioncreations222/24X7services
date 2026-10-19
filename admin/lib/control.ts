@@ -114,14 +114,14 @@ export function controlSeed(base: Seed, nowMs = Date.now()): Control {
   const ago = (min: number) => new Date(nowMs - min * 60_000).toISOString()
 
   const admins: AdminUser[] = [
-    { id: 'ADM-01', name: 'Aditi Rao', email: 'aditi.rao@24x7services.in', phone: '+91 98480 11201', role: 'Super Admin', status: 'active', twoFactor: true, lastActive: ago(1), createdAt: ago(60 * 24 * 410) },
-    { id: 'ADM-02', name: 'Vivek Menon', email: 'vivek.menon@24x7services.in', phone: '+91 98480 11202', role: 'Operations Admin', status: 'active', twoFactor: true, lastActive: ago(14), createdAt: ago(60 * 24 * 300) },
-    { id: 'ADM-03', name: 'Sravani K', email: 'sravani.k@24x7services.in', phone: '+91 98480 11203', role: 'Operations Admin', status: 'active', twoFactor: true, lastActive: ago(3), createdAt: ago(60 * 24 * 190) },
-    { id: 'ADM-04', name: 'Meghana Iyer', email: 'meghana.iyer@24x7services.in', phone: '+91 98480 11204', role: 'Finance Admin', status: 'active', twoFactor: true, lastActive: ago(60 * 5), createdAt: ago(60 * 24 * 260) },
-    { id: 'ADM-05', name: 'Kavya Shetty', email: 'kavya.shetty@24x7services.in', phone: '+91 98480 11205', role: 'Content Admin', status: 'active', twoFactor: false, lastActive: ago(45), createdAt: ago(60 * 24 * 80) },
-    { id: 'ADM-06', name: 'Farah Khan', email: 'farah.khan@24x7services.in', phone: '+91 98480 11206', role: 'Support Admin', status: 'active', twoFactor: true, lastActive: ago(9), createdAt: ago(60 * 24 * 150) },
-    { id: 'ADM-07', name: 'Rohan Das', email: 'rohan.das@24x7services.in', phone: '+91 98480 11207', role: 'Support Admin', status: 'active', twoFactor: false, lastActive: ago(70), createdAt: ago(60 * 24 * 120) },
-    { id: 'ADM-08', name: 'Imran Siddiqui', email: 'imran.s@24x7services.in', phone: '+91 98480 11208', role: 'Finance Admin', status: 'invited', twoFactor: false, lastActive: ago(60 * 24 * 2), createdAt: ago(60 * 24 * 2) },
+    { id: 'ADM-01', name: 'Aditi Rao', email: 'aditi.rao@customerservice.example', phone: '+91 98480 11201', role: 'Super Admin', status: 'active', twoFactor: true, lastActive: ago(1), createdAt: ago(60 * 24 * 410) },
+    { id: 'ADM-02', name: 'Vivek Menon', email: 'vivek.menon@customerservice.example', phone: '+91 98480 11202', role: 'Operations Admin', status: 'active', twoFactor: true, lastActive: ago(14), createdAt: ago(60 * 24 * 300) },
+    { id: 'ADM-03', name: 'Sravani K', email: 'sravani.k@customerservice.example', phone: '+91 98480 11203', role: 'Operations Admin', status: 'active', twoFactor: true, lastActive: ago(3), createdAt: ago(60 * 24 * 190) },
+    { id: 'ADM-04', name: 'Meghana Iyer', email: 'meghana.iyer@customerservice.example', phone: '+91 98480 11204', role: 'Finance Admin', status: 'active', twoFactor: true, lastActive: ago(60 * 5), createdAt: ago(60 * 24 * 260) },
+    { id: 'ADM-05', name: 'Kavya Shetty', email: 'kavya.shetty@customerservice.example', phone: '+91 98480 11205', role: 'Content Admin', status: 'active', twoFactor: false, lastActive: ago(45), createdAt: ago(60 * 24 * 80) },
+    { id: 'ADM-06', name: 'Farah Khan', email: 'farah.khan@customerservice.example', phone: '+91 98480 11206', role: 'Support Admin', status: 'active', twoFactor: true, lastActive: ago(9), createdAt: ago(60 * 24 * 150) },
+    { id: 'ADM-07', name: 'Rohan Das', email: 'rohan.das@customerservice.example', phone: '+91 98480 11207', role: 'Support Admin', status: 'active', twoFactor: false, lastActive: ago(70), createdAt: ago(60 * 24 * 120) },
+    { id: 'ADM-08', name: 'Imran Siddiqui', email: 'imran.s@customerservice.example', phone: '+91 98480 11208', role: 'Finance Admin', status: 'invited', twoFactor: false, lastActive: ago(60 * 24 * 2), createdAt: ago(60 * 24 * 2) },
   ]
 
   /* ---------------------------------------------------------- Catalog */
@@ -185,7 +185,7 @@ export function controlSeed(base: Seed, nowMs = Date.now()): Control {
     m('MD-201', 'samsung-logo.svg', 'brand', '/media/logo-samsung.svg', 4466, 7051, 1080, 'Samsung logo', 60),
     m('MD-202', 'lg-logo.svg', 'brand', '/media/logo-lg.svg', 1835, 200, 90, 'LG logo', 60),
     m('MD-203', 'bosch-logo.svg', 'brand', '/media/logo-bosch.svg', 2309, 300, 70, 'Bosch logo', 60),
-    m('MD-204', 'ibm-logo.svg', 'brand', '/media/logo-ibm.svg', 410, 120, 48, 'IBM logo', 60),
+    m('MD-204', 'ifb-logo.svg', 'brand', '/media/logo-ifb.svg', 410, 120, 48, 'IFB logo', 60),
     m('MD-301', 'banner-ac-summer.jpg', 'banner', '/media/banner-air-conditioner.jpg', 66076, 1200, 675, 'Technician servicing a split AC', 12),
     m('MD-302', 'banner-fridge.jpg', 'banner', '/media/banner-refrigerator.jpg', 74785, 1200, 675, 'Refrigerator repair', 12),
     m('MD-303', 'banner-washer.jpg', 'banner', '/media/banner-washing-machine.jpg', 76709, 1200, 675, 'Washing machine repair', 9),
@@ -200,13 +200,13 @@ export function controlSeed(base: Seed, nowMs = Date.now()): Control {
   /* ---------------------------------------------------------- Content */
   const content: SiteContent = {
     homepage: {
-      heroHeading: 'Appliance repair at your door, 24×7',
-      heroSub: 'Certified Samsung, LG, Bosch and IBM technicians in Hyderabad — usually there within 45 minutes.',
+      heroHeading: 'Appliance repair at your door, round the clock',
+      heroSub: 'Certified Samsung, LG, Bosch and IFB technicians in Hyderabad — usually there within 45 minutes.',
       cta: 'Book a technician',
       heroImage: '/media/banner-air-conditioner.jpg',
       services: { visible: true, title: 'What we fix', body: 'Washing machines, refrigerators, ovens, ACs and geysers.' },
       promo: { visible: true, title: 'Offers this week', body: 'Save on monsoon AC care and your first booking.' },
-      trust: { visible: true, title: 'Why Hyderabad trusts 24X7', body: 'Verified technicians · 30-day service warranty · Upfront prices · Genuine parts.' },
+      trust: { visible: true, title: 'Why Hyderabad trusts Customer Service', body: 'Verified technicians · 30-day service warranty · Upfront prices · Genuine parts.' },
       faq: { visible: true, title: 'Questions, answered', body: 'Everything about visits, prices and warranty.' },
     },
     banners: [
@@ -218,18 +218,18 @@ export function controlSeed(base: Seed, nowMs = Date.now()): Control {
     serviceImages: Object.fromEntries(APPLIANCES.map((a) => [a, `/media/svc-${a}.jpg`])) as SiteContent['serviceImages'],
     brandLogos: Object.fromEntries(BRANDS.map((b) => [b, { url: `/media/logo-${b}.svg`, enabled: true }])) as SiteContent['brandLogos'],
     faqs: [
-      { id: 'FQ-1', category: 'Visits', q: 'How fast can a technician reach me?', a: 'Most visits start within 45 minutes. Emergency requests are dispatched first, 24×7.', visible: true },
+      { id: 'FQ-1', category: 'Visits', q: 'How fast can a technician reach me?', a: 'Most visits start within 45 minutes. Emergency requests are dispatched first, day or night.', visible: true },
       { id: 'FQ-2', category: 'Prices', q: 'Is there a visit charge?', a: 'The visit charge is adjusted in your bill when you go ahead with the repair.', visible: true },
       { id: 'FQ-3', category: 'Warranty', q: 'Is the repair covered by warranty?', a: 'Every repair carries a 30-day service warranty; genuine parts carry the maker’s warranty.', visible: true },
-      { id: 'FQ-4', category: 'Brands', q: 'Which brands do you service?', a: 'Samsung, LG, Bosch and IBM — washing machines, refrigerators, ovens, ACs and geysers.', visible: true },
-      { id: 'FQ-5', category: 'Payments', q: 'How can I pay?', a: 'UPI, card, 24X7 wallet or cash after the service.', visible: true },
+      { id: 'FQ-4', category: 'Brands', q: 'Which brands do you service?', a: 'Samsung, LG, Bosch and IFB — washing machines, refrigerators, ovens, ACs and geysers.', visible: true },
+      { id: 'FQ-5', category: 'Payments', q: 'How can I pay?', a: 'UPI, card, Customer Service wallet or cash after the service.', visible: true },
       { id: 'FQ-6', category: 'Visits', q: 'Can I reschedule?', a: 'Yes, free of charge up to one hour before the slot.', visible: false },
     ],
     testimonials: [
       { id: 'TS-1', name: 'Ananya Reddy', area: 'Gachibowli', appliance: 'Samsung AC', rating: 5, text: 'Technician arrived in 30 minutes and the AC was cooling again within the hour.', visible: true },
       { id: 'TS-2', name: 'Mohammed Irfan', area: 'Tolichowki', appliance: 'LG Refrigerator', rating: 5, text: 'Explained the fault, showed the old part, and the bill matched the estimate.', visible: true },
       { id: 'TS-3', name: 'Priya Sharma', area: 'Kondapur', appliance: 'Bosch Washing Machine', rating: 4, text: 'Neat work and very polite. Part took a day to arrive but they kept me posted.', visible: true },
-      { id: 'TS-4', name: 'Vikram Rao', area: 'Banjara Hills', appliance: 'IBM Oven', rating: 5, text: 'Late-night emergency handled calmly. Highly recommend 24X7.', visible: false },
+      { id: 'TS-4', name: 'Vikram Rao', area: 'Banjara Hills', appliance: 'IFB Oven', rating: 5, text: 'Late-night emergency handled calmly. Highly recommend Customer Service.', visible: false },
     ],
   }
   const published: SiteContent = structuredClone(content)
@@ -239,10 +239,10 @@ export function controlSeed(base: Seed, nowMs = Date.now()): Control {
     enabled: true,
     name: 'Seva',
     avatar: '/media/icon-chat.svg',
-    welcome: 'Namaste! I’m Seva, the 24X7 assistant. Tell me what’s wrong with your appliance and I’ll help you book the right service.',
+    welcome: 'Namaste! I’m Seva, the Customer Service assistant. Tell me what’s wrong with your appliance and I’ll help you book the right service.',
     quickQuestions: ['My AC is not cooling', 'Washing machine not draining', 'Fridge making noise', 'What does a visit cost?', 'Track my technician'],
     instructions:
-      'You are the 24X7 Services assistant for customers and technicians in Hyderabad. Help diagnose common faults, explain error codes in plain language, suggest the right service, and book or track visits. Be warm, short and accurate.',
+      'You are the Customer Service assistant for customers and technicians in Hyderabad. Help diagnose common faults, explain error codes in plain language, suggest the right service, and book or track visits. Be warm, short and accurate.',
     brands: [...BRANDS],
     appliances: [...APPLIANCES],
     techRules:
@@ -257,7 +257,7 @@ export function controlSeed(base: Seed, nowMs = Date.now()): Control {
     name: 'Seva Voice',
     voice: 'Ananya — warm, Indian English',
     language: 'English + Hindi',
-    greeting: 'Hello, this is Seva, an automated assistant calling from 24X7 Services about your appliance booking.',
+    greeting: 'Hello, this is Seva, an automated assistant calling from Customer Service about your appliance booking.',
     scripts: {
       confirm: 'Your {appliance} service is booked for {slot}. Can you confirm someone will be home? Say yes to confirm or reschedule to pick a new time.',
       eta: '{technician} is on the way and should reach you in about {eta} minutes.',

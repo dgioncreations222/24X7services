@@ -17,13 +17,10 @@ import {
   BriefcaseBusiness,
   ChevronRight,
   Headset,
-  History,
   House,
   LogOut,
   Map as MapIcon,
   Settings,
-  Siren,
-  Sparkles,
   Star,
   UserRound,
   Wallet,
@@ -40,14 +37,11 @@ import { Logo } from './Logo'
 import { MenuContext } from './menu'
 import { TechnicianSheet } from './TechnicianSheet'
 
-const SIDE: ReadonlyArray<{ href: Href & string; label: string; icon: LucideIcon }> = [
+const SIDE: readonly { href: Href & string; label: string; icon: LucideIcon }[] = [
   { href: '/home', label: 'Dashboard', icon: House },
   { href: '/jobs', label: 'Jobs', icon: BriefcaseBusiness },
-  { href: '/emergency', label: 'Emergency', icon: Siren },
-  { href: '/ai', label: 'AI Assist', icon: Sparkles },
   { href: '/map', label: 'Map', icon: MapIcon },
   { href: '/earnings', label: 'Earnings', icon: Wallet },
-  { href: '/history', label: 'Job History', icon: History },
   { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/profile', label: 'Profile', icon: UserRound },
   { href: '/settings', label: 'Settings', icon: Settings },

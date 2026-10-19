@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Linking, View } from 'react-native'
 import type { Href } from 'expo-router'
 import {
@@ -7,29 +6,23 @@ import {
   ChevronRight,
   ClipboardCheck,
   MessageCircle,
-  MessageSquareText,
-  NotebookPen,
   Navigation,
   Package,
   PenLine,
   Phone,
-  PhoneCall,
   Receipt,
   Stethoscope,
   TriangleAlert,
   type LucideIcon,
 } from 'lucide-react-native'
-import { AiMark, CallMark } from '@/components/ai/AiMark'
-import { ConfirmDelete, DeleteKey } from '@/components/ai/DeleteAi'
 import { CustomerBlock, JobNotFound, JobSummary, ServiceSummary, useJobParam } from '@/components/JobParts'
 import { ServiceMap } from '@/components/ServiceMap'
 import { FlowBar, Timeline } from '@/components/Timeline'
 import { ActionDock, Button, Card, Icon, Inherit, Page, ScreenHeader, SectionTitle, Tappable, Text } from '@/components/ui'
 import { applianceTitle, inr } from '@/lib/catalog'
 import { cn } from '@/lib/cn'
-import { ago, billTotal, directionsHref, driveProgress, plural, telHref, time } from '@/lib/format'
+import { billTotal, directionsHref, driveProgress, telHref, time } from '@/lib/format'
 import { stepHref } from '@/lib/routes'
-import { PURPOSE_LABEL, RESULT_LABEL } from '@/lib/ai/call'
 import { NEXT_ACTION, STATUS, stepIndex } from '@/lib/status'
 import { useStore, useTick } from '@/lib/store'
 import type { FlowStep, Job } from '@/lib/types'
@@ -201,17 +194,9 @@ export default function JobDetail() {
             <View className="mt-2 flex-row gap-2">
               <QuickAction onPress={() => Linking.openURL(telHref(job.customer.phone))} icon={<Icon as={Phone} className="size-5 text-success" />} label="Call Customer" />
               <QuickAction onPress={() => Linking.openURL(`sms:${job.customer.phone.replace(/\s/g, '')}`)} icon={<Icon as={MessageCircle} className="size-5 text-brand" />} label="Chat Customer" />
-              <QuickAction href={`/ai/chat?id=${job.id}` as Href} icon={<AiMark size={22} />} label="Ask AI" />
-              <QuickAction
-                href={`/ai/call?id=${job.id}${job.status === 'closed' || job.status === 'confirmation' ? '&purpose=followup' : ''}` as Href}
-                icon={<CallMark size={22} />}
-                label="AI Call"
-              />
             </View>
           </View>
         )}
-
-        {!cancelled && <AiAssistance job={job} />}
 
         {!cancelled && (
           <View>
@@ -306,128 +291,3 @@ function QuickAction({ href, onPress, icon, label }: { href?: Href; onPress?: ()
   )
 }
 
-/**
- * Everything the AI helped with on this job: saved service notes, the
- * conversations to reopen, and call summaries.
- */
-function AiAssistance({ job }: { job: Job }) {
-  const { aiThreads, aiCalls, deleteAi } = useStore()
-  const [doomed, setDoomed] = useState<null | { kind: 'chat' | 'call'; id: string; title: string }>(null)
-  const threads = aiThreads.filter((t) => t.jobId === job.id)
-  const calls = aiCalls.filter((c) => c.jobId === job.id)
-  const done = job.status === 'closed' || job.status === 'confirmation'
-  const notes = job.serviceNotes
-  const tile = 'h-11 grow basis-[47%] flex-row items-center justify-center gap-1.5 rounded-xl'
-
-  return (
-    <View>
-      <SectionTitle count={threads.length + calls.length || undefined}>AI assistance</SectionTitle>
-      <Card>
-        <View className="flex-row flex-wrap gap-2 p-3">
-          <Tappable href={`/ai/chat?id=${job.id}&q=parts` as Href} className={cn(tile, 'bg-canvas active:bg-brand-soft active:opacity-100')}>
-            <Icon as={Package} className="size-4 text-ink-2" />
-            <Text className="text-[13px] font-extrabold text-ink-2">Find Required Parts</Text>
-          </Tappable>
-          <Tappable href={`/ai/chat?id=${job.id}&q=notes` as Href} className={cn(tile, 'bg-canvas active:bg-brand-soft active:opacity-100')}>
-            <Icon as={NotebookPen} className="size-4 text-ink-2" />
-            <Text className="text-[13px] font-extrabold text-ink-2">Service Notes</Text>
-          </Tappable>
-          {done && (
-            <Tappable href={`/ai/call?id=${job.id}&purpose=followup` as Href} className={cn(tile, 'basis-full bg-success-soft')}>
-              <Icon as={PhoneCall} className="size-4 text-success" />
-              <Text className="text-[13px] font-extrabold text-success">AI Follow-up Call</Text>
-            </Tappable>
-          )}
-        </View>
-
-        {notes && (
-          <View className="border-t border-line p-4">
-            <Text className="text-[11px] font-bold uppercase tracking-[0.08em] text-faint">Service notes · saved {time(notes.savedAt)}</Text>
-            <View className="mt-1.5 gap-1.5">
-              <Text className="text-sm font-medium text-ink-2">
-                <Text className="text-sm font-extrabold">Diagnosis: </Text>
-                {notes.diagnosis}
-              </Text>
-              <Text className="text-sm font-medium text-ink-2">
-                <Text className="text-sm font-extrabold">Action taken: </Text>
-                {notes.action}
-              </Text>
-              <Text className="text-sm font-medium text-ink-2">
-                <Text className="text-sm font-extrabold">Recommendation: </Text>
-                {notes.recommendation}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {threads.map((t) => (
-          <View key={t.id} className="flex-row items-center gap-1 border-t border-line pr-2">
-            <Tappable href={`/ai/chat?id=${job.id}&t=${t.id}` as Href} className="min-w-0 flex-1 flex-row items-center gap-3 p-3 pr-1 active:bg-canvas active:opacity-100">
-              <View className="size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft">
-                <Icon as={MessageSquareText} className="size-5 text-brand" />
-              </View>
-              <View className="min-w-0 flex-1">
-                <Text numberOfLines={1} className="text-sm font-extrabold">
-                  {t.title}
-                </Text>
-                <Text className="text-xs font-medium text-muted">
-                  AI chat · {plural(t.messages.filter((m) => m.role === 'tech').length, 'question')} · {ago(t.updatedAt)}
-                </Text>
-              </View>
-              <Icon as={ChevronRight} className="size-4 text-faint" />
-            </Tappable>
-            <DeleteKey label={`Delete ${t.title}`} onClick={() => setDoomed({ kind: 'chat', id: t.id, title: t.title })} />
-          </View>
-        ))}
-
-        {calls.map((c) => (
-          <View key={c.id} className="flex-row items-start gap-3 border-t border-line p-3">
-            <View className="size-10 shrink-0 items-center justify-center rounded-xl bg-success-soft">
-              <Icon as={PhoneCall} className="size-5 text-success" />
-            </View>
-            <View className="min-w-0 flex-1">
-              <View className="flex-row items-center gap-2">
-                <Text numberOfLines={1} className="shrink text-sm font-extrabold">
-                  {PURPOSE_LABEL[c.purpose]}
-                </Text>
-                {(() => {
-                  const tone =
-                    c.result === 'escalated'
-                      ? ['bg-danger-soft', 'text-danger']
-                      : c.result === 'reschedule_requested' || c.result === 'follow_up'
-                        ? ['bg-warning-soft', 'text-warning']
-                        : ['bg-success-soft', 'text-success']
-                  return (
-                    <View className={cn('shrink-0 rounded-md px-1.5 py-0.5', tone[0])}>
-                      <Text className={cn('text-[10px] font-extrabold uppercase', tone[1])}>{RESULT_LABEL[c.result]}</Text>
-                    </View>
-                  )
-                })()}
-              </View>
-              <Text className="text-xs font-medium text-ink-2">{c.summary.result}</Text>
-              {c.summary.request && <Text className="text-xs font-medium text-muted">Request: {c.summary.request}</Text>}
-              <Text className="text-[11px] font-semibold text-faint">AI call · {ago(c.at)}</Text>
-            </View>
-            <DeleteKey label={`Delete ${PURPOSE_LABEL[c.purpose]} summary`} onClick={() => setDoomed({ kind: 'call', id: c.id, title: PURPOSE_LABEL[c.purpose] })} />
-          </View>
-        ))}
-
-        {!notes && threads.length === 0 && calls.length === 0 && (
-          <Text className="border-t border-line p-4 text-sm font-medium text-muted">
-            Ask AI for diagnosis help or run an AI call — conversations and call summaries are kept here.
-          </Text>
-        )}
-      </Card>
-      <ConfirmDelete
-        open={doomed !== null}
-        title={doomed?.kind === 'call' ? 'Delete call summary?' : 'Delete conversation?'}
-        body={`“${doomed?.title ?? ''}” will be removed from this job. This can’t be undone.`}
-        onCancel={() => setDoomed(null)}
-        onConfirm={() => {
-          if (doomed) deleteAi(doomed.kind === 'chat' ? { threads: [doomed.id] } : { calls: [doomed.id] })
-          setDoomed(null)
-        }}
-      />
-    </View>
-  )
-}

@@ -43,6 +43,9 @@ async function takePhoto(): Promise<ImagePicker.ImagePickerAsset | null> {
   return r.canceled ? null : (r.assets[0] ?? null)
 }
 
+/** A photo id from the clock — taken when the shot is saved, not during render. */
+const photoId = () => `${Date.now()}`
+
 export function PhotoSlots({ job, only }: { job: Job; only?: PhotoKind[] }) {
   const { addPhoto, removePhoto } = useStore()
   const slots = only ? SLOTS.filter((s) => only.includes(s.kind)) : SLOTS
@@ -51,7 +54,7 @@ export function PhotoSlots({ job, only }: { job: Job; only?: PhotoKind[] }) {
     const asset = await takePhoto()
     if (!asset) return
     const url = await downscale(asset.uri, asset.width, asset.height)
-    addPhoto(job.id, { id: `${Date.now()}`, kind, url })
+    addPhoto(job.id, { id: photoId(), kind, url })
   }
 
   return (

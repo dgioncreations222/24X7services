@@ -122,7 +122,7 @@ const NOT_CONFIRMED = 'These are possible causes based on the reported symptoms 
 export function greeting(ctx: AiContext): AiAnswer {
   if (!ctx.appliance) {
     return {
-      lead: "Hi! I'm your technical assistant for Samsung, LG, Bosch and IBM washing machines, refrigerators, ovens, ACs and geysers. Which appliance are you working on?",
+      lead: "Hi! I'm your technical assistant for Samsung, LG, Bosch and IFB washing machines, refrigerators, ovens, ACs and geysers. Which appliance are you working on?",
       sections: [],
       suggestions: APPLIANCES.map((a) => APPLIANCE_LABEL[a]),
     }
@@ -139,7 +139,7 @@ export function answer(ctx: AiContext, input: { text?: string; intent?: Intent }
   const scope = outOfScope(text)
   if (scope) {
     return {
-      lead: `I can only help with Samsung, LG, Bosch and IBM washing machines, refrigerators, ovens, ACs and geysers — ${scope} are outside what this network services.`,
+      lead: `I can only help with Samsung, LG, Bosch and IFB washing machines, refrigerators, ovens, ACs and geysers — ${scope} are outside what this network services.`,
       sections: [],
       caution: 'For anything outside this scope, contact the partner support desk.',
     }

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ScrollView, TextInput, View } from 'react-native'
-import { BriefcaseBusiness, History, Search, Siren } from 'lucide-react-native'
+import { useLocalSearchParams } from 'expo-router'
+import { BriefcaseBusiness, Search, Siren } from 'lucide-react-native'
 import { NO_FILTERS, applyFilters, type FilterState } from '@/components/Filters'
 import { ApplianceGlyph } from '@/components/glyphs'
 import { JobCard, variantOf, type CardVariant } from '@/components/JobCard'
@@ -36,9 +37,19 @@ const CHIP_MATCH: Record<Chip, (j: Job, v: CardVariant) => boolean> = {
 
 const inChip = (j: Job, c: Chip) => CHIP_MATCH[c](j, variantOf(j))
 
+/** `?chip=completed` (or any chip key) opens the screen on that chip. */
+const chipFrom = (v?: string): Chip => (CHIPS.some((c) => c.key === v) ? (v as Chip) : 'all')
+
 export default function JobsScreen() {
   const { jobs } = useStore()
-  const [status, setStatus] = useState<Chip>('all')
+  const { chip } = useLocalSearchParams<{ chip?: string }>()
+  const [status, setStatus] = useState<Chip>(chipFrom(chip))
+  // The tab stays mounted, so a later link with another chip has to move it.
+  const [linked, setLinked] = useState(chip)
+  if (chip !== linked) {
+    setLinked(chip)
+    setStatus(chipFrom(chip))
+  }
   const [filters, setFilters] = useState<FilterState>(NO_FILTERS)
   const [q, setQ] = useState('')
 
@@ -61,12 +72,6 @@ export default function JobsScreen() {
         back="/home"
         title="Jobs"
         subtitle={`${board.length} on today’s board`}
-        right={
-          <Tappable href="/history" className="h-10 flex-row items-center gap-1.5 rounded-xl px-3 active:bg-brand-soft active:opacity-100">
-            <Icon as={History} className="size-4 text-brand" />
-            <Text className="text-sm font-bold text-brand">History</Text>
-          </Tappable>
-        }
       />
       <Page className="gap-4">
         <View className="relative justify-center">

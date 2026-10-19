@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { Logo } from '@/components/Logo'
+import { BRAND } from '@/lib/brand'
 import { Button, Field, inputClass } from '@/components/ui'
 import { ADMIN, useStore } from '@/lib/store'
 
@@ -37,11 +38,11 @@ export default function Login() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">Operations console</p>
           <h1 className="mt-4 text-4xl font-extrabold leading-[1.1] tracking-tight">One desk for every booking, technician and rupee.</h1>
           <p className="mt-4 text-base font-medium leading-relaxed text-white/65">
-            Dispatch emergencies, approve technicians, settle payouts and answer customers — across Samsung, LG, Bosch and IBM service in Hyderabad.
+            Dispatch emergencies, approve technicians, settle payouts and answer customers — across Samsung, LG, Bosch and IFB service in Hyderabad.
           </p>
           <dl className="mt-10 grid grid-cols-3 gap-6 border-t border-white/10 pt-6">
             {[
-              ['24×7', 'Emergency desk'],
+              ['Live', 'Emergency desk'],
               ['20', 'Service areas'],
               ['5', 'Appliance lines'],
             ].map(([v, l]) => (
@@ -63,7 +64,7 @@ export default function Login() {
             <Logo />
           </div>
           <h2 className="text-2xl font-extrabold tracking-tight">Sign in</h2>
-          <p className="mt-1 text-sm font-medium text-muted">Use your 24X7 staff account.</p>
+          <p className="mt-1 text-sm font-medium text-muted">Use your {BRAND.name} staff account.</p>
           <div className="mt-8 space-y-4">
             <Field label="Work email">
               <input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} className={`${inputClass} h-11`} />

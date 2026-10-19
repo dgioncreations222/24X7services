@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BadgePercent,
-  Bot,
   ChevronRight,
   FileClock,
   Images,
@@ -83,7 +82,6 @@ const NAV: { group: string; side?: Side; items: Item[] }[] = [
       { href: '/reports', label: 'Reports', icon: ChartColumn },
     ],
   },
-  { group: 'AI Center', items: [{ href: '/ai', label: 'AI Center', icon: Bot }] },
   { group: 'Content', items: [{ href: '/content', label: 'Content & Media', icon: Images }] },
   {
     group: 'System',

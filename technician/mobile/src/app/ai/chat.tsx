@@ -224,7 +224,7 @@ export default function AiChatScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 bg-canvas">
-      <ScreenHeader back={job ? stepHref('detail', job.id) : ('/ai' as Href)} title="AI Technician Assistant" subtitle="24×7 Technical Support" />
+      <ScreenHeader back={job ? stepHref('detail', job.id) : ('/ai' as Href)} title="AI Technician Assistant" subtitle="Technical support, round the clock" />
 
       {/* Job context, so the technician never has to retype it. */}
       <View className="z-20 flex-row items-center gap-3 border-b border-line bg-canvas px-4 py-2.5">

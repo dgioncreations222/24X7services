@@ -1,17 +1,17 @@
 /**
- * What the 24X7 network services — and nothing else. Every picker,
+ * What the network services — and nothing else. Every picker,
  * filter and price table in the console is built from these tables, so a brand or
  * appliance that is not here cannot turn up anywhere on screen.
  */
 
-export const BRANDS = ['samsung', 'lg', 'bosch', 'ibm'] as const
+export const BRANDS = ['samsung', 'lg', 'bosch', 'ifb'] as const
 export type Brand = (typeof BRANDS)[number]
 
 export const BRAND_LABEL: Record<Brand, string> = {
   samsung: 'Samsung',
   lg: 'LG',
   bosch: 'Bosch',
-  ibm: 'IBM',
+  ifb: 'IFB',
 }
 
 export const APPLIANCES = ['washer', 'fridge', 'oven', 'ac', 'geyser'] as const

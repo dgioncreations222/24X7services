@@ -21,6 +21,7 @@ import { BarChart, Donut } from '@/components/charts'
 import { ApplianceGlyph } from '@/components/glyphs'
 import { Avatar, Button, Card, CardHeader, Chip, Page, PageHeader, PriorityTag, Rating, StatCard, StatusChip, buttonClass, tone, type Side } from '@/components/ui'
 import { APPLIANCES, APPLIANCE_LABEL, BRAND_LABEL, inr } from '@/lib/catalog'
+import { BRAND } from '@/lib/brand'
 import { cn } from '@/lib/cn'
 import { ago, compact, isToday, time, withinDays } from '@/lib/format'
 import { BOOKING_STATUS, LIVE, PRESENCE } from '@/lib/status'
@@ -121,7 +122,7 @@ export default function Dashboard() {
     <Page>
       <PageHeader
         title={`${greeting(new Date(now).getHours())}, ${ADMIN.name.split(' ')[0]}`}
-        sub={`Here’s the 24X7 network right now · ${new Date(now).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}`}
+        sub={`Here’s the ${BRAND.name} network right now · ${new Date(now).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}`}
         actions={
           <>
             <Link href="/reports" className={buttonClass('secondary')}>
