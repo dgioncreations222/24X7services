@@ -10,6 +10,7 @@ import { useBack } from '@/lib/nav'
 import { stepHref } from '@/lib/routes'
 import { useStore } from '@/lib/store'
 import type { Job, PartLine } from '@/lib/types'
+import { COLORS } from '@/lib/theme'
 
 export default function Parts() {
   const job = useJobParam()
@@ -55,7 +56,7 @@ function PartsPicker({ job }: { job: Job }) {
             value={q}
             onChangeText={setQ}
             placeholder="Search parts"
-            placeholderTextColor="#8a93a3"
+            placeholderTextColor={COLORS.faint}
             returnKeyType="search"
             clearButtonMode="while-editing"
             className="h-12 w-full rounded-xl border border-line-strong bg-card pl-10 pr-3 text-base font-normal text-ink"

@@ -16,13 +16,14 @@ import {
   useFonts,
 } from '@expo-google-fonts/manrope'
 import { StoreProvider } from '@/lib/store'
+import { COLORS } from '@/lib/theme'
 import { AppShell } from '@/components/AppShell'
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined)
 
 const theme = {
   ...DefaultTheme,
-  colors: { ...DefaultTheme.colors, background: '#f3f5f8', card: '#ffffff', text: '#111827', border: '#e3e7ee', primary: '#2547d0' },
+  colors: { ...DefaultTheme.colors, background: COLORS.canvas, card: COLORS.card, text: COLORS.ink, border: COLORS.line, primary: COLORS.brand },
 }
 
 /**
@@ -53,7 +54,7 @@ export default function RootLayout() {
           ) : (
             <StoreProvider>
               <AppShell>
-                <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: '#f3f5f8' } }}>
+                <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: COLORS.canvas } }}>
                   <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
                   <Stack.Screen name="index" options={{ animation: 'none' }} />
                   <Stack.Screen name="login" options={{ animation: 'fade' }} />

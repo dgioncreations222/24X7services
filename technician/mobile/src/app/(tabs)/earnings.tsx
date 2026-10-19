@@ -109,7 +109,7 @@ export default function EarningsScreen() {
             <Text className="text-xs font-bold uppercase tracking-wider text-white/60">Service revenue</Text>
             <Text className="num mt-1 text-[34px] font-extrabold leading-[38px] tracking-tight text-white">{inr(total)}</Text>
             <View className="mt-2 flex-row items-center gap-1.5">
-              <Icon as={TrendingUp} className="size-4 text-[#4ade80]" />
+              <Icon as={TrendingUp} className="size-4 text-live-bright" />
               <Text className="text-sm font-semibold text-white/70">
                 {inRange.length} jobs · avg {inr(inRange.length ? total / inRange.length : 0)}
               </Text>

@@ -20,6 +20,7 @@ import { BRAND } from '@/lib/brand'
 import { cn } from '@/lib/cn'
 import { DEMO_OTP, TECHNICIAN } from '@/lib/seed'
 import { useStore } from '@/lib/store'
+import { COLORS } from '@/lib/theme'
 
 type Mode = 'otp' | 'id'
 
@@ -217,7 +218,7 @@ function OtpForm({ onDone }: { onDone: () => void }) {
               onChangeText={setPhone}
               className={cn(inputClass, 'num flex-1 rounded-l-none font-bold tracking-wide')}
               placeholder="98xxx xxxxx"
-              placeholderTextColor="#8a93a3"
+              placeholderTextColor={COLORS.faint}
             />
           </View>
         </Field>
@@ -312,7 +313,7 @@ function IdForm({ onDone, onForgot }: { onDone: () => void; onForgot: () => void
             autoCorrect={false}
             className={cn(inputClass, 'num pl-10 font-bold tracking-wide')}
             placeholder="TCH-XXX-0000"
-            placeholderTextColor="#8a93a3"
+            placeholderTextColor={COLORS.faint}
           />
         </View>
       </Field>
@@ -331,7 +332,7 @@ function IdForm({ onDone, onForgot }: { onDone: () => void; onForgot: () => void
             onSubmitEditing={() => ok && onDone()}
             className={cn(inputClass, 'px-10')}
             placeholder="••••••••"
-            placeholderTextColor="#8a93a3"
+            placeholderTextColor={COLORS.faint}
           />
           <Tappable
             onPress={() => setShow((s) => !s)}

@@ -310,7 +310,7 @@ export function AvailabilityToast() {
         accessibilityRole="alert"
         className="max-w-md flex-row items-start gap-2.5 rounded-xl bg-ink px-4 py-3 shadow-float"
       >
-        <View className={cn('mt-1.5 size-2 shrink-0 rounded-full', msg.off ? 'bg-white/50' : 'bg-[#4ade80]')} />
+        <View className={cn('mt-1.5 size-2 shrink-0 rounded-full', msg.off ? 'bg-white/50' : 'bg-live-bright')} />
         <Text className="shrink text-sm font-bold text-white">{msg.text}</Text>
       </Animated.View>
     </View>

@@ -3,8 +3,9 @@ import { Image, PanResponder, View } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 import { Eraser } from 'lucide-react-native'
 import { Icon, Tappable, Text } from './ui'
+import { COLORS } from '@/lib/theme'
 
-const INK = '#0f1d57'
+const INK = COLORS.brandInk
 const WIDTH = 2.4
 const SVG_PREFIX = 'data:image/svg+xml;utf8,'
 
@@ -97,7 +98,7 @@ export function SignaturePad({ value, onChange }: { value: string; onChange: (da
     <View>
       <View
         accessibilityLabel="Customer signature"
-        className="h-40 overflow-hidden rounded-xl border-2 border-dashed border-line-strong bg-[#fbfcfe]"
+        className="h-40 overflow-hidden rounded-xl border-2 border-dashed border-line-strong bg-paper"
         onLayout={(e) => {
           size.current = { w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height }
         }}

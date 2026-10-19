@@ -36,6 +36,7 @@ import { IncomingRequest } from './IncomingRequest'
 import { Logo } from './Logo'
 import { MenuContext } from './menu'
 import { TechnicianSheet } from './TechnicianSheet'
+import { COLORS } from '@/lib/theme'
 
 const SIDE: readonly { href: Href & string; label: string; icon: LucideIcon }[] = [
   { href: '/home', label: 'Dashboard', icon: House },
@@ -143,7 +144,7 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
           </Text>
           <Text className="num text-xs font-semibold text-muted">{store.tech.id}</Text>
           <View className="mt-0.5 flex-row items-center gap-1">
-            <Icon as={Star} className="size-3 text-warning" fill="#c9730f" />
+            <Icon as={Star} className="size-3 text-warning" fill={COLORS.warning} />
             <Text className="text-[11px] font-bold text-muted">
               {store.tech.rating.toFixed(2)} • {store.tech.experienceYears} yrs exp.
             </Text>

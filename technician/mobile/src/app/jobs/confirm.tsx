@@ -12,6 +12,7 @@ import { billTotal } from '@/lib/format'
 import { stepHref } from '@/lib/routes'
 import { useStore } from '@/lib/store'
 import type { Job } from '@/lib/types'
+import { COLORS } from '@/lib/theme'
 
 const EASE = Easing.bezier(0.22, 0.61, 0.36, 1)
 
@@ -120,7 +121,7 @@ function ConfirmForm({ job }: { job: Job }) {
                   onPress={() => setRating(n)}
                   className="size-12 items-center justify-center"
                 >
-                  <Icon as={Star} className={cn('size-9', n <= rating ? 'text-warning' : 'text-line-strong')} fill={n <= rating ? '#c9730f' : undefined} strokeWidth={1.5} />
+                  <Icon as={Star} className={cn('size-9', n <= rating ? 'text-warning' : 'text-line-strong')} fill={n <= rating ? COLORS.warning : undefined} strokeWidth={1.5} />
                 </Tappable>
               ))}
             </View>
@@ -147,7 +148,7 @@ function ConfirmForm({ job }: { job: Job }) {
               numberOfLines={2}
               textAlignVertical="top"
               placeholder="Anything else? (optional)"
-              placeholderTextColor="#8a93a3"
+              placeholderTextColor={COLORS.faint}
               className={cn(inputClass, 'mt-3 min-h-[64px] text-sm')}
             />
           </Card>
@@ -228,7 +229,7 @@ function Closed({ job }: { job: Job }) {
               <Text className="text-sm font-semibold text-muted">Customer rating</Text>
               <View className="flex-row items-center gap-1">
                 <Text className="font-extrabold">{job.confirmation.rating}</Text>
-                <Icon as={Star} className="size-4 text-warning" fill="#c9730f" />
+                <Icon as={Star} className="size-4 text-warning" fill={COLORS.warning} />
               </View>
             </View>
           )}

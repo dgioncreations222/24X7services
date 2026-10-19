@@ -8,6 +8,7 @@ import { seedReviews } from '@/lib/seed'
 import { useStore } from '@/lib/store'
 import type { Job, Review } from '@/lib/types'
 import { Card, FilterChip, Icon, SectionTitle, Segmented, Sheet, Tappable, Text } from './ui'
+import { COLORS } from '@/lib/theme'
 
 type Period = 'today' | 'week' | 'month' | 'all'
 
@@ -228,7 +229,7 @@ function Stars({ n, className }: { n: number; className?: string }) {
   return (
     <View className={cn('flex-row items-center gap-0.5', className)} accessibilityLabel={`${n} out of 5`}>
       {[1, 2, 3, 4, 5].map((i) =>
-        i <= n ? <Icon key={i} as={Star} className="size-3.5 text-warning" fill="#c9730f" /> : <Icon key={i} as={Star} className="size-3.5 text-line-strong" />
+        i <= n ? <Icon key={i} as={Star} className="size-3.5 text-warning" fill={COLORS.warning} /> : <Icon key={i} as={Star} className="size-3.5 text-line-strong" />
       )}
     </View>
   )

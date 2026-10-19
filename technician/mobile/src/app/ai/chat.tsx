@@ -28,6 +28,7 @@ import { cn } from '@/lib/cn'
 import { time } from '@/lib/format'
 import { stepHref } from '@/lib/routes'
 import { useJob, useStore } from '@/lib/store'
+import { COLORS } from '@/lib/theme'
 
 const QUICK: Intent[] = ['diagnose', 'error', 'troubleshoot', 'repair', 'parts', 'notes', 'explain']
 
@@ -340,7 +341,7 @@ export default function AiChatScreen() {
               }}
               onFocus={() => setTimeout(toEnd, 250)}
               placeholder={ctx.appliance ? 'Ask a question…' : 'Appliance and problem…'}
-              placeholderTextColor="#8a93a3"
+              placeholderTextColor={COLORS.faint}
               textAlignVertical="center"
               className={cn(inputClass, 'max-h-32 min-h-11 py-2.5 pr-9 text-[15px]')}
             />

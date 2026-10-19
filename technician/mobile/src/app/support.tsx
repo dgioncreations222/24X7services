@@ -5,6 +5,7 @@ import { Button, Card, Field, FilterChip, Icon, Page, ScreenHeader, SectionTitle
 import { BRAND } from '@/lib/brand'
 import { cn } from '@/lib/cn'
 import { useStore } from '@/lib/store'
+import { COLORS } from '@/lib/theme'
 
 const FAQ = [
   ['A customer wants work outside the booked service', 'Record it in diagnosis and add it to the bill as a separate line before starting. Never do unbilled work — it isn’t covered by the service warranty.'],
@@ -160,7 +161,7 @@ export default function SupportScreen() {
                 textAlignVertical="top"
                 className={cn(inputClass, 'min-h-[88px]')}
                 placeholder="Tell us what happened"
-                placeholderTextColor="#8a93a3"
+                placeholderTextColor={COLORS.faint}
               />
             </Field>
             <Button

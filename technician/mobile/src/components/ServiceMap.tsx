@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { cn } from '@/lib/cn'
 import { BASE } from '@/lib/seed'
+import { COLORS } from '@/lib/theme'
 
 /**
  * The service area, drawn.
@@ -136,7 +137,7 @@ function RouteDash({ d, width, dash }: { d: string; width: number; dash: string 
     <AnimatedPath
       d={d}
       fill="none"
-      stroke="#fff"
+      stroke={COLORS.white}
       strokeWidth={width}
       strokeDasharray={dash}
       strokeLinecap="round"
@@ -242,7 +243,7 @@ export function ServiceMap({
 
   return (
     <View
-      className={cn('relative overflow-hidden bg-[#e9edf2]', className)}
+      className={cn('relative overflow-hidden bg-map-land', className)}
       style={fill ? undefined : { aspectRatio: aspect }}
       onLayout={
         fill
@@ -258,28 +259,28 @@ export function ServiceMap({
       <Svg viewBox={`${minX} ${minY} ${vw} ${vh}`} width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
         <Defs>
           <Pattern id={`grid-${uid}`} width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(8)">
-            <Path d="M28 0H0V28" fill="none" stroke="#dde2ea" strokeWidth="1.2" />
+            <Path d="M28 0H0V28" fill="none" stroke={COLORS.mapGrid} strokeWidth="1.2" />
           </Pattern>
         </Defs>
-        <Rect x={-500} y={-500} width={W + 1000} height={H + 1000} fill="#eef1f5" />
+        <Rect x={-500} y={-500} width={W + 1000} height={H + 1000} fill={COLORS.mapGround} />
         <Rect x={-500} y={-500} width={W + 1000} height={H + 1000} fill={`url(#grid-${uid})`} />
 
         {/* Green: University of Hyderabad, KBR Park, Botanical Garden */}
-        <Path d={blob(project(17.458, 78.332), 70, 95)} fill="#d7ead9" />
-        <Path d={blob(project(17.4235, 78.4165), 34, 30)} fill="#d7ead9" />
-        <Path d={blob(project(17.4585, 78.3575), 26, 22)} fill="#d7ead9" />
+        <Path d={blob(project(17.458, 78.332), 70, 95)} fill={COLORS.mapPark} />
+        <Path d={blob(project(17.4235, 78.4165), 34, 30)} fill={COLORS.mapPark} />
+        <Path d={blob(project(17.4585, 78.3575), 26, 22)} fill={COLORS.mapPark} />
         {/* Water: Durgam Cheruvu, Khajaguda, Gopi Cheruvu */}
-        <Path d={blob(project(17.4295, 78.3895), 16, 44, 0.6)} fill="#c7dcf1" />
-        <Path d={blob(project(17.418, 78.372), 20, 16)} fill="#c7dcf1" />
-        <Path d={blob(project(17.4555, 78.346), 14, 12)} fill="#c7dcf1" />
+        <Path d={blob(project(17.4295, 78.3895), 16, 44, 0.6)} fill={COLORS.mapWater} />
+        <Path d={blob(project(17.418, 78.372), 20, 16)} fill={COLORS.mapWater} />
+        <Path d={blob(project(17.4555, 78.346), 14, 12)} fill={COLORS.mapWater} />
 
         {MINOR.map((p, i) => (
-          <Path key={`m${i}`} d={path(p)} fill="none" stroke="#fff" strokeWidth={s(7)} strokeLinecap="round" strokeLinejoin="round" />
+          <Path key={`m${i}`} d={path(p)} fill="none" stroke={COLORS.white} strokeWidth={s(7)} strokeLinecap="round" strokeLinejoin="round" />
         ))}
         {MAJOR.map((p, i) => (
           <G key={`M${i}`}>
-            <Path d={path(p)} fill="none" stroke="#d3d9e3" strokeWidth={s(15)} strokeLinecap="round" strokeLinejoin="round" />
-            <Path d={path(p)} fill="none" stroke={i === 5 ? '#fbe7b5' : '#fff'} strokeWidth={s(11)} strokeLinecap="round" strokeLinejoin="round" />
+            <Path d={path(p)} fill="none" stroke={COLORS.mapRoadEdge} strokeWidth={s(15)} strokeLinecap="round" strokeLinejoin="round" />
+            <Path d={path(p)} fill="none" stroke={i === 5 ? COLORS.mapHighway : COLORS.white} strokeWidth={s(11)} strokeLinecap="round" strokeLinejoin="round" />
           </G>
         ))}
 
@@ -295,7 +296,7 @@ export function ServiceMap({
               fontFamily="Manrope_800ExtraBold"
               fontWeight="800"
               letterSpacing={s(2.4)}
-              fill="#9aa3b2"
+              fill={COLORS.mapLabel}
             >
               {a.name}
             </SvgText>
@@ -304,25 +305,25 @@ export function ServiceMap({
 
         {r && (
           <>
-            <Path d={path(r)} fill="none" stroke="#1a3499" strokeOpacity={0.18} strokeWidth={s(22)} strokeLinecap="round" strokeLinejoin="round" />
-            <Path d={path(r)} fill="none" stroke="#2547d0" strokeWidth={s(9)} strokeLinecap="round" strokeLinejoin="round" />
+            <Path d={path(r)} fill="none" stroke={COLORS.brandDeep} strokeOpacity={0.18} strokeWidth={s(22)} strokeLinecap="round" strokeLinejoin="round" />
+            <Path d={path(r)} fill="none" stroke={COLORS.brand} strokeWidth={s(9)} strokeLinecap="round" strokeLinejoin="round" />
             <RouteDash d={path(r)} width={s(3)} dash={`${s(4)} ${s(16)}`} />
           </>
         )}
 
         {pins.map((p) => {
           const [x, y] = project(p.lat, p.lng)
-          const color = p.tone === 'danger' ? '#d0342c' : p.tone === 'success' ? '#0a8f5c' : p.tone === 'muted' ? '#8a93a3' : '#2547d0'
+          const color = p.tone === 'danger' ? COLORS.danger : p.tone === 'success' ? COLORS.success : p.tone === 'muted' ? COLORS.faint : COLORS.brand
           const k = s(p.active ? 1.25 : 1)
           return (
             <G key={p.id} transform={`translate(${x} ${y}) scale(${k})`} onPress={onPin ? () => onPin(p.id) : undefined}>
               {p.tone === 'danger' && <PulseRing r={20} fill={color} opacity={0.25} />}
-              <Path d="M0 0c-3-9-15-15-15-27a15 15 0 1 1 30 0C15-15 3-9 0 0Z" fill={color} stroke="#fff" strokeWidth="3" />
-              <Circle cy="-27" r="5.5" fill="#fff" />
+              <Path d="M0 0c-3-9-15-15-15-27a15 15 0 1 1 30 0C15-15 3-9 0 0Z" fill={color} stroke={COLORS.white} strokeWidth="3" />
+              <Circle cy="-27" r="5.5" fill={COLORS.white} />
               {p.label && (
                 <G transform="translate(0 -52)">
-                  <Rect x={-p.label.length * 4.4 - 8} y="-13" width={p.label.length * 8.8 + 16} height="24" rx="6" fill="#111827" />
-                  <SvgText textAnchor="middle" y="4" fontSize="13" fontFamily="Manrope_800ExtraBold" fontWeight="800" fill="#fff">
+                  <Rect x={-p.label.length * 4.4 - 8} y="-13" width={p.label.length * 8.8 + 16} height="24" rx="6" fill={COLORS.ink} />
+                  <SvgText textAnchor="middle" y="4" fontSize="13" fontFamily="Manrope_800ExtraBold" fontWeight="800" fill={COLORS.white}>
                     {p.label}
                   </SvgText>
                 </G>
@@ -333,9 +334,9 @@ export function ServiceMap({
 
         {showBase && (
           <G transform={`translate(${van[0]} ${van[1]}) scale(${s(1)})`}>
-            <PulseRing r={26} fill="#2547d0" opacity={0.16} />
-            <Circle r="13" fill="#fff" />
-            <Circle r="9" fill="#2547d0" />
+            <PulseRing r={26} fill={COLORS.brand} opacity={0.16} />
+            <Circle r="13" fill={COLORS.white} />
+            <Circle r="9" fill={COLORS.brand} />
           </G>
         )}
       </Svg>

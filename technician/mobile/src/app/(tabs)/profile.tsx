@@ -24,6 +24,7 @@ import { Avatar, Card, Icon, Page, ScreenHeader, SectionTitle, Tappable, Text } 
 import { APPLIANCES, APPLIANCE_LABEL, BRAND_LABEL } from '@/lib/catalog'
 import { cn } from '@/lib/cn'
 import { useStore } from '@/lib/store'
+import { COLORS } from '@/lib/theme'
 
 /** Cropped to the centre square and shrunk to 240 px, as the web's canvas did. */
 async function pickPhoto(): Promise<string | null> {
@@ -92,7 +93,7 @@ export default function ProfileScreen() {
             <View className="flex-1 p-3">
               <View className="flex-row items-center justify-center gap-1">
                 <Text className="num text-lg font-extrabold">{tech.rating.toFixed(2)}</Text>
-                <Icon as={Star} className="size-4 text-warning" fill="#c9730f" />
+                <Icon as={Star} className="size-4 text-warning" fill={COLORS.warning} />
               </View>
               <Text className="text-center text-[11px] font-bold uppercase tracking-wide text-muted">Rating</Text>
             </View>

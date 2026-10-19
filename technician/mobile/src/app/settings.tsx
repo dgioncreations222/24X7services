@@ -33,6 +33,7 @@ import { ago } from '@/lib/format'
 import { useT } from '@/lib/i18n'
 import { useStore, useTick } from '@/lib/store'
 import type { Settings } from '@/lib/types'
+import { COLORS } from '@/lib/theme'
 
 type SheetName = 'payment' | 'scanner' | 'account' | 'password' | 'devices' | 'logout'
 
@@ -282,7 +283,7 @@ function Toast({ text }: { text: string }) {
         accessibilityRole="alert"
         className="flex-row items-center gap-2 rounded-xl bg-ink px-4 py-3 shadow-float"
       >
-        <Icon as={CircleCheck} className="size-4 text-[#4ade80]" />
+        <Icon as={CircleCheck} className="size-4 text-live-bright" />
         <Text className="shrink text-sm font-bold text-white">{text}</Text>
       </Animated.View>
     </View>
@@ -396,7 +397,7 @@ function PaymentSheet({ open, onClose, onSave }: { open: boolean; onClose: () =>
     <Sheet open={open} onClose={onClose} title="Payment settings">
       <View className="gap-4">
         <Field label="Payout bank account">
-          <TextInput value={bank} onChangeText={setBank} className={inputClass} placeholderTextColor="#8a93a3" />
+          <TextInput value={bank} onChangeText={setBank} className={inputClass} placeholderTextColor={COLORS.faint} />
         </Field>
         <Field
           label="UPI ID for collections"
@@ -409,7 +410,7 @@ function PaymentSheet({ open, onClose, onSave }: { open: boolean; onClose: () =>
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="email-address"
-            placeholderTextColor="#8a93a3"
+            placeholderTextColor={COLORS.faint}
           />
         </Field>
         <Button size="lg" className="w-full" disabled={!ok} onPress={() => onSave(bank.trim(), upi.trim())}>

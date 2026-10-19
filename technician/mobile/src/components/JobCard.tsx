@@ -12,6 +12,7 @@ import type { FlowStep, Job } from '@/lib/types'
 import { ApplianceGlyph } from './glyphs'
 import { ServiceMap } from './ServiceMap'
 import { Icon, Inherit, Labelled, Tappable, Text } from './ui'
+import { COLORS } from '@/lib/theme'
 
 /**
  * A field job card. Every variant reads in the same order — status, what,
@@ -230,7 +231,7 @@ function VariantFacts({ job, variant, now }: { job: Job; variant: CardVariant; n
             <View accessible accessibilityLabel={`Rated ${job.confirmation.rating} out of 5`} className="w-full flex-row items-center gap-0.5">
               {[1, 2, 3, 4, 5].map((n) =>
                 n <= job.confirmation!.rating ? (
-                  <Icon key={n} as={Star} className="size-4 text-warning" fill="#c9730f" />
+                  <Icon key={n} as={Star} className="size-4 text-warning" fill={COLORS.warning} />
                 ) : (
                   <Icon key={n} as={Star} className="size-4 text-line-strong" />
                 )

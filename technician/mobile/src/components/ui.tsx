@@ -16,6 +16,7 @@ import { ArrowLeft, Flame, X } from 'lucide-react-native'
 import { useBack } from '@/lib/nav'
 import { cn } from '@/lib/cn'
 import { STATUS, type Tone } from '@/lib/status'
+import { COLORS } from '@/lib/theme'
 import type { JobStatus, Priority } from '@/lib/types'
 import { Icon } from './base/Icon'
 import { Tappable, type TappableProps } from './base/Tappable'
@@ -490,7 +491,7 @@ export function Avatar({ name, photo, size = 44, className }: { name: string; ph
     />
   ) : (
     <LinearGradient
-      colors={['#3b5ce0', '#152a7a']}
+      colors={[COLORS.brandBright, COLORS.brandNight]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       className={cn('shrink-0 items-center justify-center rounded-full', className)}

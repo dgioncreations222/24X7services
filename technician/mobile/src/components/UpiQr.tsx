@@ -5,6 +5,7 @@ import QRCode from 'qrcode'
 import { File, Paths } from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import { cn } from '@/lib/cn'
+import { COLORS } from '@/lib/theme'
 
 /**
  * The standard UPI payment link every UPI app (GPay, PhonePe, Paytm, BHIM)
@@ -37,7 +38,7 @@ export function QrCode({ text, className, label = 'Payment QR code' }: { text: s
   return (
     <View accessibilityRole="image" accessibilityLabel={label} className={cn('aspect-square overflow-hidden rounded-xl bg-white', className)}>
       <Svg width="100%" height="100%" viewBox={`-2 -2 ${size + 4} ${size + 4}`}>
-        <Path d={d} fill="#0b1220" />
+        <Path d={d} fill={COLORS.qrInk} />
       </Svg>
     </View>
   )
@@ -64,7 +65,7 @@ export async function downloadQr(text: string, filename: string) {
 
 /**
  * A 1-bit greyscale PNG of the QR, `width` px square with a `margin`-module
- * quiet zone — #0b1220 cannot be expressed in 1-bit grey, so dark modules
+ * quiet zone — the qr-ink token cannot be expressed in 1-bit grey, so dark modules
  * are black, which every scanner and printer prefers anyway. The pixel data
  * goes in uncompressed ("stored") deflate blocks: no zlib needed, and at
  * 1 bit per pixel a 1024 px QR is still only ~130 KB.

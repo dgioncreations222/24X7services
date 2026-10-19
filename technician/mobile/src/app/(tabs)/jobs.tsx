@@ -11,6 +11,7 @@ import { cn } from '@/lib/cn'
 import { isToday, matchesQuery } from '@/lib/format'
 import type { Job } from '@/lib/types'
 import { useStore } from '@/lib/store'
+import { COLORS } from '@/lib/theme'
 
 /** The Jobs screen's chips, in the order a job moves — Emergency last, as a cut across them. */
 const CHIPS = [
@@ -83,7 +84,7 @@ export default function JobsScreen() {
             onChangeText={setQ}
             accessibilityLabel="Search jobs"
             placeholder="Customer, area, job ID…"
-            placeholderTextColor="#8a93a3"
+            placeholderTextColor={COLORS.faint}
             returnKeyType="search"
             className="h-10 w-full rounded-xl border border-line-strong bg-card pl-10 pr-3 text-[15px] text-ink"
           />

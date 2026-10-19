@@ -13,6 +13,7 @@ import { shortDate, time } from '@/lib/format'
 import { stepHref } from '@/lib/routes'
 import { useStore } from '@/lib/store'
 import type { Bill, Job, PaymentMethod } from '@/lib/types'
+import { COLORS } from '@/lib/theme'
 
 export default function BillScreen() {
   const job = useJobParam()
@@ -118,7 +119,7 @@ function BillForm({ job }: { job: Job }) {
                   accessibilityLabel="Additional amount"
                   value={bill.additional ? String(bill.additional) : ''}
                   placeholder="₹ 0"
-                  placeholderTextColor="#8a93a3"
+                  placeholderTextColor={COLORS.faint}
                   onChangeText={(v) => patch({ additional: Number(v.replace(/\D/g, '')) || 0 })}
                   className={cn(inputClass, 'num w-[110px] py-2.5 font-bold')}
                 />
@@ -126,7 +127,7 @@ function BillForm({ job }: { job: Job }) {
                   accessibilityLabel="Reason for additional charge"
                   value={bill.additionalNote}
                   placeholder="Reason (e.g. copper pipe 3 ft)"
-                  placeholderTextColor="#8a93a3"
+                  placeholderTextColor={COLORS.faint}
                   onChangeText={(v) => patch({ additionalNote: v })}
                   className={cn(inputClass, 'w-auto flex-1 py-2.5 text-sm')}
                 />
