@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "customer-service-dev-ff0dc",
+    "dev": "customer-service-dev-ff0dc"
+  }
+}

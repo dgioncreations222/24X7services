@@ -1,0 +1,201 @@
+rules_version = '2';
+
+// One rules file serves all three apps: customer, partner (technician) and
+// admin. The shape follows one principle: a client reads what belongs to it and
+// writes almost nothing. Prices, statuses and anything that moves money are
+// decided by Cloud Functions, which bypass these rules. Everything not named
+// below is denied by the final catch-all.
+//
+// Roles live in the auth token as a custom claim (`role`), set by the
+// onUserCreate function and, for partner/admin, by scripts/setRole.ts. A client
+// cannot set its own claims, so `request.auth.token.role` can be trusted here.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // A brand-new account has no claim until onUserCreate has run and the app
+    // has refreshed its token, so a missing role reads as 'customer'. Nothing a
+    // customer can do depends on the claim; only partner/admin access does.
+    function role() {
+      return signedIn() ? request.auth.token.get('role', 'customer') : null;
+    }
+
+    // Admin is checked against both the token and users/{uid}.role, which only
+    // setRole.ts writes. An ID token lives for up to an hour after a demotion;
+    // the document check makes the demotion take effect immediately. Costs one
+    // read per admin request, which is negligible at admin volume.
+    function isAdmin() {
+      return role() == 'admin'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', null) == 'admin';
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Field-set checks. `required` must all be present; nothing outside
+    // `required + optional` may appear, so a client cannot smuggle in a field
+    // the rules do not validate.
+    function onlyFields(required, optional) {
+      return incoming().keys().hasAll(required)
+        && incoming().keys().hasOnly(required.concat(optional));
+    }
+
+    // For updates: the fields that changed must all be in `allowed`.
+    function changesOnly(allowed) {
+      return incoming().diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    function isString(v, maxLen) {
+      return v is string && v.size() > 0 && v.size() <= maxLen;
+    }
+
+    // Timestamps must be the server's clock (serverTimestamp() in the app) or,
+    // on an update, left as they were. A client cannot backdate, forge or
+    // delete them once they exist.
+    function isServerTime(field) {
+      return resource == null || !(field in resource.data)
+        ? (!(field in incoming()) || incoming()[field] == request.time)
+        : (field in incoming()
+            && (incoming()[field] == request.time
+                || incoming()[field] == resource.data[field]));
+    }
+
+    // createdAt is set once, on create, and never moves or disappears after.
+    function isCreatedAt() {
+      return resource == null || !('createdAt' in resource.data)
+        ? (!('createdAt' in incoming()) || incoming().createdAt == request.time)
+        : ('createdAt' in incoming() && incoming().createdAt == resource.data.createdAt);
+    }
+
+    function isPincode(v) {
+      return v is string && v.matches('[1-9][0-9]{5}');
+    }
+
+    // Indian mobile number, stored as +91XXXXXXXXXX. Typed by the customer and
+    // not verified (there is no OTP), so it is a contact number, never an
+    // identity.
+    function isPhone(v) {
+      return v is string && v.matches('\\+91[6-9][0-9]{9}');
+    }
+
+    // -----------------------------------------------------------------------
+    // Catalog: public read, written only by the seed script and admin tools
+    // -----------------------------------------------------------------------
+
+    // Single documents are free to fetch. A list query must say how many it
+    // wants, and never more than 100, so a scraper or a buggy screen cannot
+    // read a whole collection in one go. The apps should serve the catalog
+    // from a cached bundle rather than querying it live on every launch.
+    function catalogList() {
+      return request.query.limit <= 100;
+    }
+
+    match /categories/{id} { allow get: if true; allow list: if catalogList(); allow write: if false; }
+    match /services/{id} {
+      allow get: if true;
+      allow list: if catalogList();
+      allow write: if false;
+
+      match /questions/{questionId} { allow get: if true; allow list: if catalogList(); allow write: if false; }
+    }
+    match /cities/{id} { allow get: if true; allow list: if catalogList(); allow write: if false; }
+    match /zones/{id}  { allow get: if true; allow list: if catalogList(); allow write: if false; }
+
+    // The public half of the config. Commission rates, provider keys and
+    // anything else private live in config/private, which no rule grants.
+    match /config/public { allow read: if true; allow write: if false; }
+
+    // -----------------------------------------------------------------------
+    // Users: the one place a customer writes
+    // -----------------------------------------------------------------------
+
+    match /users/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      // Admin screens page through users; one query can never read more than
+      // 100 documents, so a careless "load all" cannot become a large bill.
+      allow list: if isAdmin() && request.query.limit <= 100;
+
+      // email, role and createdAt come from the auth account and are written by
+      // onUserCreate. A client may set only its display fields. Create is
+      // allowed because the profile screen can race the trigger on first
+      // sign-in; the trigger merges, so neither write loses the other's fields.
+      // The app must save with updateDoc or setDoc(..., { merge: true }): a
+      // plain setDoc would erase email/role/createdAt and is rejected.
+      allow create: if isOwner(uid)
+        && onlyFields([], ['name', 'phone', 'photoUrl', 'defaultAddressId',
+                           'notifications', 'updatedAt'])
+        && validProfile();
+
+      allow update: if isOwner(uid)
+        && changesOnly(['name', 'phone', 'photoUrl', 'defaultAddressId',
+                        'notifications', 'updatedAt'])
+        && validProfile();
+
+      allow delete: if false; // a deleteAccount function will handle this
+
+      // At most 10 addresses per customer, enforced by the id itself: the app
+      // saves to the first free slot of a0..a9. Rules cannot count documents,
+      // but they can restrict the names, so this caps storage and list reads.
+      match /addresses/{addressId} {
+        allow get, delete: if isOwner(uid);
+        allow list: if isOwner(uid) && request.query.limit <= 10;
+        allow create, update: if isOwner(uid)
+          && addressId.matches('a[0-9]')
+          && onlyFields(
+               ['label', 'flat', 'area', 'city', 'pincode'],
+               ['customLabel', 'landmark', 'geo', 'createdAt', 'updatedAt']
+             )
+          && incoming().label in ['home', 'office', 'other']
+          && isString(incoming().flat, 120)
+          && isString(incoming().area, 160)
+          && isString(incoming().city, 80)
+          && isPincode(incoming().pincode)
+          && (!('customLabel' in incoming()) || isString(incoming().customLabel, 40))
+          && (!('landmark' in incoming()) || isString(incoming().landmark, 120))
+          && (!('geo' in incoming()) || incoming().geo is latlng)
+          && isCreatedAt()
+          && isServerTime('updatedAt');
+      }
+    }
+
+    function validProfile() {
+      return (!('name' in incoming()) || isString(incoming().name, 80))
+        && (!('phone' in incoming()) || isPhone(incoming().phone))
+        // https only, so an app rendering it can never be handed a
+        // javascript: or data: URL.
+        && (!('photoUrl' in incoming())
+            || (isString(incoming().photoUrl, 500) && incoming().photoUrl.matches('https://.+')))
+        && (!('defaultAddressId' in incoming())
+            || (incoming().defaultAddressId is string && incoming().defaultAddressId.matches('a[0-9]')))
+        && isServerTime('updatedAt')
+        // Two booleans and nothing else.
+        && (!('notifications' in incoming())
+            || (incoming().notifications.keys().hasOnly(['push', 'inApp'])
+                && (!('push' in incoming().notifications)
+                    || incoming().notifications.push is bool)
+                && (!('inApp' in incoming().notifications)
+                    || incoming().notifications.inApp is bool)));
+    }
+
+    // -----------------------------------------------------------------------
+    // Everything else
+    // -----------------------------------------------------------------------
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

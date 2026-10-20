@@ -1,0 +1,35 @@
+{
+  "name": "functions",
+  "version": "0.1.0",
+  "private": true,
+  "main": "lib/index.js",
+  "//build": "esbuild bundles src into one self-contained lib/index.js. Firebase uploads only this directory on deploy, so anything imported from outside it (shared types later) must be bundled in. firebase-admin and firebase-functions stay external because the runtime installs them from dependencies.",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=cjs --outfile=lib/index.js --external:firebase-admin --external:firebase-functions --sourcemap",
+    "watch": "npm run build -- --watch",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tools.json",
+    "//emulators": "Runs against a demo- project id, which the emulators treat as offline-only: nothing can reach the real Firebase project by mistake.",
+    "emulators": "npm run build && firebase emulators:start --project demo-customer-service --config ../firebase.json",
+    "pretest:rules": "node scripts/stopStaleEmulators.mjs",
+    "test:rules": "firebase emulators:exec --only firestore,storage --project demo-customer-service --config ../firebase.json \"vitest run --config test/vitest.config.ts\"",
+    "set-role": "tsx scripts/setRole.ts",
+    "//deploy": "Always deploy through this script: it builds first. There is no predeploy hook in firebase.json because hook paths resolve differently on Windows and from different folders.",
+    "deploy:dev": "npm run build && firebase deploy --project dev --config ../firebase.json"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^7.0.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "@types/node": "^22.15.0",
+    "esbuild": "^0.25.10",
+    "firebase": "^12.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

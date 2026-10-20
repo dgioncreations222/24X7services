@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// For now a customer uploads one thing: a profile photo. Catalog images
+// (category and service pictures) are public and uploaded through admin tools.
+// Booking photos, support attachments, invoices and partner KYC are added with
+// the phases that need them.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)');
+    }
+
+    // The app compresses photos before upload. The ceiling is looser so an
+    // unusual but honest file still lands, while a full-resolution photo does not.
+    function withinPhotoSize() {
+      return request.resource.size <= 2 * 1024 * 1024;
+    }
+
+    match /catalog/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // One fixed name per user, so a new photo replaces the old one and an
+    // account can never fill the bucket with files under made-up names. The
+    // app cannot delete it, only replace it; removal will be done by a
+    // function (account deletion). Repeated replacing is left to App Check:
+    // a time-based limit here could not be verified on the emulator, which
+    // does not separate create from update reliably.
+    match /users/{uid}/profile/avatar {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && isImage() && withinPhotoSize();
+      allow delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
