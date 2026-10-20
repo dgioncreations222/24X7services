@@ -34,7 +34,7 @@ import { isBare, redirectFor } from '@/lib/gate'
 import { useStore } from '@/lib/store'
 import { Avatar, Blink, Icon, Tappable, Text } from './ui'
 import { AvailabilityToast } from './Availability'
-import { IncomingRequest } from './IncomingRequest'
+import { OfferPopup } from './job/OfferPopup'
 import { Logo } from './Logo'
 import { MenuContext } from './menu'
 import { TechnicianSheet } from './TechnicianSheet'
@@ -90,7 +90,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {!bare && (
           <>
             <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} />
-            <IncomingRequest />
+            <OfferPopup />
             <AvailabilityToast />
           </>
         )}

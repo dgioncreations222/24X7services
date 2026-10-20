@@ -39,7 +39,7 @@ const STATUS: Record<Job['status'], PartnerJobStatus | null> = {
   rejected: null,
 }
 
-function toPartnerJob(j: Job): PartnerJob | null {
+export function toPartnerJob(j: Job): PartnerJob | null {
   const status = STATUS[j.status]
   if (!status) return null
   const bill = j.amount ?? j.estFee

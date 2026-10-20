@@ -5,6 +5,7 @@
  * screen can show a toast and let the technician try again.
  */
 import { mockRequest, mockUpload } from '../mock/api'
+import { customerPays, customerReviewsExtra, queueNextOffer } from '../mock/customer'
 import { read, write } from '../mock/db'
 import { useResource, type Query } from './query'
 import type { JobExtra, JobPhoto, JobsView, PartnerJob, PartnerJobStatus, RateCardItem } from './types'
@@ -64,13 +65,17 @@ function move(id: string, from: readonly PartnerJobStatus[], to: PartnerJobStatu
   })
 }
 
-export const acceptJob = (id: string) => move(id, ['offered'], 'assigned')
+export async function acceptJob(id: string) {
+  await move(id, ['offered'], 'assigned')
+  queueNextOffer()
+}
 
 /** Turn down an offer (or let its timer run out); dispatch offers it to the next technician. */
 export function rejectJob(id: string) {
   return mockRequest(() => {
     if (job(id).status !== 'offered') throw new JobStepError('Only a new request can be rejected.')
     write((db) => ({ ...db, jobs: db.jobs.filter((j) => j.id !== id) }))
+    queueNextOffer()
   })
 }
 
@@ -90,7 +95,7 @@ export function completeJob(id: string) {
   const j = read().jobs.find((x) => x.id === id)
   if (j && j.photos.after.length === 0) return Promise.reject(new JobStepError('Take an after photo first.'))
   if (j?.extras.some((e) => e.status === 'pending')) return Promise.reject(new JobStepError('Wait for the customer to approve the extra charges.'))
-  return move(id, ['in_progress'], 'completed')
+  return move(id, ['in_progress'], 'completed').then(() => customerPays(id))
 }
 
 /**
@@ -103,6 +108,7 @@ export function addExtra(id: string, extra: Pick<JobExtra, 'source' | 'rateCardI
     if (j.status !== 'in_progress' && j.status !== 'awaiting_approval') throw new JobStepError('Extras can be added once the job has started.')
     const line: JobExtra = { ...extra, id: `ex-${Date.now()}`, status: 'pending' }
     patch(id, (x) => ({ ...x, status: 'awaiting_approval', extras: [...x.extras, line] }))
+    customerReviewsExtra(id, line.id)
     return line
   })
 }

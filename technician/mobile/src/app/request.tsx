@@ -1,174 +1,118 @@
-import { Linking, View } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { CircleCheck, CircleX, ClipboardList, Clock, IndianRupee, MessageCircle, Navigation, Phone, Route as RouteIcon, Siren } from 'lucide-react-native'
-import { CustomerBlock, JobNotFound, JobSummary, useJobParam } from '@/components/JobParts'
-import { ServiceMap } from '@/components/ServiceMap'
-import { ActionDock, Card, Icon, Label, Page, ScreenHeader, SectionTitle, Tappable, Text } from '@/components/ui'
-import { LABOUR_RATE, inr } from '@/lib/catalog'
+import { useState } from 'react'
+import { ActivityIndicator, View } from 'react-native'
+import { router } from 'expo-router'
+import { Clock, MapPin } from 'lucide-react-native'
+import { JobScreen } from '@/components/job/JobScreen'
+import { OFFER_SECONDS, useOfferCountdown } from '@/components/job/useOfferCountdown'
+import { ActionDock, Button, Card, Icon, Label, Page, SectionTitle, Text } from '@/components/ui'
+import { acceptJob, rejectJob, type PartnerJob } from '@/lib/data'
 import { cn } from '@/lib/cn'
-import { ago, directionsHref, telHref, time } from '@/lib/format'
-import { stepHref } from '@/lib/routes'
-import { useStore } from '@/lib/store'
+import { useT } from '@/lib/i18n'
+import { rupees } from '@/lib/money'
+import { COLORS } from '@/lib/theme'
+import { clock, day } from '@/lib/when'
 
+/**
+ * A new request in full: what, where, when, what it pays and what the
+ * customer said — on the same 30-second clock as the popup.
+ */
 export default function RequestScreen() {
-  const job = useJobParam()
-  const { accept, reject } = useStore()
-  if (!job)
-    return (
-      <>
-        <ScreenHeader back="/home" title="New Service Request" />
-        <JobNotFound />
-      </>
-    )
+  const t = useT()
+  return (
+    <JobScreen title={() => t('New job request')} back={() => '/home'}>
+      {(job) => (job.status === 'offered' ? <Offer job={job} /> : <Taken job={job} />)}
+    </JobScreen>
+  )
+}
 
-  const emergency = job.priority === 'emergency'
-  const accepted = job.status !== 'request' && job.status !== 'rejected'
+function Offer({ job }: { job: PartnerJob }) {
+  const t = useT()
+  const left = useOfferCountdown(job.id)
+  const [busy, setBusy] = useState<'accept' | 'reject' | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function answer(kind: 'accept' | 'reject') {
+    setBusy(kind)
+    setError(null)
+    try {
+      if (kind === 'accept') {
+        await acceptJob(job.id)
+        router.replace(`/jobs/detail?id=${job.id}`)
+      } else {
+        await rejectJob(job.id)
+        router.replace('/home')
+      }
+    } catch {
+      setError(t('Couldn’t reach the server. Try again.'))
+      setBusy(null)
+    }
+  }
 
   return (
     <>
-      <ScreenHeader back="/home" title={accepted ? 'Job accepted' : 'New Service Request'} subtitle={`${job.id} · received ${ago(job.requestedAt)}`} />
-      <Page className="gap-4">
-        {emergency && !accepted && (
-          <View className="flex-row items-center gap-3 rounded-card bg-danger p-4">
-            <Icon as={Siren} className="size-6 shrink-0 text-white" />
-            <View className="flex-1">
-              <Text className="font-extrabold text-white">Emergency · high priority</Text>
-              <Text className="text-sm font-medium text-white/80">Customer needs a technician as soon as possible. Target arrival within 45 minutes.</Text>
-            </View>
+      <Page className="gap-5">
+        <Card className={cn('gap-3 p-4', job.priority === 'emergency' ? 'border-danger/40' : 'border-brand/30')}>
+          <View className="flex-row items-center justify-between">
+            <Text className="text-xs font-bold uppercase tracking-wider text-muted">{job.priority === 'emergency' ? t('Emergency · respond now') : t('Answer within')}</Text>
+            <Text className={cn('num text-2xl font-extrabold', left <= 10 ? 'text-danger' : 'text-ink')}>{left}s</Text>
           </View>
-        )}
-
-        {accepted && (
-          <Animated.View entering={FadeInDown.duration(300).reduceMotion(ReduceMotion.System)}>
-            <Card className="overflow-hidden border-success/30">
-              <View className="flex-row items-center gap-3 bg-success-soft p-4">
-                <Icon as={CircleCheck} className="size-8 text-success" />
-                <View className="flex-1">
-                  <Text className="font-extrabold text-success">You’ve got this job</Text>
-                  <Text className="text-sm font-medium text-ink-2">Customer has been told you’re assigned. Head out when ready.</Text>
-                </View>
-              </View>
-              <View className="flex-row flex-wrap gap-2 p-3">
-                <Tile
-                  onPress={() => Linking.openURL(directionsHref(job.customer.lat, job.customer.lng))}
-                  className="border-0 bg-brand"
-                  textClassName="text-white"
-                  icon={<Icon as={Navigation} className="size-5 text-white" />}
-                  label="Start navigation"
-                />
-                <Tile onPress={() => Linking.openURL(telHref(job.customer.phone))} icon={<Icon as={Phone} className="size-5 text-success" />} label="Call customer" />
-                <Tile
-                  onPress={() => Linking.openURL(`sms:${job.customer.phone.replace(/\s/g, '')}`)}
-                  icon={<Icon as={MessageCircle} className="size-5 text-brand" />}
-                  label="Chat"
-                />
-                <Tile href={stepHref('detail', job.id)} icon={<Icon as={ClipboardList} className="size-5 text-violet" />} label="Service details" />
-              </View>
-            </Card>
-          </Animated.View>
-        )}
-
-        {job.status === 'rejected' && (
-          <View className="flex-row items-center gap-3 rounded-card border border-line-strong bg-card p-4">
-            <Icon as={CircleX} className="size-6 text-muted" />
-            <Text className="flex-1 text-sm font-semibold text-ink-2">You declined this request. Dispatch has offered it to the next technician.</Text>
+          <View className="h-2 overflow-hidden rounded-full bg-line">
+            <View className={cn('h-full rounded-full', left <= 10 ? 'bg-danger' : 'bg-brand')} style={{ width: `${(left / OFFER_SECONDS) * 100}%` }} />
           </View>
-        )}
-
-        <JobSummary job={job} />
-        <Card className="overflow-hidden">
-          <ServiceMap to={job.customer} pins={[{ id: job.id, lat: job.customer.lat, lng: job.customer.lng, tone: emergency ? 'danger' : 'brand', label: job.customer.area }]} />
-          <View className="flex-row">
-            <Metric icon={<Icon as={RouteIcon} className="size-4 text-brand" />} label="Distance" value={`${job.distanceKm} km`} />
-            <Metric icon={<Icon as={Clock} className="size-4 text-brand" />} label="Drive" value={`~${job.etaMin} min`} className="border-l border-line" />
-            <Metric icon={<Icon as={Clock} className="size-4 text-brand" />} label="Requested" value={emergency ? 'ASAP' : time(job.scheduledAt)} className="border-l border-line" />
+          <Text className="text-xl font-extrabold">{job.service.name}</Text>
+          <View className="flex-row items-center gap-1.5">
+            <Icon as={MapPin} className="size-4 text-muted" />
+            <Text className="text-base font-semibold">
+              {job.address.area} · {job.distanceKm} km
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-1.5">
+            <Icon as={Clock} className="size-4 text-muted" />
+            <Text className="text-base font-semibold">
+              {t(day(job.slotStart))}, {clock(job.slotStart)} · {t('{min} min', { min: job.durationMin })}
+            </Text>
+          </View>
+          <View className="flex-row items-end justify-between border-t border-line pt-3">
+            <Label>{t('You earn')}</Label>
+            <Text className="num text-3xl font-extrabold text-success">{rupees(job.earning)}</Text>
           </View>
         </Card>
 
         <View>
-          <SectionTitle>Customer</SectionTitle>
-          <CustomerBlock job={job} masked={!accepted} />
-        </View>
-        <View>
-          <SectionTitle>Estimated service fee</SectionTitle>
-          <Card className="p-4">
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center gap-2">
-                <Icon as={IndianRupee} className="size-4 text-success" />
-                <Text className="text-sm font-semibold text-ink-2">Visit &amp; labour</Text>
+          <SectionTitle>{t('What the customer told us')}</SectionTitle>
+          <Card>
+            {job.answers.map((a, i) => (
+              <View key={a.questionId} className={`gap-0.5 px-4 py-3 ${i > 0 ? 'border-t border-line' : ''}`}>
+                <Label>{a.label}</Label>
+                <Text className="text-base font-semibold">{a.value}</Text>
               </View>
-              <Text className="num font-bold">{inr(LABOUR_RATE[job.appliance])}</Text>
-            </View>
-            {job.estFee > LABOUR_RATE[job.appliance] && (
-              <View className="mt-2 flex-row items-baseline justify-between">
-                <Text className="text-sm font-semibold text-ink-2">Emergency surcharge</Text>
-                <Text className="num font-bold">{inr(job.estFee - LABOUR_RATE[job.appliance])}</Text>
-              </View>
-            )}
-            <View className="mt-3 flex-row items-baseline justify-between border-t border-dashed border-line pt-3">
-              <Label>You earn (before parts)</Label>
-              <Text className="num text-xl font-extrabold text-success">{inr(job.estFee)}</Text>
-            </View>
-            <Text className="mt-2 text-xs text-muted">Parts are billed separately after diagnosis and customer approval.</Text>
+            ))}
           </Card>
         </View>
+        <Text className="text-center text-xs text-muted">{t('The exact address and phone number show once you accept.')}</Text>
+        {error ? <Text className="text-center text-sm font-semibold text-danger">{error}</Text> : null}
       </Page>
-
-      {job.status === 'request' && (
-        <ActionDock>
-          <Tappable
-            onPress={() => reject(job.id)}
-            className="h-14 flex-1 items-center justify-center rounded-xl border-2 border-line-strong active:border-danger active:opacity-100"
-          >
-            <Text className="text-[15px] font-extrabold text-ink-2">REJECT JOB</Text>
-          </Tappable>
-          <Tappable onPress={() => accept(job.id)} className="h-14 flex-[1.6] items-center justify-center rounded-xl bg-success active:opacity-90">
-            <Text className="text-[15px] font-extrabold text-white">ACCEPT JOB</Text>
-          </Tappable>
-        </ActionDock>
-      )}
+      <ActionDock>
+        <Button size="lg" variant="secondary" className="flex-1" disabled={busy !== null} onPress={() => answer('reject')}>
+          {busy === 'reject' ? <ActivityIndicator color={COLORS.ink} /> : t('Reject')}
+        </Button>
+        <Button size="lg" variant="success" className="flex-[2]" disabled={busy !== null} onPress={() => answer('accept')}>
+          {busy === 'accept' ? <ActivityIndicator color={COLORS.white} /> : t('Accept')}
+        </Button>
+      </ActionDock>
     </>
   )
 }
 
-/** One of the four big shortcuts once the job is yours. */
-function Tile({
-  icon,
-  label,
-  onPress,
-  href,
-  className,
-  textClassName,
-}: {
-  icon: React.ReactNode
-  label: string
-  onPress?: () => void
-  href?: ReturnType<typeof stepHref>
-  className?: string
-  textClassName?: string
-}) {
+/** Opened from an old link after the request was answered. */
+function Taken({ job }: { job: PartnerJob }) {
+  const t = useT()
   return (
-    <Tappable
-      onPress={onPress}
-      href={href}
-      className={cn('h-20 grow basis-[45%] items-center justify-center gap-1.5 rounded-xl border border-line-strong', className)}
-    >
-      {icon}
-      <Text className={cn('text-sm font-extrabold', textClassName)}>{label}</Text>
-    </Tappable>
-  )
-}
-
-function Metric({ icon, label, value, className }: { icon: React.ReactNode; label: string; value: string; className?: string }) {
-  return (
-    <View className={cn('flex-1 px-3 py-3', className)}>
-      <View className="flex-row items-center gap-1">
-        {icon}
-        <Text numberOfLines={1} className="shrink text-[10.5px] font-bold uppercase tracking-wider text-faint">
-          {label}
-        </Text>
-      </View>
-      <Text className="num mt-0.5 text-base font-extrabold">{value}</Text>
-    </View>
+    <Page className="gap-4">
+      <Text className="text-center text-base font-semibold text-ink-2">{t('This request has been answered.')}</Text>
+      <Button size="lg" href={`/jobs/detail?id=${job.id}`} replace>
+        {t('Open the job')}
+      </Button>
+    </Page>
   )
 }
