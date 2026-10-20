@@ -12,7 +12,8 @@
     "emulators": "npm run build && firebase emulators:start --project demo-customer-service --config ../firebase.json",
     "test:rules": "firebase emulators:exec --only firestore --project demo-customer-service --config ../firebase.json \"vitest run --config test/vitest.config.ts\"",
     "set-role": "tsx scripts/setRole.ts",
-    "deploy:dev": "firebase deploy --project dev --config ../firebase.json"
+    "//deploy": "Always deploy through this script: it builds first. There is no predeploy hook in firebase.json because hook paths resolve differently on Windows and from different folders.",
+    "deploy:dev": "npm run build && firebase deploy --project dev --config ../firebase.json"
   },
   "engines": {
     "node": "22"

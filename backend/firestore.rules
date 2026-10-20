@@ -95,15 +95,24 @@ service cloud.firestore {
     // Catalog: public read, written only by the seed script and admin tools
     // -----------------------------------------------------------------------
 
-    match /categories/{id} { allow read: if true; allow write: if false; }
+    // Single documents are free to fetch. A list query must say how many it
+    // wants, and never more than 100, so a scraper or a buggy screen cannot
+    // read a whole collection in one go. The apps should serve the catalog
+    // from a cached bundle rather than querying it live on every launch.
+    function catalogList() {
+      return request.query.limit <= 100;
+    }
+
+    match /categories/{id} { allow get: if true; allow list: if catalogList(); allow write: if false; }
     match /services/{id} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if catalogList();
       allow write: if false;
 
-      match /questions/{questionId} { allow read: if true; allow write: if false; }
+      match /questions/{questionId} { allow get: if true; allow list: if catalogList(); allow write: if false; }
     }
-    match /cities/{id} { allow read: if true; allow write: if false; }
-    match /zones/{id}  { allow read: if true; allow write: if false; }
+    match /cities/{id} { allow get: if true; allow list: if catalogList(); allow write: if false; }
+    match /zones/{id}  { allow get: if true; allow list: if catalogList(); allow write: if false; }
 
     // The public half of the config. Commission rates, provider keys and
     // anything else private live in config/private, which no rule grants.
@@ -137,9 +146,14 @@ service cloud.firestore {
 
       allow delete: if false; // a deleteAccount function will handle this
 
+      // At most 10 addresses per customer, enforced by the id itself: the app
+      // saves to the first free slot of a0..a9. Rules cannot count documents,
+      // but they can restrict the names, so this caps storage and list reads.
       match /addresses/{addressId} {
-        allow read, delete: if isOwner(uid);
+        allow get, delete: if isOwner(uid);
+        allow list: if isOwner(uid) && request.query.limit <= 10;
         allow create, update: if isOwner(uid)
+          && addressId.matches('a[0-9]')
           && onlyFields(
                ['label', 'flat', 'area', 'city', 'pincode'],
                ['customLabel', 'landmark', 'geo', 'createdAt', 'updatedAt']

@@ -115,6 +115,14 @@ describe('catalog', () => {
     }
   })
 
+  it('a list query must ask for at most 100 documents', async () => {
+    for (const c of ['categories', 'services', 'cities', 'zones', 'services/ac-service/questions']) {
+      await assertSucceeds(getDocs(query(collection(guest(), c), limit(100))))
+      await assertFails(getDocs(query(collection(guest(), c), limit(101))))
+      await assertFails(getDocs(collection(guest(), c)))
+    }
+  })
+
   it('config/private is unreadable', async () => {
     await asAdminSdk((db) => setDoc(doc(db, 'config/private'), { commission: 0.2 }))
     await assertFails(getDoc(doc(guest(), 'config/private')))
@@ -240,6 +248,14 @@ describe('users/{uid}/addresses', () => {
     await assertFails(setDoc(doc(alice(), `users/${ALICE}/addresses/a2`), {
       ...ADDRESS, createdAt: new Date('2020-01-01'),
     }))
+  })
+
+  it('caps a customer at 10 addresses (ids a0..a9) and 10 per list query', async () => {
+    await assertSucceeds(setDoc(doc(alice(), `users/${ALICE}/addresses/a9`), ADDRESS))
+    await assertFails(setDoc(doc(alice(), `users/${ALICE}/addresses/a10`), ADDRESS))
+    await assertFails(setDoc(doc(alice(), `users/${ALICE}/addresses/home`), ADDRESS))
+    await assertSucceeds(getDocs(query(collection(alice(), `users/${ALICE}/addresses`), limit(10))))
+    await assertFails(getDocs(collection(alice(), `users/${ALICE}/addresses`)))
   })
 
   it('rejects missing fields, extra fields, a bad label and a bad pincode', async () => {

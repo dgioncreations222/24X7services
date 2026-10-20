@@ -28,12 +28,23 @@ import { isRole, type Role } from '../lib/roles'
  * Retries are on: a 1st-generation trigger that throws is otherwise never run
  * again, and the user would be left without email, role or createdAt, which
  * the rules do not let the app fill in. Every step below is safe to repeat.
+ * Retries stop after MAX_RETRY_AGE_MS: a failure that persists that long is a
+ * bug or a misconfiguration, and retrying it for the platform's full seven
+ * days would only multiply invocations and billed reads and writes.
  */
+const MAX_RETRY_AGE_MS = 30 * 60 * 1000
+
 export const onUserCreate = functionsV1
   .region(REGION)
   .runWith({ maxInstances: 20, failurePolicy: true })
   .auth.user()
-  .onCreate(async (user) => {
+  .onCreate(async (user, context) => {
+    const ageMs = Date.now() - Date.parse(context.timestamp)
+    if (ageMs > MAX_RETRY_AGE_MS) {
+      logger.error('onUserCreate: giving up on a stale retry', { uid: user.uid, ageMs })
+      return
+    }
+
     // The event carries the account as it was at creation, so its claims are
     // almost always empty. Read them fresh, or a role granted by setRole.ts in
     // the meantime would be overwritten.
@@ -59,7 +70,7 @@ export const onUserCreate = functionsV1
           // already set something, and only with values the rules accept, so
           // the customer can still edit the rest of their profile afterwards.
           name: current.name ?? (user.displayName?.trim().slice(0, 80) || undefined),
-          photoUrl: current.photoUrl ?? fitsRules(user.photoURL, 500),
+          photoUrl: current.photoUrl ?? httpsUrl(user.photoURL, 500),
           createdAt: current.createdAt ?? FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         },
@@ -74,7 +85,11 @@ export const onUserCreate = functionsV1
     })
   })
 
-/** A string the rules would reject is dropped rather than stored. */
-function fitsRules(v: string | undefined, maxLen: number): string | undefined {
-  return v && v.length <= maxLen ? v : undefined
+/**
+ * A URL the rules would reject (too long, or not https) is dropped rather
+ * than stored: the rules validate the whole document on every update, so one
+ * bad value here would block the customer from ever editing their profile.
+ */
+function httpsUrl(v: string | undefined, maxLen: number): string | undefined {
+  return v && v.length <= maxLen && v.startsWith('https://') && v.length > 8 ? v : undefined
 }

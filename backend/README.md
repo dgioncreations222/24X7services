@@ -51,6 +51,20 @@ npm install
 | `npm run typecheck` | TypeScript check |
 | `npm run deploy:dev` | Deploys rules + functions to the dev project. Lead only |
 
+## Rules the apps must follow
+
+The rules reject anything else, so these are not suggestions:
+
+- **Catalog lists** need `limit(n)` with n ≤ 100. Prefer a cached copy over
+  live queries; the catalog is the most-read data and the biggest cost.
+- **Addresses** are saved to the first free id of `a0`..`a9` (max 10), and
+  listed with `limit(10)`.
+- **Profile** is saved with `updateDoc` or `setDoc(..., { merge: true })`,
+  never a plain `setDoc`. Timestamps use `serverTimestamp()`.
+- **Profile photo** goes to `users/{uid}/profile/avatar`, at most 2 MB and at
+  most one replacement a minute. Compress before upload.
+- No `onSnapshot` on a whole collection; paginate instead.
+
 ## Secrets
 
 Never commit them. Non-secret settings go in `functions/.env.<projectId>`

@@ -62,13 +62,20 @@ async function main(): Promise<void> {
 
   initializeApp({ projectId })
   const user = await getAuth().getUserByEmail(email)
+  const ref = getFirestore().collection('users').doc(user.uid)
 
+  // onUserCreate sets the first role. Changing it before that has finished
+  // would race the trigger, so wait until its document is there.
+  const profile = await ref.get()
+  if (!isRole(profile.get('role'))) {
+    fail(`${email} is still being set up (onUserCreate has not finished). Try again in a minute.`)
+  }
+
+  // The document first: the rules check it for admin, so a demotion takes
+  // effect even if a later step fails. Then the claim, then end the sessions.
+  await ref.set({ role, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
   await getAuth().setCustomUserClaims(user.uid, { ...user.customClaims, role })
   await getAuth().revokeRefreshTokens(user.uid)
-  await getFirestore()
-    .collection('users')
-    .doc(user.uid)
-    .set({ role, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
 
   console.log(`${email} is now "${role}" on ${projectId}${alias ? '' : ' (emulator)'}. They must sign in again.`)
 }

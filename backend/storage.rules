@@ -31,7 +31,11 @@ service firebase.storage {
     // account can never fill the bucket with files under made-up names.
     match /users/{uid}/profile/avatar {
       allow read, delete: if isOwner(uid);
-      allow create, update: if isOwner(uid) && isImage() && withinPhotoSize();
+      allow create: if isOwner(uid) && isImage() && withinPhotoSize();
+      // At most one replacement a minute, so a looping client cannot run up
+      // upload operations on the same file.
+      allow update: if isOwner(uid) && isImage() && withinPhotoSize()
+        && request.time > resource.updated + duration.value(60, 's');
     }
 
     match /{allPaths=**} {
