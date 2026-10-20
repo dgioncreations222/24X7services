@@ -26,6 +26,13 @@ npm run set-role -- someone@example.com admin                 # emulator
 npm run set-role -- someone@example.com admin --project dev   # real project
 ```
 
+For `--project`, log in once with your own Google account:
+`gcloud auth application-default login` and then
+`gcloud auth application-default set-quota-project customer-service-dev-ff0dc`.
+
+Admin access is checked against both the token and `users/{uid}.role`, so a
+demotion takes effect immediately.
+
 ## Setup (once)
 
 Needs Node 22, Java 21 (for the emulators) and `npm i -g firebase-tools`.

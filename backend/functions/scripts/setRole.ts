@@ -6,13 +6,19 @@
  *
  * Without --project it talks to the local Auth/Firestore emulators, so trying
  * it out cannot touch real accounts. With --project it uses your own gcloud
- * login (`gcloud auth application-default login`), and only someone with
+ * login, set up once with:
+ *
+ *   gcloud auth application-default login
+ *   gcloud auth application-default set-quota-project <projectId>
+ *
+ * (Firebase Auth's admin API rejects a personal login with no quota project.)
+ * Only someone with
  * access to that Firebase project can run it, which is the point: roles are
  * granted from here, never by an app.
  *
  * The user's sessions are revoked so they sign in again with the new role. An
- * ID token already issued stays valid until it expires (up to an hour), so a
- * removed admin can keep admin access for at most that long.
+ * ID token already issued stays valid until it expires (up to an hour); the
+ * rules close that gap for admin by also checking users/{uid}.role.
  */
 
 import { readFileSync } from 'node:fs'

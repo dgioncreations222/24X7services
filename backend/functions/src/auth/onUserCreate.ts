@@ -24,17 +24,25 @@ import { isRole, type Role } from '../lib/roles'
  * blocking auth triggers, which need Identity Platform enabled on the project.
  * It is pinned to Mumbai with the rest of the backend. setGlobalOptions does
  * not reach 1st-generation functions, so the instance cap is set here too.
+ *
+ * Retries are on: a 1st-generation trigger that throws is otherwise never run
+ * again, and the user would be left without email, role or createdAt, which
+ * the rules do not let the app fill in. Every step below is safe to repeat.
  */
 export const onUserCreate = functionsV1
   .region(REGION)
-  .runWith({ maxInstances: 20 })
+  .runWith({ maxInstances: 20, failurePolicy: true })
   .auth.user()
   .onCreate(async (user) => {
-    const existingRole = user.customClaims?.role
+    // The event carries the account as it was at creation, so its claims are
+    // almost always empty. Read them fresh, or a role granted by setRole.ts in
+    // the meantime would be overwritten.
+    const { customClaims } = await auth().getUser(user.uid)
+    const existingRole = customClaims?.role
     const role: Role = isRole(existingRole) ? existingRole : 'customer'
 
     if (!isRole(existingRole)) {
-      await auth().setCustomUserClaims(user.uid, { ...user.customClaims, role })
+      await auth().setCustomUserClaims(user.uid, { ...customClaims, role })
     }
 
     const ref = db().collection('users').doc(user.uid)
@@ -45,7 +53,8 @@ export const onUserCreate = functionsV1
         ref,
         {
           email: user.email ?? undefined,
-          role: isRole(current.role) ? current.role : role,
+          // The claim is the source of truth; the document mirrors it.
+          role,
           // Prefill from the Google profile only where the customer has not
           // already set something, and only with values the rules accept, so
           // the customer can still edit the rest of their profile afterwards.

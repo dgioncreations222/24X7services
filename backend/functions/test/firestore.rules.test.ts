@@ -19,9 +19,12 @@ import {
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
+  limit,
+  query,
   serverTimestamp,
   setDoc,
   setLogLevel,
@@ -130,10 +133,30 @@ describe('users/{uid}', () => {
   })
 
   it('admin can read and list users; a customer cannot list', async () => {
-    await asAdminSdk((db) => setDoc(doc(db, `users/${ALICE}`), { role: 'customer' }))
+    await asAdminSdk(async (db) => {
+      await setDoc(doc(db, `users/${ALICE}`), { role: 'customer' })
+      await setDoc(doc(db, `users/${ADMIN}`), { role: 'admin' })
+    })
     await assertSucceeds(getDoc(doc(admin(), `users/${ALICE}`)))
-    await assertSucceeds(getDocs(collection(admin(), 'users')))
-    await assertFails(getDocs(collection(alice(), 'users')))
+    await assertSucceeds(getDocs(query(collection(admin(), 'users'), limit(100))))
+    await assertFails(getDocs(collection(admin(), 'users')))
+    await assertFails(getDocs(query(collection(admin(), 'users'), limit(101))))
+    await assertFails(getDocs(query(collection(alice(), 'users'), limit(10))))
+  })
+
+  it('a demoted admin loses access at once, even with an old admin token', async () => {
+    await asAdminSdk(async (db) => {
+      await setDoc(doc(db, `users/${ALICE}`), { role: 'customer' })
+      // setRole.ts has already written the demotion; the token is still old.
+      await setDoc(doc(db, `users/${ADMIN}`), { role: 'customer' })
+    })
+    await assertFails(getDoc(doc(admin(), `users/${ALICE}`)))
+    await assertFails(getDocs(query(collection(admin(), 'users'), limit(10))))
+  })
+
+  it('a token claiming admin without a matching profile is not admin', async () => {
+    await asAdminSdk((db) => setDoc(doc(db, `users/${ALICE}`), { role: 'customer' }))
+    await assertFails(getDocs(query(collection(admin(), 'users'), limit(10))))
   })
 
   it('a new account without the role claim yet can still create its profile', async () => {
@@ -173,6 +196,13 @@ describe('users/{uid}', () => {
     await assertFails(updateDoc(doc(alice(), `users/${ALICE}`), { updatedAt: new Date('2099-01-01') }))
     await assertFails(updateDoc(doc(alice(), `users/${ALICE}`), { updatedAt: 'yesterday' }))
     await assertSucceeds(updateDoc(doc(alice(), `users/${ALICE}`), { name: 'A', updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(alice(), `users/${ALICE}`), { updatedAt: deleteField() }))
+  })
+
+  it('photoUrl must be https', async () => {
+    await assertSucceeds(setDoc(doc(alice(), `users/${ALICE}`), { photoUrl: 'https://lh3.googleusercontent.com/a/x' }))
+    await assertFails(updateDoc(doc(alice(), `users/${ALICE}`), { photoUrl: 'javascript:alert(1)' }))
+    await assertFails(updateDoc(doc(alice(), `users/${ALICE}`), { photoUrl: 'http://example.com/a.png' }))
   })
 
   it('nobody can write to another user or delete a profile', async () => {
@@ -205,6 +235,8 @@ describe('users/{uid}/addresses', () => {
     }))
     await assertSucceeds(updateDoc(doc(alice(), path), { area: 'Gachibowli', updatedAt: serverTimestamp() }))
     await assertFails(updateDoc(doc(alice(), path), { createdAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(alice(), path), { createdAt: deleteField() }))
+    await assertFails(updateDoc(doc(alice(), path), { updatedAt: deleteField() }))
     await assertFails(setDoc(doc(alice(), `users/${ALICE}/addresses/a2`), {
       ...ADDRESS, createdAt: new Date('2020-01-01'),
     }))

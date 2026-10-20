@@ -32,8 +32,13 @@ service cloud.firestore {
       return signedIn() ? request.auth.token.get('role', 'customer') : null;
     }
 
+    // Admin is checked against both the token and users/{uid}.role, which only
+    // setRole.ts writes. An ID token lives for up to an hour after a demotion;
+    // the document check makes the demotion take effect immediately. Costs one
+    // read per admin request, which is negligible at admin volume.
     function isAdmin() {
-      return role() == 'admin';
+      return role() == 'admin'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', null) == 'admin';
     }
 
     function incoming() {
@@ -58,20 +63,21 @@ service cloud.firestore {
     }
 
     // Timestamps must be the server's clock (serverTimestamp() in the app) or,
-    // on an update, left as they were. A client cannot backdate or forge them.
+    // on an update, left as they were. A client cannot backdate, forge or
+    // delete them once they exist.
     function isServerTime(field) {
-      return !(field in incoming())
-        || incoming()[field] == request.time
-        || (resource != null && field in resource.data
-            && incoming()[field] == resource.data[field]);
+      return resource == null || !(field in resource.data)
+        ? (!(field in incoming()) || incoming()[field] == request.time)
+        : (field in incoming()
+            && (incoming()[field] == request.time
+                || incoming()[field] == resource.data[field]));
     }
 
-    // createdAt is set once, on create, and never moves after that.
+    // createdAt is set once, on create, and never moves or disappears after.
     function isCreatedAt() {
-      return resource == null
+      return resource == null || !('createdAt' in resource.data)
         ? (!('createdAt' in incoming()) || incoming().createdAt == request.time)
-        : (!('createdAt' in incoming()) || ('createdAt' in resource.data
-            && incoming().createdAt == resource.data.createdAt));
+        : ('createdAt' in incoming() && incoming().createdAt == resource.data.createdAt);
     }
 
     function isPincode(v) {
@@ -109,12 +115,16 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow get: if isOwner(uid) || isAdmin();
-      allow list: if isAdmin();
+      // Admin screens page through users; one query can never read more than
+      // 100 documents, so a careless "load all" cannot become a large bill.
+      allow list: if isAdmin() && request.query.limit <= 100;
 
       // email, role and createdAt come from the auth account and are written by
       // onUserCreate. A client may set only its display fields. Create is
       // allowed because the profile screen can race the trigger on first
       // sign-in; the trigger merges, so neither write loses the other's fields.
+      // The app must save with updateDoc or setDoc(..., { merge: true }): a
+      // plain setDoc would erase email/role/createdAt and is rejected.
       allow create: if isOwner(uid)
         && onlyFields([], ['name', 'phone', 'photoUrl', 'defaultAddressId',
                            'notifications', 'updatedAt'])
@@ -150,7 +160,10 @@ service cloud.firestore {
     function validProfile() {
       return (!('name' in incoming()) || isString(incoming().name, 80))
         && (!('phone' in incoming()) || isPhone(incoming().phone))
-        && (!('photoUrl' in incoming()) || isString(incoming().photoUrl, 500))
+        // https only, so an app rendering it can never be handed a
+        // javascript: or data: URL.
+        && (!('photoUrl' in incoming())
+            || (isString(incoming().photoUrl, 500) && incoming().photoUrl.matches('https://.+')))
         && (!('defaultAddressId' in incoming()) || isString(incoming().defaultAddressId, 200))
         && isServerTime('updatedAt')
         // Two booleans and nothing else.
