@@ -2,15 +2,16 @@
 
 import { Lock } from 'lucide-react'
 import { moduleFor } from './nav'
-import type { AdminAccount } from '@/lib/data'
+import { useCan, type AdminAccount } from '@/lib/data'
 import { useStore } from '@/lib/store'
 import { Logo } from '../Logo'
 
 /** A page the current role has no access to. */
 export function Guard({ path, admin, children }: { path: string; admin: AdminAccount; children: React.ReactNode }) {
   const store = useStore()
+  const can = useCan()
   const mod = moduleFor(path)
-  if (!mod || store.can(mod)) return <>{children}</>
+  if (!mod || can(mod)) return <>{children}</>
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-6 py-24 text-center">
       <span className="mb-4 grid size-12 place-items-center rounded-full bg-canvas text-muted">

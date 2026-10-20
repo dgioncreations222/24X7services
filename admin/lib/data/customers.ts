@@ -4,6 +4,7 @@
 import { mockRequest } from '../mock/api'
 import { read, write, type MockDb } from '../mock/db'
 import { bill } from './bookings'
+import { audit } from './audit'
 import { useResource, type Query } from './query'
 import type { AdminBooking, AdminCustomer, Paise } from './types'
 
@@ -66,6 +67,7 @@ export function blockCustomer(id: string, reason: string) {
     const r = reason.trim()
     if (r.length < 10) throw new CustomerError('Say why — the next admin reads this. At least 10 characters.')
     write((d) => ({ ...d, customers: d.customers.map((x) => (x.id === id ? { ...x, status: 'blocked', blockReason: r } : x)) }))
+    audit('customers', 'Blocked customer', { target: c.name, new: r })
   })
 }
 
@@ -74,5 +76,6 @@ export function unblockCustomer(id: string) {
     const c = read().customers.find((x) => x.id === id)
     if (!c || c.status !== 'blocked') throw new CustomerError('Only a blocked customer can be unblocked.')
     write((d) => ({ ...d, customers: d.customers.map((x) => (x.id === id ? { ...x, status: 'active', blockReason: undefined } : x)) }))
+    audit('customers', 'Unblocked customer', { target: c.name, old: 'Blocked', new: 'Active' })
   })
 }

@@ -22,7 +22,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
-import { useKycQueueCount, useUnassignedCount, useUrgentDispatchCount } from '@/lib/data'
+import { useKycQueueCount, useOpenTicketCount, useUnassignedCount, useUrgentDispatchCount } from '@/lib/data'
 import { ROUTE_MODULE } from '@/lib/control'
 import { useStore } from '@/lib/store'
 import type { Module } from '@/lib/types'
@@ -123,14 +123,15 @@ export function useBadges() {
   const kyc = useKycQueueCount()
   const unassigned = useUnassignedCount()
   const emergency = useUrgentDispatchCount()
+  const tickets = useOpenTicketCount()
   return useMemo(
     () => ({
       emergency,
       unassigned,
       kyc,
-      tickets: s.tickets.filter((t) => t.status === 'open').length,
+      tickets,
       payouts: s.payouts.filter((p) => p.status === 'pending').length,
     }),
-    [emergency, unassigned, kyc, s.tickets, s.payouts]
+    [emergency, unassigned, kyc, tickets, s.payouts]
   )
 }

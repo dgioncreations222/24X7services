@@ -10,6 +10,7 @@ import { useSyncExternalStore } from 'react'
 import { mockRequest } from '../mock/api'
 import { read, subscribe, write, type MockDb } from '../mock/db'
 import { currentAdmin } from './auth'
+import { audit } from './audit'
 import { useResource, type Query } from './query'
 import type { KycDocType, KycDocument, Partner, PartnerStatus } from './types'
 
@@ -91,6 +92,7 @@ export function approvePartner(id: string) {
     const notOk = KYC_DOC_TYPES.filter((t) => docs.find((d) => d.type === t)?.status !== 'approved')
     if (notOk.length) throw new PartnerError(`Approve every document first — ${notOk.length} still ${notOk.length === 1 ? 'needs' : 'need'} a look.`)
     setPartner(id, { status: 'approved', statusReason: undefined })
+    audit('technicians', 'Approved technician', { target: p.name, old: 'KYC to review', new: 'Approved' })
   })
 }
 
@@ -109,6 +111,7 @@ export function rejectPartner(id: string, why: string) {
       partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'rejected' as PartnerStatus, statusReason: r } : x)),
       kycDocs: d.kycDocs.map((x) => (x.partnerId === id && x.status === 'pending' ? { ...x, status: 'rejected', rejectReason: r, reviewedBy: reviewer(), reviewedAt: now } : x)),
     }))
+    audit('technicians', 'Rejected application', { target: p.name, new: r })
   })
 }
 
@@ -117,14 +120,18 @@ export function suspendPartner(id: string, why: string) {
   return mockRequest(() => {
     const p = partner(read(), id)
     if (p.status !== 'active' && p.status !== 'approved') throw new PartnerError('Only an active technician can be suspended.')
-    setPartner(id, { status: 'suspended', statusReason: reason(why, 'they are suspended'), online: false, onJob: false })
+    const r = reason(why, 'they are suspended')
+    setPartner(id, { status: 'suspended', statusReason: r, online: false, onJob: false })
+    audit('technicians', 'Suspended technician', { target: p.name, old: p.status, new: r })
   })
 }
 
 export function reactivatePartner(id: string) {
   return mockRequest(() => {
-    if (partner(read(), id).status !== 'suspended') throw new PartnerError('Only a suspended technician can be reactivated.')
+    const p = partner(read(), id)
+    if (p.status !== 'suspended') throw new PartnerError('Only a suspended technician can be reactivated.')
     setPartner(id, { status: 'active', statusReason: undefined })
+    audit('technicians', 'Reactivated technician', { target: p.name, old: 'Suspended', new: 'Active' })
   })
 }
 
