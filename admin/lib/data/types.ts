@@ -265,3 +265,77 @@ export interface AdminCustomer {
   referralCode: string
   referrals: number
 }
+
+/* ---------------------------------------------------------------- Growth */
+
+/** TODO(partner.ts): the shared Coupon proposal, plus how often it was used. */
+export interface Coupon {
+  /** What the customer types, upper case. */
+  code: string
+  title: string
+  kind: 'flat' | 'percent'
+  /** Paise for `flat`, whole percent (1–100) for `percent`. */
+  value: number
+  minOrder: Paise
+  /** Caps a `percent` coupon. */
+  maxDiscount?: Paise
+  /** Empty means every category. */
+  categoryIds: string[]
+  validFrom: number
+  validTill: number
+  usageLimit?: number
+  perCustomerLimit?: number
+  active: boolean
+  used: number
+}
+
+/** A Plus membership plan customers can buy. TODO(shared/plans.ts). */
+export interface PlusPlan {
+  id: string
+  name: string
+  price: Paise
+  durationDays: number
+  /** Visit fee waived on every booking. */
+  freeVisits: boolean
+  /** Percent off labour. */
+  discountPct: number
+  /** Jumps the dispatch queue. */
+  priority: boolean
+  active: boolean
+  subscribers: number
+  order: number
+}
+
+/** The shared Banner, as the admin edits it. */
+export interface HomeBanner {
+  id: string
+  title: string
+  subtitle?: string
+  image?: string
+  ctaLabel?: string
+  /** Internal route only, starting with '/'. */
+  ctaHref?: string
+  slot: 'hero' | 'inline'
+  tone: 'blue' | 'amber' | 'green' | 'teal' | 'violet'
+  validFrom?: number
+  validTill?: number
+  order: number
+  active: boolean
+}
+
+/** A customer's rating of a job, and what moderation did with it. */
+export interface AdminReview {
+  id: string
+  bookingId: string
+  displayId: string
+  customerName: string
+  technicianId: string
+  rating: number
+  text: string
+  at: number
+  status: 'published' | 'flagged' | 'hidden'
+  /** Why it was hidden — internal. */
+  hiddenReason?: string
+  /** The business's public reply. */
+  reply?: string
+}

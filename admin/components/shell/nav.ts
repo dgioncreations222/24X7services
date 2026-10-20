@@ -9,6 +9,7 @@ import {
   ChartColumn,
   CreditCard,
   FileClock,
+  GalleryHorizontal,
   Headset,
   Images,
   LayoutDashboard,
@@ -22,11 +23,19 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useKycQueueCount, useUnassignedCount, useUrgentDispatchCount } from '@/lib/data'
+import { ROUTE_MODULE } from '@/lib/control'
 import { useStore } from '@/lib/store'
+import type { Module } from '@/lib/types'
 import type { Side } from '../ui'
 
 /** The sidebar: every page, grouped, with the counts that wait on a person. */
-export type Item = { href: Route; label: string; icon: typeof Bell; badge?: 'emergency' | 'unassigned' | 'kyc' | 'tickets' | 'payouts' }
+export type Item = {
+  href: Route
+  label: string
+  icon: typeof Bell
+  /** The exact path it lights up for, when two items share a section. */
+  match?: string
+  badge?: 'emergency' | 'unassigned' | 'kyc' | 'tickets' | 'payouts' }
 
 export const NAV: { group: string; side?: Side; items: Item[] }[] = [
   {
@@ -49,7 +58,8 @@ export const NAV: { group: string; side?: Side; items: Item[] }[] = [
     items: [
       { href: '/customers', label: 'Customers', icon: Users },
       { href: '/reviews', label: 'Reviews & Ratings', icon: Star },
-      { href: '/promotions', label: 'Promotions', icon: BadgePercent },
+      // The old Promotions page (/promotions) stays in the repo, unlinked.
+      { href: '/coupons', label: 'Coupons & Plus', icon: BadgePercent },
     ],
   },
   {
@@ -69,7 +79,13 @@ export const NAV: { group: string; side?: Side; items: Item[] }[] = [
       { href: '/reports', label: 'Reports', icon: ChartColumn },
     ],
   },
-  { group: 'Content', items: [{ href: '/content', label: 'Content & Media', icon: Images }] },
+  {
+    group: 'Content',
+    items: [
+      { href: '/content/banners', label: 'Home banners', icon: GalleryHorizontal, match: '/content/banners' },
+      { href: '/content', label: 'Content & Media', icon: Images, match: '/content' },
+    ],
+  },
   {
     group: 'System',
     items: [
@@ -84,6 +100,18 @@ export const COLLAPSE_KEY = 'admin.nav.collapsed'
 
 /** '/catalog/categories' → '/catalog': the part of a path that names its section. */
 export const section = (path: string) => '/' + (path.split('/')[1] ?? '')
+
+/** Sections whose pages are new routes the old permission table does not know. */
+const NEW_SECTIONS: Record<string, Module> = { '/coupons': 'promotions' }
+
+/** Which permission module a path belongs to. */
+export const moduleFor = (path: string): Module | undefined => ROUTE_MODULE[section(path)] ?? NEW_SECTIONS[section(path)]
+
+/** Whether a sidebar item is the current page. */
+export const isActive = (item: Item, pathname: string) => {
+  const p = pathname.replace(/\/$/, '')
+  return item.match ? (item.match === '/content' ? p === '/content' : p.startsWith(item.match)) : section(p) === section(item.href)
+}
 
 /** Page titles by section, for the phone top bar. */
 export const TITLES: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.items.map((i) => [section(i.href), i.label])))

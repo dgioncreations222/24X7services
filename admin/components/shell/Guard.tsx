@@ -1,7 +1,7 @@
 'use client'
 
 import { Lock } from 'lucide-react'
-import { ROUTE_MODULE } from '@/lib/control'
+import { moduleFor } from './nav'
 import type { AdminAccount } from '@/lib/data'
 import { useStore } from '@/lib/store'
 import { Logo } from '../Logo'
@@ -9,7 +9,7 @@ import { Logo } from '../Logo'
 /** A page the current role has no access to. */
 export function Guard({ path, admin, children }: { path: string; admin: AdminAccount; children: React.ReactNode }) {
   const store = useStore()
-  const mod = ROUTE_MODULE[path]
+  const mod = moduleFor(path)
   if (!mod || store.can(mod)) return <>{children}</>
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-6 py-24 text-center">
