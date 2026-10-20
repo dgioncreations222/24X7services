@@ -114,7 +114,7 @@ export function NumberInput({
   return (
     <span
       className={cn(
-        'flex h-9 items-center rounded-lg border bg-card text-sm transition-[border-color,box-shadow] focus-within:border-brand focus-within:shadow-[0_0_0_3px_rgba(37,71,208,0.15)]',
+        'flex h-9 items-center rounded-lg border bg-card text-sm transition-[border-color,box-shadow] focus-within:border-brand focus-within:shadow-focus',
         changed ? 'border-warning/60 bg-warning-soft/40' : 'border-line-strong',
         disabled && 'bg-canvas opacity-70',
         className

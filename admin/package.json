@@ -7,7 +7,7 @@
     "dev": "next dev -p 3330",
     "build": "next build",
     "start": "npx serve out -l 3330",
-    "typecheck": "next typegen && tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit && node scripts/check-theme.mjs",
     "lint": "eslint ."
   },
   "dependencies": {
