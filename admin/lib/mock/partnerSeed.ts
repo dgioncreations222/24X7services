@@ -52,6 +52,7 @@ export function seedPartners(now = Date.now()) {
       payout: { kind: 'bank', accountName: t.name, accountLast4: String(4100 + ((i * 373) % 900)), ifsc: 'HDFC0001922' },
       statusReason: REASONS[status],
       createdAt: created,
+      geo: { lat: t.lat, lng: t.lng },
       submittedAt: status === 'kyc_pending' || status === 'rejected' ? now - (i % 4 + 1) * 3 * 3_600_000 : created,
     }
   })

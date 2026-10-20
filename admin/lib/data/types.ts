@@ -153,6 +153,8 @@ export interface Partner {
   createdAt: number
   /** When KYC was last sent for review. */
   submittedAt?: number
+  /** Where they are (live while online), for dispatch distances. */
+  geo: GeoPoint
 }
 
 export type KycDocType = 'aadhaar' | 'pan' | 'photo' | 'bank'
@@ -169,4 +171,78 @@ export interface KycDocument {
   reviewedBy?: string
   uploadedAt: number
   reviewedAt?: number
+}
+
+/* -------------------------------------------------------------- Bookings */
+
+export interface GeoPoint {
+  lat: number
+  lng: number
+}
+
+/** The shared BookingStatus: pending_payment → confirmed → assigned → … → completed; cancelled → refunded. */
+export type BookingStatus =
+  | 'pending_payment'
+  | 'confirmed'
+  | 'assigned'
+  | 'en_route'
+  | 'arrived'
+  | 'in_progress'
+  | 'awaiting_approval'
+  | 'completed'
+  | 'cancelled'
+  | 'refunded'
+  | 'failed'
+
+export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'partially_paid' | 'failed' | 'refunded'
+
+/** The shared BookingExtra: a part or charge added on site, approved by the customer. */
+export interface BookingExtra {
+  id: string
+  source: 'rate_card' | 'other'
+  rateCardItemId?: string
+  name: string
+  amount: Paise
+  status: 'pending' | 'approved' | 'rejected'
+  addedAt: number
+  decidedAt?: number
+}
+
+export interface BookingEvent {
+  status: BookingStatus
+  at: number
+  note?: string
+  /** Who did it, when it was not the system: an admin, the technician, the customer. */
+  by?: string
+}
+
+/** A booking as the console sees it. TODO(shared): built on shared Booking once the console reads Firestore. */
+export interface AdminBooking {
+  id: string
+  /** What the customer sees, e.g. #AP24831. */
+  displayId: string
+  customer: { id: string; name: string; phone: string }
+  categoryId: string
+  serviceId: string
+  serviceName: string
+  brand: string
+  issue: string
+  priority: 'emergency' | 'normal'
+  status: BookingStatus
+  /** Booked slot start, epoch ms. */
+  slotStart: number
+  createdAt: number
+  area: string
+  pincode: string
+  address: string
+  geo: GeoPoint
+  technicianId?: string
+  timeline: BookingEvent[]
+  extras: BookingExtra[]
+  price: { service: Paise; discount: Paise; coupon?: string }
+  payment: { status: PaymentStatus; method?: 'upi' | 'card' | 'cash' | 'wallet'; paidAt?: number }
+  cancellation?: { at: number; by: 'customer' | 'support' | 'system'; reason: string }
+  refunds: { amount: Paise; reason: string; at: number; by: string }[]
+  /** Who was offered the job and said no (or let it time out). */
+  dispatch: { declinedBy: string[]; noTechFound: boolean }
 }
