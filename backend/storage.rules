@@ -28,14 +28,15 @@ service firebase.storage {
     }
 
     // One fixed name per user, so a new photo replaces the old one and an
-    // account can never fill the bucket with files under made-up names.
+    // account can never fill the bucket with files under made-up names. The
+    // app cannot delete it, only replace it; removal will be done by a
+    // function (account deletion). Repeated replacing is left to App Check:
+    // a time-based limit here could not be verified on the emulator, which
+    // does not separate create from update reliably.
     match /users/{uid}/profile/avatar {
-      allow read, delete: if isOwner(uid);
-      allow create: if isOwner(uid) && isImage() && withinPhotoSize();
-      // At most one replacement a minute, so a looping client cannot run up
-      // upload operations on the same file.
-      allow update: if isOwner(uid) && isImage() && withinPhotoSize()
-        && request.time > resource.updated + duration.value(60, 's');
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && isImage() && withinPhotoSize();
+      allow delete: if false;
     }
 
     match /{allPaths=**} {

@@ -61,19 +61,25 @@ async function main(): Promise<void> {
   }
 
   initializeApp({ projectId })
+  getFirestore().settings({ ignoreUndefinedProperties: true })
   const user = await getAuth().getUserByEmail(email)
   const ref = getFirestore().collection('users').doc(user.uid)
 
-  // onUserCreate sets the first role. Changing it before that has finished
-  // would race the trigger, so wait until its document is there.
+  // The document first: it is the source of truth (onUserCreate never
+  // overwrites a role already there) and the rules check it for admin, so a
+  // demotion takes effect even if a later step fails. Then the claim, then end
+  // the sessions. email and createdAt are filled in too, so this also repairs
+  // an account whose onUserCreate gave up.
   const profile = await ref.get()
-  if (!isRole(profile.get('role'))) {
-    fail(`${email} is still being set up (onUserCreate has not finished). Try again in a minute.`)
-  }
-
-  // The document first: the rules check it for admin, so a demotion takes
-  // effect even if a later step fails. Then the claim, then end the sessions.
-  await ref.set({ role, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
+  await ref.set(
+    {
+      role,
+      email: profile.get('email') ?? user.email ?? undefined,
+      createdAt: profile.get('createdAt') ?? FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  )
   await getAuth().setCustomUserClaims(user.uid, { ...user.customClaims, role })
   await getAuth().revokeRefreshTokens(user.uid)
 

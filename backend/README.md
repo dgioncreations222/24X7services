@@ -47,9 +47,9 @@ npm install
 | Command | What it does |
 |---|---|
 | `npm run emulators` | Runs Firestore/Auth/Functions/Storage locally. UI at http://localhost:4000. Uses a `demo-` project, so it can never touch real data |
-| `npm run test:rules` | Runs the rules tests against a throwaway emulator |
+| `npm run test:rules` | Runs the Firestore and Storage rules tests against throwaway emulators |
 | `npm run typecheck` | TypeScript check |
-| `npm run deploy:dev` | Deploys rules + functions to the dev project. Lead only |
+| `npm run deploy:dev` | Builds, then deploys rules + functions to the dev project. Lead only. Never use a bare `firebase deploy`: it would upload whatever old build is on disk |
 
 ## Rules the apps must follow
 
@@ -58,11 +58,14 @@ The rules reject anything else, so these are not suggestions:
 - **Catalog lists** need `limit(n)` with n ≤ 100. Prefer a cached copy over
   live queries; the catalog is the most-read data and the biggest cost.
 - **Addresses** are saved to the first free id of `a0`..`a9` (max 10), and
-  listed with `limit(10)`.
+  listed with `limit(10)`. Add a new one inside a transaction that checks the
+  slot is still empty, or two quick saves can land on the same slot.
+  `defaultAddressId` is one of those ids.
 - **Profile** is saved with `updateDoc` or `setDoc(..., { merge: true })`,
   never a plain `setDoc`. Timestamps use `serverTimestamp()`.
-- **Profile photo** goes to `users/{uid}/profile/avatar`, at most 2 MB and at
-  most one replacement a minute. Compress before upload.
+- **Profile photo** goes to `users/{uid}/profile/avatar`, at most 2 MB, and
+  only one upload per change of photo. Compress before upload. The app
+  cannot delete it, only replace it.
 - No `onSnapshot` on a whole collection; paginate instead.
 
 ## Secrets

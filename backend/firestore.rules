@@ -178,7 +178,8 @@ service cloud.firestore {
         // javascript: or data: URL.
         && (!('photoUrl' in incoming())
             || (isString(incoming().photoUrl, 500) && incoming().photoUrl.matches('https://.+')))
-        && (!('defaultAddressId' in incoming()) || isString(incoming().defaultAddressId, 200))
+        && (!('defaultAddressId' in incoming())
+            || (incoming().defaultAddressId is string && incoming().defaultAddressId.matches('a[0-9]')))
         && isServerTime('updatedAt')
         // Two booleans and nothing else.
         && (!('notifications' in incoming())

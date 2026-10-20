@@ -192,11 +192,13 @@ describe('users/{uid}', () => {
     await assertFails(updateDoc(doc(alice(), `users/${ALICE}`), { email: 'other@x.com' }))
   })
 
-  it('rejects a bad phone, an over-long name and unknown notification keys', async () => {
+  it('rejects a bad phone, an over-long name, unknown notification keys and a bad defaultAddressId', async () => {
     await assertFails(setDoc(doc(alice(), `users/${ALICE}`), { phone: '12345' }))
     await assertFails(setDoc(doc(alice(), `users/${ALICE}`), { phone: '+915876543210' }))
     await assertFails(setDoc(doc(alice(), `users/${ALICE}`), { name: 'x'.repeat(81) }))
     await assertFails(setDoc(doc(alice(), `users/${ALICE}`), { notifications: { sms: true } }))
+    await assertFails(setDoc(doc(alice(), `users/${ALICE}`), { defaultAddressId: 'home' }))
+    await assertSucceeds(setDoc(doc(alice(), `users/${ALICE}`), { defaultAddressId: 'a0' }))
   })
 
   it('updatedAt must be the server clock, not a value the client picks', async () => {

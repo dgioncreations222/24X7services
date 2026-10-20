@@ -30,9 +30,10 @@ import { isRole, type Role } from '../lib/roles'
  * the rules do not let the app fill in. Every step below is safe to repeat.
  * Retries stop after MAX_RETRY_AGE_MS: a failure that persists that long is a
  * bug or a misconfiguration, and retrying it for the platform's full seven
- * days would only multiply invocations and billed reads and writes.
+ * days would only multiply invocations and billed reads and writes. An
+ * account left half set up is repaired by running setRole.ts on it.
  */
-const MAX_RETRY_AGE_MS = 30 * 60 * 1000
+const MAX_RETRY_AGE_MS = 10 * 60 * 1000
 
 export const onUserCreate = functionsV1
   .region(REGION)
@@ -45,38 +46,38 @@ export const onUserCreate = functionsV1
       return
     }
 
-    // The event carries the account as it was at creation, so its claims are
-    // almost always empty. Read them fresh, or a role granted by setRole.ts in
-    // the meantime would be overwritten.
-    const { customClaims } = await auth().getUser(user.uid)
-    const existingRole = customClaims?.role
-    const role: Role = isRole(existingRole) ? existingRole : 'customer'
-
-    if (!isRole(existingRole)) {
-      await auth().setCustomUserClaims(user.uid, { ...customClaims, role })
-    }
-
+    // users/{uid}.role is the source of truth: setRole.ts writes it first, and
+    // the rules check it for admin. This trigger only fills a role that is not
+    // there yet, so a late or duplicated run never undoes a role change.
     const ref = db().collection('users').doc(user.uid)
-    await db().runTransaction(async (tx) => {
+    const role = await db().runTransaction(async (tx): Promise<Role> => {
       const current = (await tx.get(ref)).data() ?? {}
+      const docRole: Role = isRole(current.role) ? current.role : 'customer'
 
       tx.set(
         ref,
         {
           email: user.email ?? undefined,
-          // The claim is the source of truth; the document mirrors it.
-          role,
+          role: docRole,
           // Prefill from the Google profile only where the customer has not
           // already set something, and only with values the rules accept, so
           // the customer can still edit the rest of their profile afterwards.
-          name: current.name ?? (user.displayName?.trim().slice(0, 80) || undefined),
+          name: current.name ?? displayName(user.displayName, 80),
           photoUrl: current.photoUrl ?? httpsUrl(user.photoURL, 500),
           createdAt: current.createdAt ?? FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         },
         { merge: true }
       )
+      return docRole
     })
+
+    // The event carries the account as it was at creation, so read the claims
+    // fresh, and only set one if setRole.ts has not already done so.
+    const { customClaims } = await auth().getUser(user.uid)
+    if (!isRole(customClaims?.role)) {
+      await auth().setCustomUserClaims(user.uid, { ...customClaims, role })
+    }
 
     logger.info('onUserCreate: new account', {
       uid: user.uid,
@@ -84,6 +85,17 @@ export const onUserCreate = functionsV1
       provider: user.providerData[0]?.providerId,
     })
   })
+
+/**
+ * Trimmed to the rules' limit without cutting an emoji in half: whole code
+ * points are kept, and the result is at most maxLen UTF-16 units, which is
+ * the stricter of the two ways the length could be counted.
+ */
+function displayName(v: string | undefined, maxLen: number): string | undefined {
+  const chars = Array.from(v?.trim() ?? '')
+  while (chars.join('').length > maxLen) chars.pop()
+  return chars.join('') || undefined
+}
 
 /**
  * A URL the rules would reject (too long, or not https) is dropped rather
