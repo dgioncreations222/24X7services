@@ -2,6 +2,7 @@
 import { formatPaise, type Paise } from '@app/shared'
 import { callFn } from './callables'
 import { CheckoutDismissed, openCheckout } from './checkout'
+import { brand } from '@/config/brand'
 
 /**
  * Putting money into the balance, from the customer's side.
@@ -31,7 +32,7 @@ export async function topUp(
       keyId: order.keyId,
       orderId: order.orderId,
       amountPaise: order.amount,
-      description: `${formatPaise(order.amount)} to your 24X7 balance`,
+      description: `${formatPaise(order.amount)} to your ${brand.name} balance`,
       customerName: customer?.name,
       customerPhone: customer?.phone,
     })

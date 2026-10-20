@@ -1,16 +1,15 @@
 import { useCallback } from 'react'
 import { View } from 'react-native'
 import { router } from 'expo-router'
-import { collection, getDocs, query, where } from 'firebase/firestore'
-import { brandApplianceMatrixEntrySchema, COL, type CatalogBrand } from '@app/shared'
+import type { CatalogBrand } from '@app/shared'
 
 import { BookingStep } from '@/components/BookingStep'
 import { BrandCard, BrandDisclaimer } from '@/components/BrandCard'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { ErrorState } from '@/components/ui/States'
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { Text } from '@/components/ui/Text'
 import { fetchBrands } from '@/lib/catalog'
-import { db } from '@/lib/firebase'
+import { fetchEnabledBrandIds } from '@/lib/api/brands'
 import { patchDraft, useBookingDraft } from '@/lib/bookingDraft'
 import { useAsync } from '@/lib/useAsync'
 
@@ -35,16 +34,7 @@ export default function BrandScreen() {
   }> => {
     if (!applianceId) return { brands: [], enabled: new Set() }
 
-    const [brands, matrix] = await Promise.all([
-      fetchBrands(),
-      getDocs(query(collection(db(), COL.brandApplianceMatrix), where('applianceId', '==', applianceId))),
-    ])
-
-    const enabled = new Set<string>()
-    for (const doc of matrix.docs) {
-      const parsed = brandApplianceMatrixEntrySchema.safeParse(doc.data())
-      if (parsed.success && parsed.data.enabled) enabled.add(parsed.data.brandId)
-    }
+    const [brands, enabled] = await Promise.all([fetchBrands(), fetchEnabledBrandIds(applianceId)])
     return { brands, enabled }
   }, [applianceId])
 

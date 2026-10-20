@@ -2,18 +2,17 @@ import { useCallback, useEffect } from 'react'
 import { View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { CalendarCheck, Check, Clock, MapPin, type LucideIcon } from 'lucide-react-native'
-import { bookingSchema, COL, type Booking } from '@app/shared'
-import { doc, getDoc } from 'firebase/firestore'
+import type { Booking } from '@app/shared'
 
 import { Header, Screen } from '@/components/Screen'
 import { Card } from '@/components/ui/Card'
 import { Icon } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
-import { StatusBadge } from '@/components/StatusBadge'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
-import { db } from '@/lib/firebase'
+import { StatusBadge , ErrorState } from '@/components/ui/States'
+
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
+import { fetchBooking } from '@/lib/api/booking'
 import { useAuth } from '@/lib/auth'
 import { formatPaise, formatSlotWindow, relativeDateLabel, shortAddress } from '@/lib/format'
 import { useAsync } from '@/lib/useAsync'
@@ -37,9 +36,7 @@ export default function ConfirmedScreen() {
 
   const load = useCallback(async (): Promise<Booking | null> => {
     if (!bookingId) return null
-    const snap = await getDoc(doc(db(), COL.bookings, bookingId))
-    const parsed = bookingSchema.safeParse({ id: snap.id, ...snap.data() })
-    return parsed.success ? parsed.data : null
+    return fetchBooking(bookingId)
   }, [bookingId])
 
   const booking = useAsync(load)

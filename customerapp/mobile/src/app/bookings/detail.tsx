@@ -5,7 +5,7 @@ import { ACTIVE_STATUSES, TRACKABLE_STATUSES, type Booking, type BookingEvent } 
 
 import { BookingActions } from '@/components/BookingActions'
 import { BookingShell } from '@/components/BookingShell'
-import { StatusBadge } from '@/components/StatusBadge'
+import { StatusBadge } from '@/components/ui/States'
 import { StatusTimeline } from '@/components/StatusTimeline'
 import { TechnicianCard } from '@/components/TechnicianCard'
 import { PriceSummary } from '@/components/PriceSummary'

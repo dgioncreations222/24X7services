@@ -23,11 +23,11 @@ import { callFn, friendlyError } from '@/lib/callables'
  * three messages of every conversation.
  */
 
-const CATEGORIES: ReadonlyArray<{
+const CATEGORIES: readonly {
   value: SupportCategory
   title: string
   detail: string
-}> = [
+}[] = [
   {
     value: 'booking',
     title: 'A booking',

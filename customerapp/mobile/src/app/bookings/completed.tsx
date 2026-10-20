@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Text } from '@/components/ui/Text'
-import { EmptyState } from '@/components/EmptyState'
+import { EmptyState } from '@/components/ui/States'
 import { formatPaise } from '@/lib/format'
 import { BlockTitle, SecondaryLink, useSettle } from '@/screens/bookings/parts'
 

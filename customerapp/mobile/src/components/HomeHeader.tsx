@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import type { Href } from 'expo-router'
 import { Bell, LogIn, LogOut, WalletMinimal, type LucideIcon } from 'lucide-react-native'
-import { ConfirmModal } from '@/components/Modal'
+import { ConfirmModal } from '@/components/ui/Overlay'
 import { SearchBar } from '@/components/SearchBar'
 import { useToast } from '@/components/Toast'
 import { Icon } from '@/components/ui/Icon'
@@ -15,6 +15,7 @@ import { cn } from '@/lib/cn'
 import { formatPhone } from '@/lib/format'
 import { CartButton } from '@/components/CartButton'
 import { LocationSelector } from '@/components/LocationSelector'
+import { brand } from '@/config/brand'
 
 /**
  * The top of Home: where the customer is, and what they are looking for.
@@ -217,7 +218,7 @@ function AccountTile({ onDark = false }: { onDark?: boolean }) {
         onConfirm={() => void leave()}
         loading={leaving}
         destructive
-        title="Log out of 24X7?"
+        title={`Log out of ${brand.name}?`}
         description={
           user.phoneNumber
             ? `You are logged in as ${formatPhone(user.phoneNumber)}. Your bookings stay saved to this number.`

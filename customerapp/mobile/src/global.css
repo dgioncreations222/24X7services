@@ -39,6 +39,58 @@
   --radius-pill: 999px;
 }
 
+/* Content colours: fixed in both themes, and the only place they are written.
+   Components read them as classes (bg-tint-blue) or, where a prop wants a
+   string (a gradient stop, an SVG fill), through useTokenColors().
+   `static` keeps them all emitted even when no class names one. */
+@theme static {
+  /* Offer banners: each tone runs deep (1) to light (3). */
+  --color-tone-blue-1: #1e3a8a;
+  --color-tone-blue-2: #2547d0;
+  --color-tone-blue-3: #4aa8dc;
+  --color-tone-amber-1: #3b1a05;
+  --color-tone-amber-2: #8c4f10;
+  --color-tone-amber-3: #e0952e;
+  --color-tone-green-1: #08402f;
+  --color-tone-green-2: #0b7a50;
+  --color-tone-green-3: #2fb483;
+  --color-tone-teal-1: #11293e;
+  --color-tone-teal-2: #1e6e8c;
+  --color-tone-teal-3: #5fc9e8;
+  --color-tone-violet-1: #0e0e22;
+  --color-tone-violet-2: #2b2a6e;
+  --color-tone-violet-3: #5a4ed0;
+
+  /* Category tiles: light, because the photographs are shot on white. */
+  --color-tint-blue: #e4ecff;
+  --color-tint-sky: #dcf2fa;
+  --color-tint-mint: #dff4ea;
+  --color-tint-peach: #fde9d9;
+  --color-tint-lilac: #eee5fb;
+
+  /* Other companies' own colours, on their share buttons. */
+  --color-whatsapp: #25d366;
+  --color-facebook: #1877f2;
+  --color-telegram: #229ed9;
+  --color-gmail: #ea4335;
+
+  /* Illustrations (the refer-and-earn gifts). */
+  --color-art-gold: #f5b83d;
+  --color-art-gold-light: #ffd27a;
+  --color-art-periwinkle: #7c8cf0;
+  --color-art-indigo: #4f63e0;
+  --color-art-indigo-deep: #3b50d6;
+  --color-art-pink: #f7a8c8;
+  --color-art-pink-mid: #f28bb5;
+  --color-art-pink-deep: #e5679a;
+  --color-art-mint: #8fe0d6;
+  --color-art-mint-mid: #6fd3c6;
+  --color-art-teal: #2fb7a6;
+  /* The assistant's avatar. */
+  --color-art-violet: #7c5cff;
+  --color-art-magenta: #e85da8;
+}
+
 /* Light and dark, following the phone. The dark palette is the warm one turned
    down rather than inverted, with a brighter brand blue so links still read.
    Photographs keep a light plate in both, or cut-outs become black shapes. */

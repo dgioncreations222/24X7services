@@ -4,7 +4,7 @@ import { Star } from 'lucide-react-native'
 import type { ServiceReview } from '@app/shared'
 import { relativeTime } from '@/lib/format'
 import { cn } from '@/lib/cn'
-import { Icon, useColor } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
 
@@ -47,8 +47,6 @@ export function ServiceReviews({
   className?: string
 }) {
   const [shown, setShown] = useState(PAGE)
-  const ink = useColor('text-ink')
-  const muted = useColor('text-muted')
 
   if (reviews.length === 0) {
     return (
@@ -82,7 +80,7 @@ export function ServiceReviews({
       <View className="mt-3 flex-row items-start gap-5">
         <View className="shrink-0 items-center">
           <View className="flex-row items-center gap-1">
-            <Icon as={Star} fill={ink} className="size-6 text-ink" />
+            <Icon as={Star} filled className="size-6 text-ink" />
             <Text className="text-3xl font-bold text-ink">{average.toFixed(1)}</Text>
           </View>
           <Text className="mt-0.5 text-xs text-muted" style={{ fontVariant: ['tabular-nums'] }}>
@@ -94,7 +92,7 @@ export function ServiceReviews({
           {buckets.map((bucket) => (
             <View key={bucket.star} className="flex-row items-center gap-2 py-0.5">
               <Text className="w-3 shrink-0 text-xs text-muted">{bucket.star}</Text>
-              <Icon as={Star} fill={muted} className="size-3 text-muted" />
+              <Icon as={Star} filled className="size-3 text-muted" />
               <View aria-hidden className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-pill bg-surface">
                 <View className="h-full rounded-pill bg-ink" style={{ width: `${(bucket.count / total) * 100}%` }} />
               </View>
@@ -151,7 +149,7 @@ function Score({ rating }: { rating: number }) {
   const good = rating >= 4
   return (
     <View className={cn('shrink-0 flex-row items-center gap-1 rounded-card px-2 py-1', good ? 'bg-success' : 'bg-error')}>
-      <Icon as={Star} fill="#ffffff" className="size-3 text-white" />
+      <Icon as={Star} filled className="size-3 text-white" />
       <Text className="text-xs font-bold text-white">{rating}</Text>
     </View>
   )

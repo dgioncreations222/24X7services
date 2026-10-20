@@ -1,18 +1,17 @@
 import { useCallback, useState } from 'react'
 import { View } from 'react-native'
-import { doc, getDoc } from 'firebase/firestore'
 import { UserRound } from 'lucide-react-native'
-import { COL, updateProfileInputSchema, userProfileSchema } from '@app/shared'
+import { updateProfileInputSchema } from '@app/shared'
 
 import { ProfileShell, SignInPrompt } from '@/components/ProfileShell'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
 import { Text } from '@/components/ui/Text'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/Toast'
 import { saveName } from '@/lib/auth'
-import { db } from '@/lib/firebase'
+import { fetchProfile } from '@/lib/api/profile'
 import { formatPhone } from '@/lib/format'
 import { useAsync } from '@/lib/useAsync'
 
@@ -48,11 +47,7 @@ function PersonalForm({ uid, phone }: { uid: string; phone: string | null }) {
   const [errors, setErrors] = useState<{ name?: string; email?: string }>({})
   const [saving, setSaving] = useState(false)
 
-  const load = useCallback(async () => {
-    const snap = await getDoc(doc(db(), COL.users, uid))
-    const parsed = userProfileSchema.safeParse(snap.data())
-    return parsed.success ? parsed.data : null
-  }, [uid])
+  const load = useCallback(() => fetchProfile(uid), [uid])
 
   const profile = useAsync(load)
 

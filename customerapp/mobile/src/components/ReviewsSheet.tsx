@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react'
 import { ScrollView, View } from 'react-native'
 import { Star } from 'lucide-react-native'
 import type { ServiceReview } from '@app/shared'
-import { BottomSheet } from '@/components/BottomSheet'
+import { BottomSheet } from '@/components/ui/Overlay'
 import { countNote } from '@/components/ServiceScore'
 import { cn } from '@/lib/cn'
-import { Icon, useColor } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
 
@@ -63,8 +63,6 @@ export function ReviewsPanel({
   reviews,
   serviceNames,
 }: ReviewsPanelProps) {
-  const ink = useColor('text-ink')
-  const white = useColor('text-white')
   const [order, setOrder] = useState<Order>('recent')
   const [service, setService] = useState<ServiceReview['serviceKey'] | null>(
     null
@@ -104,7 +102,7 @@ export function ReviewsPanel({
       {rating !== undefined ? (
         <View>
           <View className="flex-row items-center gap-1.5">
-            <Icon as={Star} fill={ink} className="size-7 text-ink" />
+            <Icon as={Star} filled className="size-7 text-ink" />
             <Text className="text-[36px] leading-[40px] font-bold text-ink">{rating.toFixed(2)}</Text>
           </View>
           {ratingCount !== undefined ? (
@@ -133,7 +131,7 @@ export function ReviewsPanel({
                   )}
                 >
                   <View className="w-8 shrink-0 flex-row items-center gap-1">
-                    <Icon as={Star} fill={ink} className="size-3.5 text-ink" />
+                    <Icon as={Star} filled className="size-3.5 text-ink" />
                     <Text className="text-base text-ink">{star}</Text>
                   </View>
                   <View className="h-1.5 flex-1 overflow-hidden rounded-pill bg-surface">
@@ -229,7 +227,7 @@ export function ReviewsPanel({
                         : 'bg-error'
                   )}
                 >
-                  <Icon as={Star} fill={white} className="size-3.5 text-white" />
+                  <Icon as={Star} filled className="size-3.5 text-white" />
                   <Text className="text-sm font-semibold text-white">{review.rating}</Text>
                 </View>
               </View>

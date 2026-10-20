@@ -19,9 +19,10 @@ import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
 import { copyText, shareText } from '@/lib/share'
 import { cn } from '@/lib/cn'
+import { brand } from '@/config/brand'
 
 /** Where the invite points. The web build uses its own origin; the app has none. */
-const APP_URL = 'https://24x7.app'
+const APP_URL = brand.appUrl
 
 /**
  * The offer, the code, and the ways to send it — one block, because they are
@@ -44,7 +45,7 @@ export function ReferCard({ code }: { code: string }) {
   async function sheet(): Promise<void> {
     if (busy) return
     setBusy(true)
-    const outcome = await shareText(message, 'Try 24X7')
+    const outcome = await shareText(message, `Try ${brand.name}`)
     setBusy(false)
     if (outcome === 'copied') {
       toast.show('Invite copied. Paste it wherever you like.', { tone: 'success' })
@@ -133,6 +134,7 @@ export function ReferCard({ code }: { code: string }) {
  */
 function Speckle() {
   const dot = useColor('text-bg')
+  const opaque = useColor('text-white')
   return (
     <View
       pointerEvents="none"
@@ -146,8 +148,8 @@ function Speckle() {
             <Circle cx="7" cy="7" r="1.5" fill={dot} />
           </Pattern>
           <RadialGradient id="fade" cx="70%" cy="30%" r="70%">
-            <Stop offset="0" stopColor="#fff" stopOpacity="1" />
-            <Stop offset="1" stopColor="#fff" stopOpacity="0" />
+            <Stop offset="0" stopColor={opaque} stopOpacity="1" />
+            <Stop offset="1" stopColor={opaque} stopOpacity="0" />
           </RadialGradient>
           <Mask id="mask">
             <Rect width="224" height="224" fill="url(#fade)" />

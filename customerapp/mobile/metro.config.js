@@ -1,8 +1,8 @@
 // Metro, taught three things the defaults do not know.
 //
 // @app/shared lives outside this folder (customerapp/packages/shared) and is
-// linked in with `file:`, so Metro has to watch it and resolve its own `zod`
-// from here rather than from a node_modules it cannot see.
+// linked in with `file:`, so Metro has to watch it, read it from source, and
+// resolve its own `zod` from here rather than from a node_modules it cannot see.
 //
 // The demo catalog ships as `demo-data.bundle`, which has to be an asset.
 //
@@ -37,6 +37,15 @@ uniwind.resolver.resolveRequest = (context, moduleName, platform) => {
     context.originModulePath.includes(`react-native-web${path.sep}`)
   ) {
     return context.resolveRequest(context, moduleName, platform)
+  }
+  // @app/shared is read from its TypeScript source, so a fresh clone runs
+  // without building the package's gitignored dist/ first.
+  if (moduleName === '@app/shared') {
+    return { type: 'sourceFile', filePath: path.join(shared, 'src', 'index.ts') }
+  }
+  // The generic catalog is not in the package index yet (see catalog-v2.ts).
+  if (moduleName === '@app/shared/catalog-v2') {
+    return { type: 'sourceFile', filePath: path.join(shared, 'src', 'catalog-v2.ts') }
   }
   return uniwindResolve(context, moduleName, platform)
 }

@@ -1,19 +1,18 @@
 import { useCallback, useState } from 'react'
 import { View } from 'react-native'
 import { router } from 'expo-router'
-import { doc, getDoc } from 'firebase/firestore'
 import { CalendarX } from 'lucide-react-native'
-import { addressSchema, COL, SUB, type SlotOption } from '@app/shared'
+import type { SlotOption } from '@app/shared'
 
 import { BookingStep } from '@/components/BookingStep'
 import { DateStrip } from '@/components/DateStrip'
 import { TimeSlot } from '@/components/TimeSlot'
-import { EmptyState } from '@/components/EmptyState'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { EmptyState , ErrorState } from '@/components/ui/States'
+
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { Text } from '@/components/ui/Text'
 import { callFn } from '@/lib/callables'
-import { db } from '@/lib/firebase'
+import { pincodeOfSavedAddress } from '@/lib/api/bookingAddresses'
 import { useAuth } from '@/lib/auth'
 import { relativeDateLabel, todayKey } from '@/lib/format'
 import { patchDraft, useBookingDraft } from '@/lib/bookingDraft'
@@ -157,11 +156,4 @@ export default function SlotScreen() {
       )}
     </BookingStep>
   )
-}
-
-async function pincodeOfSavedAddress(uid: string | undefined, addressId: string): Promise<string | undefined> {
-  if (!uid) return undefined
-  const snap = await getDoc(doc(db(), COL.users, uid, SUB.addresses, addressId))
-  const parsed = addressSchema.safeParse({ id: snap.id, ...snap.data() })
-  return parsed.success ? parsed.data.pincode : undefined
 }

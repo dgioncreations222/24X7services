@@ -25,6 +25,8 @@ import {
   type AssistantReply,
 } from '@/lib/assistant'
 import { cn } from '@/lib/cn'
+import { useTokenColors } from '@/lib/useTokenColors'
+import { brand } from '@/config/brand'
 
 /**
  * A conversation with the assistant in lib/assistant.ts.
@@ -112,7 +114,7 @@ export default function AssistantScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <Header
-        title="24X7 Assistant"
+        title={`${brand.name} Assistant`}
         subtitle="Answers from our technicians' repair guides"
         showBack
         backFallback="/search"
@@ -233,10 +235,11 @@ function AssistantBubble({
   reply: AssistantReply
   onQuickReply?: (text: string) => void
 }) {
+  const avatar = useTokenColors(['art-violet', 'art-magenta'] as const)
   return (
     <View className="max-w-[92%] flex-row gap-2.5">
       <LinearGradient
-        colors={['#7C5CFF', '#E85DA8']}
+        colors={avatar}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{ width: 32, height: 32, borderRadius: 16, marginTop: 2, alignItems: 'center', justifyContent: 'center' }}

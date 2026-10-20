@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs -- the refs are read in layout callbacks, not during render; this screen is replaced by the generic category page (PR-6) */
 import { useCallback, useRef, useState } from 'react'
 import { ScrollView, View, type LayoutChangeEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -36,13 +37,13 @@ import { TrustPoints } from '@/components/TrustPoints'
 import { usePrefersReducedMotion } from '@/components/ServiceClip'
 import { Chip, Tag } from '@/components/ui/Chip'
 import { Card } from '@/components/ui/Card'
-import { Icon, useColor } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
 import { Img } from '@/components/ui/Img'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
-import { ErrorState } from '@/components/ErrorState'
-import { ServiceListSkeleton } from '@/components/SkeletonLoader'
-import { MANUFACTURER_WARRANTY_NOTICE } from '@/config/brand'
+import { ErrorState } from '@/components/ui/States'
+import { ServiceListSkeleton } from '@/components/ui/Skeleton'
+import { brand, MANUFACTURER_WARRANTY_NOTICE } from '@/config/brand'
 import { startDraft } from '@/lib/bookingDraft'
 import { useCart } from '@/lib/cart'
 import {
@@ -105,11 +106,11 @@ interface ApplianceData {
  * says only what it holds — "Repair" for a repair alone, "Repair & gas
  * refill" once there is a refill to go with it.
  */
-const GROUPS: ReadonlyArray<{
+const GROUPS: readonly {
   key: string
   keys: readonly ServiceKey[]
   title: (present: ReadonlySet<ServiceKey>) => string
-}> = [
+}[] = [
   {
     key: 'service',
     keys: ['service', 'deep-clean', 'maintenance'],
@@ -181,7 +182,6 @@ export function ApplianceScreen() {
   const openAt = params.s ?? null
   const applianceId: ApplianceId | null = parsed.success ? parsed.data : null
   const reducedMotion = usePrefersReducedMotion()
-  const ink = useColor('text-ink')
 
   const load = useCallback(async (): Promise<ApplianceData> => {
     if (!applianceId) {
@@ -419,7 +419,7 @@ export function ApplianceScreen() {
                 accessibilityLabel={`Rated ${score.rating.toFixed(2)}, ${countNote(score.reviewCount)} reviews. Read them.`}
                 className="mt-1.5 flex-row items-center gap-1.5 self-start"
               >
-                <Icon as={Star} fill={ink} className="size-3.5 text-ink" />
+                <Icon as={Star} filled className="size-3.5 text-ink" />
                 <Text className="text-sm text-ink underline decoration-dotted">
                   <Text className="text-sm font-semibold text-ink">{score.rating.toFixed(2)}</Text> (
                   {countNote(score.reviewCount)} reviews)
@@ -464,7 +464,7 @@ export function ApplianceScreen() {
             {/* The year's plan first, as the marketplaces put their packages
                 first: the one tile here that is not a single visit. */}
             {plan ? (
-              <JumpTile label="Annual plan" href={'/care' as Href}>
+              <JumpTile label="Annual plan" href="/profile/plans">
                 <View className="size-full items-center justify-center bg-success/10">
                   <Text className="text-[11px] font-semibold text-success">From</Text>
                   <Text className="text-base font-bold leading-tight text-success">{formatPaise(plan.price)}</Text>
@@ -611,13 +611,13 @@ export function ApplianceScreen() {
             photo={services.find((s) => s.serviceKey === 'service')?.technicianPhoto ?? appliance.heroImage}
             action={
               <Tappable
-                href={'/care' as Href}
+                href="/profile/plans"
                 className="h-11 w-[5.5rem] items-center justify-center rounded-card border border-border bg-bg active:border-brand active:opacity-100"
               >
                 <Text className="text-sm font-semibold text-brand">View</Text>
               </Tappable>
             }
-            onOpen={() => router.push('/care' as Href)}
+            onOpen={() => router.push('/profile/plans')}
             openLabel={`${plan.name}, ${formatPaise(plan.price)} a year. See the plan.`}
           />
         </View>
@@ -867,7 +867,7 @@ export function ApplianceScreen() {
           open={shareOpen}
           onClose={() => setShareOpen(false)}
           title={appliance.name}
-          text={`${appliance.name} repair, service and installation on 24X7${
+          text={`${appliance.name} repair, service and installation on ${brand.name}${
             cheapestFee === null ? '' : ` — visits from ${formatPaise(cheapestFee)}`
           }.`}
           url={Linking.createURL('/services/appliance', { queryParams: { a: appliance.id } })}

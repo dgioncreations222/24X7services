@@ -11,8 +11,7 @@ import { cn } from '@/lib/cn'
 /**
  * The questions people ask before their first booking, answered on the page.
  *
- * Every answer is one the assistant already gives (lib/assistantBrain), and
- * the numbers in them — warranty days, the cancellation window — come from the
+ * The numbers in the answers — warranty days, the cancellation window — come from the
  * business config, so the page and the policy cannot disagree.
  */
 export function faqFor(config: BusinessConfig | null) {

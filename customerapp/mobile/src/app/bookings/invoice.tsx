@@ -1,22 +1,20 @@
 import { useCallback, useState } from 'react'
 import { Linking, Platform } from 'react-native'
-import { doc, getDoc } from 'firebase/firestore'
-import { getDownloadURL, ref } from 'firebase/storage'
 import { File, Paths } from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import { Download, FileText, Share2 } from 'lucide-react-native'
-import { COL, invoiceSchema, type Booking, type Invoice } from '@app/shared'
+import type { Booking, Invoice } from '@app/shared'
 
 import { BookingShell } from '@/components/BookingShell'
 import { InvoiceView, invoiceText } from '@/components/InvoiceView'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Text } from '@/components/ui/Text'
-import { EmptyState } from '@/components/EmptyState'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { EmptyState , ErrorState } from '@/components/ui/States'
+
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/Toast'
-import { db, storage } from '@/lib/firebase'
+import { fetchInvoice, invoicePdfUrl } from '@/lib/api/invoices'
 import { shareText } from '@/lib/share'
 import { useAsync } from '@/lib/useAsync'
 
@@ -67,9 +65,7 @@ function InvoiceBody({ booking }: { booking: Booking }) {
 
   const load = useCallback(async (): Promise<Invoice | null> => {
     if (!invoiceId) return null
-    const snap = await getDoc(doc(db(), COL.invoices, invoiceId))
-    const parsed = invoiceSchema.safeParse({ id: snap.id, ...snap.data() })
-    return parsed.success ? parsed.data : null
+    return fetchInvoice(invoiceId)
   }, [invoiceId])
 
   const invoice = useAsync(load)
@@ -79,7 +75,7 @@ function InvoiceBody({ booking }: { booking: Booking }) {
     try {
       // A short-lived URL fetched on demand rather than a link stored on the
       // invoice — a token written into a document outlives what it was for.
-      const url = await getDownloadURL(ref(storage(), path))
+      const url = await invoicePdfUrl(path)
       await sharePdf(url, data)
     } catch {
       toast.show('We could not open the PDF just now. Please try again.', {

@@ -34,17 +34,28 @@ export const giftCardAmountSchema = paiseSchema
   .max(500_000, 'The largest gift card is ₹5,000')
 
 /**
- * `24X7-ABCD-EFGH`, from an alphabet with no O, 0, I or 1 in it, because this
- * is a string people read out loud and type back in.
+ * What every gift card and referral code starts with. The examples, the
+ * validators, their messages and the normalisers are all built from it, so a
+ * new brand is one edit here. Letters and digits only: the normalisers strip
+ * everything else before looking for it.
+ */
+export const CODE_PREFIX = '24X7'
+
+/**
+ * `<prefix>-ABCD-EFGH`, from an alphabet with no O, 0, I or 1 in it, because
+ * this is a string people read out loud and type back in.
  */
 export const GIFT_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+/** What an issued code looks like, for screens to show as an example. */
+export const GIFT_CARD_CODE_EXAMPLE = `${CODE_PREFIX}-ABCD-EFGH`
+const giftBlock = `[${GIFT_CODE_ALPHABET}]{4}`
 export const giftCardCodeSchema = z
   .string()
   .trim()
   .toUpperCase()
   .regex(
-    /^24X7-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/,
-    'A gift card code looks like 24X7-ABCD-EFGH'
+    new RegExp(`^${CODE_PREFIX}-${giftBlock}-${giftBlock}$`),
+    `A gift card code looks like ${GIFT_CARD_CODE_EXAMPLE}`
   )
 
 /**
@@ -52,9 +63,15 @@ export const giftCardCodeSchema = z
  * validator above is strict; this is what runs before it.
  */
 export function normaliseGiftCode(input: string): string {
-  const body = input.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^24X7/, '')
+  const body = withoutCodePrefix(input)
   if (body.length !== 8) return input.trim().toUpperCase()
-  return `24X7-${body.slice(0, 4)}-${body.slice(4)}`
+  return `${CODE_PREFIX}-${body.slice(0, 4)}-${body.slice(4)}`
+}
+
+/** The letters and digits of a pasted code, upper case, minus CODE_PREFIX. */
+export function withoutCodePrefix(input: string): string {
+  const body = input.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  return body.startsWith(CODE_PREFIX) ? body.slice(CODE_PREFIX.length) : body
 }
 
 export const giftCardStatusSchema = z.enum(['active', 'redeemed'])

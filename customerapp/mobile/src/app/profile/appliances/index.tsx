@@ -1,9 +1,8 @@
 import { useCallback, useState } from 'react'
 import { View } from 'react-native'
 import type { Href } from 'expo-router'
-import { collection, deleteDoc, doc, getDocs } from 'firebase/firestore'
 import { ChevronRight, PackageOpen, Trash2, WashingMachine } from 'lucide-react-native'
-import { COL, SUB, userApplianceInputSchema, type CatalogAppliance, type UserApplianceInput } from '@app/shared'
+import type { CatalogAppliance } from '@app/shared'
 
 import { ProfileShell, SignInPrompt } from '@/components/ProfileShell'
 import { Card } from '@/components/ui/Card'
@@ -16,7 +15,7 @@ import { ErrorState } from '@/components/ErrorState'
 import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
 import { useToast } from '@/components/Toast'
 import { fetchAppliances } from '@/lib/catalog'
-import { db } from '@/lib/firebase'
+import { deleteMyAppliance, fetchMyAppliances, type SavedAppliance } from '@/lib/api/appliances'
 import { relativeTime } from '@/lib/format'
 import { useAsync } from '@/lib/useAsync'
 
@@ -29,10 +28,6 @@ import { useAsync } from '@/lib/useAsync'
  * they are reviewed, and where one that has been thrown out is removed.
  */
 
-interface SavedAppliance extends UserApplianceInput {
-  id: string
-  lastServicedAt?: number
-}
 
 export default function AppliancesScreen() {
   return (
@@ -70,22 +65,7 @@ function ApplianceList({ uid }: { uid: string }) {
   const [reloadKey, setReloadKey] = useState(0)
 
   const load = useCallback(async () => {
-    const [snap, catalog] = await Promise.all([
-      getDocs(collection(db(), COL.users, uid, SUB.appliances)),
-      fetchAppliances(),
-    ])
-
-    const saved: SavedAppliance[] = []
-    for (const document of snap.docs) {
-      const parsed = userApplianceInputSchema.safeParse(document.data())
-      if (!parsed.success) continue
-      const lastServicedAt = document.data().lastServicedAt
-      saved.push({
-        id: document.id,
-        ...parsed.data,
-        ...(typeof lastServicedAt === 'number' ? { lastServicedAt } : {}),
-      })
-    }
+    const [saved, catalog] = await Promise.all([fetchMyAppliances(uid), fetchAppliances()])
 
     return { saved, catalog }
     // reloadKey is the point: bumping it re-runs the load.
@@ -97,7 +77,7 @@ function ApplianceList({ uid }: { uid: string }) {
   async function remove(appliance: SavedAppliance): Promise<void> {
     setBusy(true)
     try {
-      await deleteDoc(doc(db(), COL.users, uid, SUB.appliances, appliance.id))
+      await deleteMyAppliance(uid, appliance.id)
       setDeleting(null)
       setReloadKey((key) => key + 1)
       toast.show('Removed.')

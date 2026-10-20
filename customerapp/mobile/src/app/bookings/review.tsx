@@ -1,9 +1,8 @@
 import { useCallback, useState } from 'react'
 import { View } from 'react-native'
 import { router, type Href } from 'expo-router'
-import { doc, getDoc } from 'firebase/firestore'
 import { Star } from 'lucide-react-native'
-import { COL, reviewSchema, type Booking, type Review } from '@app/shared'
+import type { Booking, Review } from '@app/shared'
 
 import { BookingShell } from '@/components/BookingShell'
 import { ReviewCard } from '@/components/ReviewCard'
@@ -14,11 +13,11 @@ import { Textarea } from '@/components/ui/Field'
 import { Icon, useColor } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
-import { EmptyState } from '@/components/EmptyState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { EmptyState } from '@/components/ui/States'
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/Toast'
 import { callFn, friendlyError } from '@/lib/callables'
-import { db } from '@/lib/firebase'
+import { fetchReview } from '@/lib/api/reviews'
 import { useAsync } from '@/lib/useAsync'
 import { cn } from '@/lib/cn'
 import { BlockTitle } from '@/screens/bookings/parts'
@@ -64,9 +63,7 @@ function ReviewBody({ booking }: { booking: Booking }) {
 
   const load = useCallback(async (): Promise<Review | null> => {
     if (!reviewId) return null
-    const snap = await getDoc(doc(db(), COL.reviews, reviewId))
-    const parsed = reviewSchema.safeParse({ id: snap.id, ...snap.data() })
-    return parsed.success ? parsed.data : null
+    return fetchReview(reviewId)
   }, [reviewId])
 
   const existing = useAsync(load)

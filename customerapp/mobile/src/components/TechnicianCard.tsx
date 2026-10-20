@@ -3,7 +3,7 @@ import { MessageSquare, Phone, Star } from 'lucide-react-native'
 import type { TechnicianPublic } from '@app/shared'
 import { Card, CardButton } from '@/components/ui/Card'
 import { Tag } from '@/components/ui/Chip'
-import { Icon, useColor } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
 import { Img } from '@/components/ui/Img'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
@@ -39,7 +39,6 @@ export function TechnicianCard({
   onMessage,
   className,
 }: TechnicianCardProps) {
-  const ink = useColor('text-ink')
   const specialisms = technician.specializations.map((id) => brandNames?.[id] ?? id.toUpperCase()).join(' · ')
 
   const body = (
@@ -64,7 +63,7 @@ export function TechnicianCard({
           {technician.name}
         </Text>
         <View className="mt-0.5 flex-row items-center gap-1.5">
-          <Icon as={Star} className="size-3.5 text-ink" fill={ink} />
+          <Icon as={Star} className="size-3.5 text-ink" filled />
           <Text className="text-sm font-medium text-ink">{technician.rating.toFixed(1)}</Text>
           <Text aria-hidden className="text-sm text-muted">
             ·

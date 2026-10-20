@@ -1,6 +1,6 @@
 import '@/global.css'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -16,12 +16,11 @@ import {
   Manrope_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/manrope'
-import { demoMode } from '@/lib/firebase'
-import { loadDemoData } from '@/lib/demo'
+import { useDemoData } from '@/lib/api/startup'
 import { useAuth } from '@/lib/auth'
 import { onPushWhileOpen } from '@/lib/push'
 import { useOnline } from '@/lib/useOnline'
-import { OfflineBanner } from '@/components/States'
+import { OfflineBanner } from '@/components/ui/States'
 import { ToastProvider, useToast } from '@/components/Toast'
 import { Text } from '@/components/ui/Text'
 import { useColor } from '@/components/ui/Icon'
@@ -76,26 +75,6 @@ export default function RootLayout() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )
-}
-
-/**
- * Holds the app back until the demo catalog is in Firestore's cache — an
- * offline read of an empty cache comes back empty at once, and a screen would
- * settle on "nothing here" instead of waiting. Free outside demo mode.
- */
-function useDemoData(): 'loading' | 'ready' | 'failed' {
-  const [state, setState] = useState<'loading' | 'ready' | 'failed'>(demoMode ? 'loading' : 'ready')
-  useEffect(() => {
-    if (!demoMode) return
-    loadDemoData().then(
-      () => setState('ready'),
-      (error) => {
-        console.error('[demo] bundle failed to load', error)
-        setState('failed')
-      }
-    )
-  }, [])
-  return state
 }
 
 /** Navigation's own colours (screen backgrounds behind transitions) follow the theme. */

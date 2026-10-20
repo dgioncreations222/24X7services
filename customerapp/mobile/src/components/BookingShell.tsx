@@ -3,7 +3,7 @@ import { router, useLocalSearchParams, usePathname, type Href } from 'expo-route
 import type { Booking, BookingEvent } from '@app/shared'
 
 import { Header, Screen } from '@/components/Screen'
-import { ErrorState, Skeleton, SkeletonGroup } from '@/components/States'
+import { ErrorState, Skeleton, SkeletonGroup } from '@/components/ui/States'
 import { useAuth } from '@/lib/auth'
 import { useBookingLive } from '@/lib/useBookingLive'
 

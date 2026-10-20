@@ -12,8 +12,8 @@ import {
 } from '@app/shared'
 
 import { useSignInHref } from '@/components/ProfileShell'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { ErrorState } from '@/components/ui/States'
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
 import { Icon, useColor } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
@@ -24,6 +24,7 @@ import { buy } from '@/lib/purchase'
 import { daysUntil, formatDateTime } from '@/lib/format'
 import { useAsync } from '@/lib/useAsync'
 import { cn } from '@/lib/cn'
+import { brand } from '@/config/brand'
 
 /** Loads this customer's membership (none when `uid` is null) and shows it. */
 export function Plus({ uid }: { uid: string | null }) {
@@ -84,7 +85,7 @@ export function PlusBody({
       <Buy active={active} {...(onBought ? { onBought } : {})} />
 
       <Text className="mt-6 pb-6 text-xs text-muted">
-        24X7 Plus does not renew on its own. We will not charge you again unless you come back
+        {brand.name} Plus does not renew on its own. We will not charge you again unless you come back
         here and buy it. The visit fee is waived on every booking made while it is live, and 10%
         comes off repairs you approve — both are applied to the booking when it is made, so a
         membership that runs out later does not change a bill you have already been quoted.
@@ -136,7 +137,7 @@ function ActiveCard({ membership }: { membership: Membership }) {
 
         <View className="flex-row items-center gap-2">
           <Icon as={BadgeCheck} className="size-5 text-white" />
-          <Text className="text-sm font-semibold uppercase tracking-[0.84px] text-white">24X7 Plus</Text>
+          <Text className="text-sm font-semibold uppercase tracking-[0.84px] text-white">{`${brand.name} Plus`}</Text>
         </View>
 
         <Text className="mt-8 text-2xl font-bold text-white">You are a member</Text>
@@ -159,7 +160,7 @@ function PitchCard({ lapsed }: { lapsed: boolean }) {
     <View className="mt-5 overflow-hidden rounded-card border border-border p-5">
       <View className="flex-row items-center gap-2">
         <Icon as={Sparkles} className="size-5 text-brand" />
-        <Text className="text-sm font-semibold uppercase tracking-[0.84px] text-brand">24X7 Plus</Text>
+        <Text className="text-sm font-semibold uppercase tracking-[0.84px] text-brand">{`${brand.name} Plus`}</Text>
       </View>
 
       <Text className="mt-3 text-2xl font-bold text-ink">
@@ -194,7 +195,7 @@ function Buy({ active, onBought }: { active: boolean; onBought?: () => void }) {
     try {
       const outcome = await buy({ kind: 'membership', optionId: chosen })
       if (outcome.kind === 'bought') {
-        toast.show(active ? 'Membership extended.' : 'You are a 24X7 Plus member.', { tone: 'success' })
+        toast.show(active ? 'Membership extended.' : `You are a ${brand.name} Plus member.`, { tone: 'success' })
         onBought?.()
       }
       // Cancelled: the customer closed the payment sheet. Nothing to announce.

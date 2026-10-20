@@ -5,6 +5,7 @@ import { BrandDisclaimer } from '@/components/BrandCard'
 import { Icon } from '@/components/ui/Icon'
 import { Img } from '@/components/ui/Img'
 import { Text } from '@/components/ui/Text'
+import { brand } from '@/config/brand'
 
 /**
  * Who comes to the door, and what they can open up.
@@ -38,7 +39,7 @@ export function TopTechnicians() {
       <View className="absolute inset-y-0 right-0 w-[44%] pt-3">
         <Img
           src={TECHNICIAN_PHOTO}
-          alt="A 24X7 technician"
+          alt={`A ${brand.name} technician`}
           contentFit="contain"
           contentPosition="bottom"
           className="h-full w-full"

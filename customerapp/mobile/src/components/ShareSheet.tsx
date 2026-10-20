@@ -9,7 +9,7 @@ import {
   MoreHorizontal,
   Send,
 } from 'lucide-react-native'
-import { BottomSheet } from '@/components/BottomSheet'
+import { BottomSheet } from '@/components/ui/Overlay'
 import { useToast } from '@/components/Toast'
 import { copyText, shareText } from '@/lib/share'
 import { cn } from '@/lib/cn'
@@ -75,25 +75,25 @@ export function ShareSheet({
     })
   }
 
-  const targets: ReadonlyArray<{
+  const targets: readonly {
     key: string
     label: string
     href: string
     tint: string
     icon: React.ReactNode
-  }> = [
+  }[] = [
     {
       key: 'whatsapp',
       label: 'WhatsApp',
       href: `https://wa.me/?text=${encodeURIComponent(message)}`,
-      tint: 'bg-[#25D366]',
+      tint: 'bg-whatsapp',
       icon: <Icon as={MessageCircle} className="size-6 text-white" />,
     },
     {
       key: 'facebook',
       label: 'Facebook',
       href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-      tint: 'bg-[#1877F2]',
+      tint: 'bg-facebook',
       icon: <Text className="text-2xl leading-[28px] font-bold text-white">f</Text>,
     },
     {
@@ -108,14 +108,14 @@ export function ShareSheet({
       key: 'telegram',
       label: 'Telegram',
       href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
-      tint: 'bg-[#229ED9]',
+      tint: 'bg-telegram',
       icon: <Icon as={Send} className="size-5 text-white" />,
     },
     {
       key: 'email',
       label: 'Email',
       href: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(message)}`,
-      tint: 'bg-[#EA4335]',
+      tint: 'bg-gmail',
       icon: <Icon as={Mail} className="size-5 text-white" />,
     },
     {

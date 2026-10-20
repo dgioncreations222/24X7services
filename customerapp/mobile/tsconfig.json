@@ -8,6 +8,15 @@
       ],
       "@/assets/*": [
         "./assets/*"
+      ],
+      "@app/shared": [
+        "../packages/shared/src/index.ts"
+      ],
+      "@app/shared/catalog-v2": [
+        "../packages/shared/src/catalog-v2.ts"
+      ],
+      "zod": [
+        "./node_modules/zod"
       ]
     }
   },

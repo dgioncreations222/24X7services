@@ -1,41 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ScrollView, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
-import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
-import { LinearGradient } from 'expo-linear-gradient'
-import { router, type Href } from 'expo-router'
-import { ChevronRight, MapPinOff, ShieldCheck } from 'lucide-react-native'
-import type {
-  Banner,
-  BannerTone,
-  CatalogAppliance,
-  CatalogBrand,
-  CatalogIssue,
-  CatalogService,
-  Paise,
-  PopularService,
-} from '@app/shared'
-import { formatPaise } from '@app/shared'
+import { router } from 'expo-router'
+import type { BannerTone } from '@app/shared'
 
-import { AppShell, Section } from '@/components/AppShell'
+import { AppShell } from '@/components/AppShell'
 import { HomeHeaderSearch, HomeHeaderStrip, HomeHeaderTop } from '@/components/HomeHeader'
-import { PromotionalBanner, BannerCard, TONE_TOP, TONES_EDGE } from '@/components/PromotionalBanner'
+import { PromotionalBanner, useToneEdge } from '@/components/PromotionalBanner'
 import { CategoryGrid } from '@/components/CategoryGrid'
-import { ServiceRail, durationNote, type ServiceRailItem } from '@/components/ServiceRail'
-import { BrandDisclaimer } from '@/components/BrandCard'
-import { BrandLogoRow } from '@/components/BrandLogoRow'
-import { TrustPoints } from '@/components/TrustPoints'
 import { useLocation } from '@/lib/useLocation'
 import { Card } from '@/components/ui/Card'
-import { Icon } from '@/components/ui/Icon'
-import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
-import { ErrorState } from '@/components/ErrorState'
-import { CategoryGridSkeleton, HomeSkeleton, Skeleton } from '@/components/SkeletonLoader'
+import { ErrorState } from '@/components/ui/States'
+import { CategoryGridSkeleton, HomeSkeleton, Skeleton } from '@/components/ui/Skeleton'
 import { CartBar } from '@/components/CartBar'
-import { VideoRail, type ReelItem } from '@/components/VideoRail'
-import { ServiceSheet, serviceOptions } from '@/components/ServiceSheet'
-import { ReferBanner } from '@/components/ReferBanner'
-import { SpotlightRail } from '@/components/SpotlightRail'
+import { ServiceSheet } from '@/components/ServiceSheet'
 import {
   fetchAllIssues,
   fetchAllServices,
@@ -44,9 +22,11 @@ import {
   fetchBrands,
   fetchPopularServices,
 } from '@/lib/catalog'
-import { callFn } from '@/lib/callables'
-import { LOCATION_STALE_MS, locationLabel } from '@/lib/location'
+import { locationLabel } from '@/lib/location'
 import { useAsync } from '@/lib/useAsync'
+import { HomeCatalog, type HomeData } from '@/screens/home/HomeCatalog'
+import { CarePlansLink, ToneLayer, UnserviceableNotice } from '@/screens/home/HomeParts'
+import { useStaleLocationCheck } from '@/screens/home/useStaleLocationCheck'
 
 /**
  * Home.
@@ -72,24 +52,6 @@ import { useAsync } from '@/lib/useAsync'
  * holds. Areas get switched on and off, and a customer whose pincode was
  * dropped should find that out here rather than at the end of a booking.
  */
-
-interface HomeData {
-  banners: Banner[]
-  popular: PopularService[]
-  appliances: CatalogAppliance[]
-  services: CatalogService[]
-  brands: CatalogBrand[]
-  issues: CatalogIssue[]
-}
-
-/** How many appliance rows run before an inline banner is dropped between. */
-const ROWS_BETWEEN_BANNERS = 2
-
-/**
- * The appliance row the reels go in front of — the middle of the page, or the
- * last row on a catalog too short to have one there.
- */
-const REELS_AT_ROW = 3
 
 /** How far the page scrolls before the search field grows its shadow. */
 const SCROLL_THRESHOLD = 8
@@ -157,75 +119,13 @@ export function HomeScreen() {
   }, [ready, location])
 
   const data = home.data
-  const imageFor = new Map(data?.appliances.map((appliance) => [appliance.id, appliance.image]) ?? [])
-
   const sheetService = data?.services.find((service) => service.id === sheetId) ?? null
 
   const heroBanners = data?.banners.filter((b) => b.slot === 'hero') ?? []
-  const inlineBanners = data?.banners.filter((b) => b.slot === 'inline') ?? []
-
-  const popularItems: ServiceRailItem[] =
-    data?.popular.map((popular) => {
-      const listed = data.services.find(
-        (service) => service.applianceId === popular.applianceId && service.serviceKey === popular.serviceKey
-      )
-      return {
-        id: popular.id,
-        name: popular.name,
-        image: popular.image ?? imageFor.get(popular.applianceId),
-        // A promoted row names an appliance and a service key; the
-        // photograph and the score both belong to the catalog entry behind
-        // that pair, not to the promotion. The technician at that job, where
-        // there is one: a row of people at work, in colour, rather than a
-        // row of grey machines.
-        photo: listed?.technicianPhoto ?? listed?.photo,
-        rating: listed?.rating,
-        reviewCount: listed?.reviewCount,
-        href: `/services/appliance?a=${popular.applianceId}` as Href,
-        note: durationNote(listed?.durationMinutes),
-        priceLabel: 'Visit from',
-        price: popular.fromPrice,
-        applianceId: popular.applianceId,
-        serviceKey: popular.serviceKey,
-        options: listed ? serviceOptions(listed, data.issues).length : 0,
-        onOptions: listed ? () => setSheetId(listed.id) : undefined,
-        onOpen: listed ? () => setSheetId(listed.id) : undefined,
-      }
-    }) ?? []
-
-  // One row per appliance, in catalog order, skipping any appliance whose
-  // services are all inactive — a heading over an empty row reads as a page
-  // that failed to load rather than a catalog with nothing to say yet.
-  const rows =
-    data?.appliances
-      .map((appliance) => ({
-        appliance,
-        services: data.services
-          .filter((service) => service.applianceId === appliance.id)
-          .sort((a, b) => a.order - b.order),
-      }))
-      .filter((row) => row.services.length > 0) ?? []
-
-  // The reels: one per appliance, opening on the repair where there is one,
-  // since that is what most people arrive needing. Its footage where it has
-  // some; otherwise the appliance's photograph of itself in a room.
-  const reels: ReelItem[] = rows.flatMap((row) => {
-    const service = row.services.find((each) => each.serviceKey === 'repair') ?? row.services[0]
-    const photo = service?.reelPoster ?? row.appliance.heroImage
-    if (!service || !photo) return []
-    return [
-      {
-        id: service.id,
-        photo,
-        video: service.reel,
-        title: service.name,
-        href: `/services/appliance?a=${service.applianceId}&s=${service.serviceKey}` as Href,
-      },
-    ]
-  })
 
   // The banner's colour while there is a banner to match.
-  const headerTone = heroTone && heroBanners.length > 0 && !pastHero ? TONE_TOP[heroTone] : undefined
+  const [heroTop] = useToneEdge(heroTone ?? 'blue')
+  const headerTone = heroTone && heroBanners.length > 0 && !pastHero ? heroTop : undefined
   const activeTone = heroTone ?? heroBanners[0]?.tone
 
   const headerProps = {
@@ -310,137 +210,10 @@ export function HomeScreen() {
             )}
           </Card>
 
-          {/* The one thing on Home that is not a single visit. Both halves of
-              it — the annual plans and Plus — lived under Profile, behind an
-              account, which is where a price list goes to be unread. */}
-          <Tappable
-            href={'/care' as Href}
-            className="mt-5 flex-row items-center gap-3 rounded-card bg-brand-soft p-4 active:opacity-70"
-          >
-            <View className="size-10 shrink-0 items-center justify-center rounded-full bg-bg">
-              <Icon as={ShieldCheck} className="size-5 text-brand" />
-            </View>
-            <View className="min-w-0 flex-1">
-              <Text className="text-base font-bold text-ink">Care plans</Text>
-              <Text className="mt-0.5 text-sm text-muted">
-                Cover a whole year in one go, and stop paying the visit fee.
-              </Text>
-            </View>
-            <Icon as={ChevronRight} className="size-4 text-muted" />
-          </Tappable>
+          <CarePlansLink />
 
           {data ? (
-            <>
-              {/* Large photograph cards, one per appliance, between the
-                  categories and the lists — the technician at work, and what
-                  a visit starts at. */}
-              <Section title="In the spotlight">
-                <SpotlightRail
-                  items={data.appliances.flatMap((appliance) => {
-                    if (!appliance.heroImage) return []
-                    const fees = data.services
-                      .filter((service) => service.applianceId === appliance.id)
-                      .map((service) => service.visitFee)
-                    return [
-                      {
-                        id: appliance.id,
-                        title: `${appliance.name} service & repair`,
-                        note: fees.length ? `Starts at ${formatPaise(Math.min(...fees) as Paise)}` : undefined,
-                        photo: appliance.heroImage,
-                        href: `/services/appliance?a=${appliance.id}` as Href,
-                      },
-                    ]
-                  })}
-                />
-              </Section>
-
-              {popularItems.length > 0 ? (
-                <Section title="Most booked" subtitle="What people call us about most">
-                  <ServiceRail items={popularItems} />
-                </Section>
-              ) : null}
-
-              {rows.map((row, index) => {
-                // Dropped after every second row, and only while there are
-                // banners left to drop: repeating the same card down the page
-                // would be worse than the run of rows it is there to break up.
-                const bannerIndex =
-                  index > 0 && index % ROWS_BETWEEN_BANNERS === 0 ? index / ROWS_BETWEEN_BANNERS - 1 : -1
-                const banner = inlineBanners[bannerIndex]
-
-                return (
-                  <View key={row.appliance.id}>
-                    {/* Halfway down the rows rather than at the top: a break in
-                        a long run of near-identical rails, at a row no inline
-                        banner lands on. */}
-                    {index === Math.min(REELS_AT_ROW, rows.length - 1) && reels.length > 0 ? (
-                      <Section title="Handpicked for your home" subtitle="Our most trusted services">
-                        <VideoRail items={reels} />
-                      </Section>
-                    ) : null}
-
-                    {banner ? (
-                      <Section className="mt-8">
-                        <BannerCard banner={banner} />
-                      </Section>
-                    ) : null}
-
-                    <Section
-                      title={row.appliance.name}
-                      subtitle={summariseServices(row.services)}
-                      action={
-                        <Tappable
-                          href={`/services/appliance?a=${row.appliance.id}` as Href}
-                          accessibilityLabel={`See all ${row.appliance.name}`}
-                          className="shrink-0 flex-row items-center gap-0.5"
-                        >
-                          <Text className="text-sm font-semibold text-brand">See all</Text>
-                          <Icon as={ChevronRight} className="size-4 text-brand" />
-                        </Tappable>
-                      }
-                    >
-                      <ServiceRail
-                        items={row.services.map((service) => ({
-                          id: service.id,
-                          name: service.name,
-                          image: imageFor.get(service.applianceId),
-                          photo: service.photo,
-                          rating: service.rating,
-                          reviewCount: service.reviewCount,
-                          href: `/services/appliance?a=${service.applianceId}` as Href,
-                          note: durationNote(service.durationMinutes),
-                          priceLabel: 'Visit fee',
-                          price: service.visitFee,
-                          applianceId: service.applianceId,
-                          serviceKey: service.serviceKey,
-                          options: serviceOptions(service, data.issues).length,
-                          onOptions: () => setSheetId(service.id),
-                          onOpen: () => setSheetId(service.id),
-                        }))}
-                      />
-                    </Section>
-                  </View>
-                )
-              })}
-
-              {data.brands.length > 0 ? (
-                <Section title="Brands we service">
-                  <BrandLogoRow brands={data.brands} />
-                  {/* Required wherever manufacturer names appear. */}
-                  <BrandDisclaimer className="mt-3" />
-                </Section>
-              ) : null}
-
-              <Section title="Why book with us">
-                <Card className="p-4">
-                  <TrustPoints />
-                </Card>
-              </Section>
-
-              <ReferBanner className="mt-8" />
-
-              <HomeFooter />
-            </>
+            <HomeCatalog data={data} setSheetId={setSheetId} />
           ) : home.status === 'loading' ? (
             <HomeSkeleton />
           ) : null}
@@ -455,131 +228,5 @@ export function HomeScreen() {
         onClose={() => setSheetId(null)}
       />
     </AppShell>
-  )
-}
-
-// ---------------------------------------------------------------------------
-
-/** One tone's gradient behind the top of Home, fading in and out with the slide. */
-function ToneLayer({ tone, shown }: { tone: BannerTone; shown: boolean }) {
-  const opacity = useSharedValue(shown ? 1 : 0)
-  useEffect(() => {
-    opacity.value = withTiming(shown ? 1 : 0, { duration: 500, reduceMotion: ReduceMotion.System })
-  }, [shown, opacity])
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }))
-  return (
-    <Animated.View style={[{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }, style]}>
-      <LinearGradient colors={TONES_EDGE[tone]} style={{ flex: 1 }} />
-    </Animated.View>
-  )
-}
-
-/** Past this many, the line stops listing and says "and more". */
-const SUMMARY_LIMIT = 3
-
-/**
- * "Repair, service and installation" — the line under an appliance heading.
- *
- * Built from the service keys themselves rather than from a table of labels in
- * this file, so an appliance that gains a gas refill says so without anyone
- * remembering to come back here and write a word for it.
- *
- * It stops at three. A heading followed by two lines naming every single thing
- * in the row underneath is not a subtitle, it is the row read out loud.
- */
-function summariseServices(services: readonly CatalogService[]): string {
-  const words = [...new Set(services.map((service) => service.serviceKey.replace(/-/g, ' ')))]
-  if (words.length === 0) return ''
-
-  const sentence =
-    words.length > SUMMARY_LIMIT
-      ? `${words.slice(0, SUMMARY_LIMIT - 1).join(', ')} and more`
-      : words.length === 1
-        ? String(words[0])
-        : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
-
-  return sentence.charAt(0).toUpperCase() + sentence.slice(1)
-}
-
-/**
- * Re-ask whether we still cover the saved pincode, once a day, in the
- * background. It never blocks the screen and it never sends anyone anywhere —
- * the answer only changes what Home says at the top.
- */
-function useStaleLocationCheck(
-  location: ReturnType<typeof useLocation>['location'],
-  setLocation: ReturnType<typeof useLocation>['setLocation']
-): void {
-  const checked = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (!location) return
-    if (Date.now() - location.checkedAt < LOCATION_STALE_MS) return
-    // Once per pincode per mount, whatever the network does.
-    if (checked.current === location.pincode) return
-    checked.current = location.pincode
-
-    let live = true
-    callFn('checkServiceability', { pincode: location.pincode })
-      .then((result) => {
-        if (!live) return
-        setLocation({
-          pincode: location.pincode,
-          city: result.city ?? location.city,
-          area: result.area ?? location.area,
-          serviceable: result.serviceable,
-          checkedAt: Date.now(),
-        })
-      })
-      .catch(() => {
-        // Offline, or the call failed. The saved answer stands until it can be
-        // asked again; telling someone their area may have changed on the
-        // strength of a failed request would be worse than saying nothing.
-      })
-
-    return () => {
-      live = false
-    }
-  }, [location, setLocation])
-}
-
-function UnserviceableNotice({ area, onChange }: { area: string; onChange: () => void }) {
-  return (
-    <View
-      accessibilityLiveRegion="polite"
-      className="mt-5 flex-row items-start gap-3 rounded-card border border-border bg-warning-soft p-4"
-    >
-      <Icon as={MapPinOff} className="mt-0.5 size-5 text-warning" />
-      <View className="min-w-0 flex-1">
-        <Text className="text-sm font-semibold text-ink">We do not service {area} yet</Text>
-        <Text className="mt-0.5 text-sm text-muted">
-          You can look around, but a booking needs an address in an area we cover.
-        </Text>
-        <Tappable onPress={onChange} className="mt-1 self-start">
-          <Text className="text-sm font-semibold text-ink underline">Change location</Text>
-        </Tappable>
-      </View>
-    </View>
-  )
-}
-
-const FOOTER_LINKS = [
-  { href: '/legal/terms', label: 'Terms' },
-  { href: '/legal/privacy', label: 'Privacy' },
-  { href: '/legal/cancellation', label: 'Cancellation' },
-  { href: '/support', label: 'Support' },
-] as const satisfies ReadonlyArray<{ href: Href; label: string }>
-
-function HomeFooter() {
-  return (
-    <View className="mt-10 border-t border-border pt-5">
-      <View className="flex-row flex-wrap" style={{ columnGap: 20, rowGap: 4 }}>
-        {FOOTER_LINKS.map((link) => (
-          <Tappable key={link.href} href={link.href}>
-            <Text className="text-sm text-muted">{link.label}</Text>
-          </Tappable>
-        ))}
-      </View>
-    </View>
   )
 }

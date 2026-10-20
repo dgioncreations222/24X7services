@@ -20,6 +20,7 @@ import { Text } from '@/components/ui/Text'
 import { fetchBusinessConfig } from '@/lib/catalog'
 import { useAsync } from '@/lib/useAsync'
 import { cn } from '@/lib/cn'
+import { brand } from '@/config/brand'
 
 /**
  * Who we are, what you agreed to, and how to reach a person.
@@ -38,7 +39,7 @@ import { cn } from '@/lib/cn'
 /** The app's own version, from app.json. */
 const APP_VERSION = Constants.expoConfig?.version
 
-const LEGAL: ReadonlyArray<{ href: Href; label: string; detail: string; icon: LucideIcon }> = [
+const LEGAL: readonly { href: Href; label: string; detail: string; icon: LucideIcon }[] = [
   {
     href: '/legal/terms',
     label: 'Terms of service',
@@ -65,7 +66,7 @@ export default function AboutScreen() {
   const phone = config.data?.supportPhone
 
   return (
-    <Screen header={<Header title="About 24X7" showBack backFallback="/profile" />}>
+    <Screen header={<Header title={`About ${brand.name}`} showBack backFallback="/profile" />}>
       {/*
         The mark, the name and the build, in that order and at the top.
         It is the first thing an About screen is asked for — somebody
@@ -79,7 +80,7 @@ export default function AboutScreen() {
         </View>
 
         <Text accessibilityRole="header" className="mt-4 text-2xl font-bold text-ink">
-          24X7 Home Services
+          {brand.fullName}
         </Text>
         {APP_VERSION ? (
           <Text className="mt-0.5 text-sm text-muted tabular-nums">Version {APP_VERSION}</Text>

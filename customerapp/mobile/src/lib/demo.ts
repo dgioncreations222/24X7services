@@ -49,6 +49,8 @@ export function loadDemoData(): Promise<void> {
     // The bundle ships inside the app (assets/public, synced from the web
     // app's public folder), so the demo needs no network at all.
     const [asset] = await Asset.loadAsync(
+      // A bundled asset has to be named with require() for Metro to ship it.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('../../assets/public/demo-data.bundle')
     )
     const text =
@@ -151,7 +153,7 @@ async function search(q: string): Promise<SearchHit[]> {
   const snap = await getDocs(collection(db(), COL.searchIndex))
   const weight = { appliance: 2, service: 1, issue: 0 } as const
 
-  const scored: Array<{ row: SearchRow; score: number }> = []
+  const scored: { row: SearchRow; score: number }[] = []
   for (const each of snap.docs) {
     const row = each.data() as SearchRow
     const label = row.label.toLowerCase()

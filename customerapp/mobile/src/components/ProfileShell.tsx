@@ -1,15 +1,18 @@
 import { View } from 'react-native'
 import { usePathname, type Href } from 'expo-router'
-import type { User } from 'firebase/auth'
 import type { LucideIcon } from 'lucide-react-native'
 
 import { Header, Screen } from '@/components/Screen'
-import { Skeleton, SkeletonGroup } from '@/components/States'
+import { Skeleton, SkeletonGroup } from '@/components/ui/States'
 import { Icon } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
 import { useAuth } from '@/lib/auth'
+import type { AuthSnapshot } from '@/lib/authStore'
 import { cn } from '@/lib/cn'
+
+/** Whoever is signed in, as the shell hands them to its children. */
+type SignedInUser = NonNullable<AuthSnapshot['user']>
 
 /**
  * The frame every screen under the profile shares: a title, a way back, and
@@ -41,7 +44,7 @@ export function ProfileShell({
   backFallback?: Href
   right?: React.ReactNode
   /** A bar pinned under the scroll, shown once someone is signed in. */
-  footer?: (user: User) => React.ReactNode
+  footer?: (user: SignedInUser) => React.ReactNode
   onRefresh?: () => void
   refreshing?: boolean
   /**
@@ -49,7 +52,7 @@ export function ProfileShell({
    * `<SignInPrompt>`, on its own or under whatever the screen can show anyway.
    */
   signedOut: React.ReactNode
-  children: (user: User) => React.ReactNode
+  children: (user: SignedInUser) => React.ReactNode
 }) {
   const { user, ready } = useAuth()
 

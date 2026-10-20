@@ -2,7 +2,6 @@ import { useCallback } from 'react'
 import { View } from 'react-native'
 import { router, type Href } from 'expo-router'
 import Constants from 'expo-constants'
-import { doc, getDoc } from 'firebase/firestore'
 import {
   BadgeCheck,
   Bell,
@@ -22,27 +21,21 @@ import {
   Star,
   User,
   WalletMinimal,
-  WashingMachine,
   type LucideIcon,
 } from 'lucide-react-native'
-import {
-  COL,
-  REFERRAL_REWARD,
-  formatPaise,
-  userProfileSchema,
-  type UserProfile,
-} from '@app/shared'
+import { REFERRAL_REWARD, formatPaise, type UserProfile } from '@app/shared'
 
 import { AppShell } from '@/components/AppShell'
-import { Header } from '@/components/Header'
+import { brand } from '@/config/brand'
+import { Header } from '@/components/Screen'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
-import { ProfileSkeleton } from '@/components/SkeletonLoader'
+import { ProfileSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/Toast'
 import { signOut, useAuth } from '@/lib/auth'
-import { db } from '@/lib/firebase'
+import { fetchProfile } from '@/lib/api/profile'
 import { formatPhone } from '@/lib/format'
 import { useAsync } from '@/lib/useAsync'
 
@@ -72,21 +65,19 @@ function signInTo(href: string): Href {
 }
 
 /** The three that the rest of this screen exists to be less important than. */
-const TILES: ReadonlyArray<{ href: Href; label: string; icon: LucideIcon }> = [
+const TILES: readonly { href: Href; label: string; icon: LucideIcon }[] = [
   { href: '/bookings', label: 'My bookings', icon: ClipboardList },
-  { href: '/profile/appliances', label: 'My appliances', icon: WashingMachine },
+  { href: '/profile/wallet', label: 'Balance', icon: WalletMinimal },
   { href: '/support', label: 'Help & support', icon: Headset },
 ]
 
-const ROWS: ReadonlyArray<{ href: Href; label: string; detail: string; icon: LucideIcon }> = [
+const ROWS: readonly { href: Href; label: string; detail: string; icon: LucideIcon }[] = [
   { href: '/profile/personal', label: 'Personal details', detail: 'Your name and email', icon: User },
   { href: '/profile/plans', label: 'Plans', detail: 'Yearly cover on your appliances', icon: CalendarCheck },
-  { href: '/profile/wallet', label: 'Balance', detail: 'Credits, and money you have added', icon: WalletMinimal },
-  { href: '/profile/gift-cards', label: 'Gift cards', detail: 'Redeem one, or buy one for someone', icon: Gift },
   {
     href: '/profile/membership',
     label: 'Membership',
-    detail: '24X7 Plus — no visit fee, 10% off repairs',
+    detail: `${brand.name} Plus — no visit fee, 10% off repairs`,
     icon: BadgeCheck,
   },
   { href: '/profile/reviews', label: 'Your reviews', detail: 'What you told us', icon: Star },
@@ -106,7 +97,7 @@ const ROWS: ReadonlyArray<{ href: Href; label: string; detail: string; icon: Luc
     detail: 'Permissions, legal, closing your account',
     icon: Settings,
   },
-  { href: '/profile/about', label: 'About 24X7', detail: 'Who we are, and the paperwork', icon: Info },
+  { href: '/profile/about', label: `About ${brand.name}`, detail: 'Who we are, and the paperwork', icon: Info },
 ]
 
 /** The version the app was built as, from app.json. */
@@ -119,9 +110,7 @@ export default function ProfileScreen() {
 
   const load = useCallback(async (): Promise<UserProfile | null> => {
     if (!uid) return null
-    const snap = await getDoc(doc(db(), COL.users, uid))
-    const parsed = userProfileSchema.safeParse(snap.data())
-    return parsed.success ? parsed.data : null
+    return fetchProfile(uid)
   }, [uid])
 
   const profile = useAsync(load)

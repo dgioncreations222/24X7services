@@ -1,19 +1,18 @@
 import { useCallback, useState } from 'react'
 import { View } from 'react-native'
 import { router } from 'expo-router'
-import { collection, getDocs, query, where } from 'firebase/firestore'
-import { COL, SUB, userApplianceInputSchema, type CatalogAppliance, type DetailField } from '@app/shared'
+import type { CatalogAppliance, DetailField } from '@app/shared'
 
 import { BookingStep } from '@/components/BookingStep'
 import { Chip } from '@/components/ui/Chip'
 import { Card, CardButton } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Field'
 import { Text } from '@/components/ui/Text'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { ErrorState } from '@/components/ui/States'
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { MANUFACTURER_WARRANTY_NOTICE } from '@/config/brand'
 import { fetchAppliance } from '@/lib/catalog'
-import { db } from '@/lib/firebase'
+import { fetchSavedAppliances, type ReusableAppliance } from '@/lib/api/booking'
 import { useAuth } from '@/lib/auth'
 import { patchDraft, useBookingDraft } from '@/lib/bookingDraft'
 import { useAsync } from '@/lib/useAsync'
@@ -40,13 +39,6 @@ import { useAsync } from '@/lib/useAsync'
  * Only the field that decides the job is shown.
  */
 
-interface SavedAppliance {
-  id: string
-  type?: string
-  modelNumber?: string
-  nickname?: string
-}
-
 export default function DetailsScreen() {
   const { draft } = useBookingDraft()
   const { user } = useAuth()
@@ -61,7 +53,7 @@ export default function DetailsScreen() {
 
   const load = useCallback(async (): Promise<{
     appliance: CatalogAppliance | null
-    saved: SavedAppliance[]
+    saved: ReusableAppliance[]
   }> => {
     if (!applianceId) return { appliance: null, saved: [] }
 
@@ -69,24 +61,7 @@ export default function DetailsScreen() {
 
     // A returning customer has usually told us about this machine already.
     if (!uid || !brandId) return { appliance, saved: [] }
-    const snap = await getDocs(
-      query(
-        collection(db(), COL.users, uid, SUB.appliances),
-        where('applianceId', '==', applianceId),
-        where('brandId', '==', brandId)
-      )
-    )
-    const saved: SavedAppliance[] = []
-    for (const doc of snap.docs) {
-      const parsed = userApplianceInputSchema.safeParse(doc.data())
-      if (!parsed.success) continue
-      saved.push({
-        id: doc.id,
-        type: parsed.data.type,
-        modelNumber: parsed.data.modelNumber,
-        nickname: parsed.data.nickname,
-      })
-    }
+    const saved = await fetchSavedAppliances(uid, applianceId, brandId)
     return { appliance, saved }
   }, [applianceId, brandId, uid])
 
@@ -96,7 +71,7 @@ export default function DetailsScreen() {
   // the first if the appliance marks none. See the note above.
   const primaryField = fields.find((field) => field.required) ?? fields[0]
 
-  function reuse(saved: SavedAppliance): void {
+  function reuse(saved: ReusableAppliance): void {
     setType(saved.type ?? '')
     setModelNumber(saved.modelNumber ?? '')
     setError(undefined)

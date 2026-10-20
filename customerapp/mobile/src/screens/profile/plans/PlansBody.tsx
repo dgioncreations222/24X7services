@@ -5,9 +5,9 @@ import { isPlanActive, type CatalogPlan, type UserPlan } from '@app/shared'
 
 import { SignInPrompt, useSignInHref } from '@/components/ProfileShell'
 import { PlanCard, PlanOfferCard } from '@/components/PlanCard'
-import { EmptyState } from '@/components/EmptyState'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { EmptyState , ErrorState } from '@/components/ui/States'
+
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/Toast'
 import { Text } from '@/components/ui/Text'
 import { fetchAppliances } from '@/lib/catalog'
@@ -84,7 +84,7 @@ export function PlansView({
 }: {
   mine: readonly UserPlan[]
   offered: readonly CatalogPlan[]
-  appliances: ReadonlyArray<{ id: string; name: string }>
+  appliances: readonly { id: string; name: string }[]
   onReload: () => void
 }) {
   const names = nameMap(appliances)
@@ -266,7 +266,7 @@ function Offer({
   )
 }
 
-function nameMap(appliances: ReadonlyArray<{ id: string; name: string }> | undefined): Map<string, string> {
+function nameMap(appliances: readonly { id: string; name: string }[] | undefined): Map<string, string> {
   return new Map((appliances ?? []).map((each) => [each.id, each.name]))
 }
 

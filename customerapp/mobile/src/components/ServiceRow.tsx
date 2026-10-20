@@ -2,7 +2,7 @@ import { View, type LayoutChangeEvent } from 'react-native'
 import { Star } from 'lucide-react-native'
 import { countNote } from '@/components/ServiceScore'
 import { cn } from '@/lib/cn'
-import { Icon, useColor } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
 import { Img } from '@/components/ui/Img'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
@@ -65,7 +65,6 @@ export function ServiceRow({
   onLayout,
   className,
 }: ServiceRowProps) {
-  const ink = useColor('text-ink')
 
   return (
     <View onLayout={onLayout} className={cn('relative flex-row gap-4 py-6', className)}>
@@ -80,7 +79,7 @@ export function ServiceRow({
 
         {rating !== undefined && reviewCount !== undefined ? (
           <View className="mt-1 flex-row items-center gap-1.5 self-start">
-            <Icon as={Star} fill={ink} className="size-3.5 text-ink" />
+            <Icon as={Star} filled className="size-3.5 text-ink" />
             <Text className="text-sm text-muted underline decoration-dotted">
               {rating.toFixed(2)} ({countNote(reviewCount)} reviews)
             </Text>

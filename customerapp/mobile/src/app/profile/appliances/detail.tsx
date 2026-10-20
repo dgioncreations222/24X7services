@@ -1,9 +1,7 @@
 import { useCallback } from 'react'
 import { View } from 'react-native'
 import { useLocalSearchParams, type Href } from 'expo-router'
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore'
 import { PackageOpen, WashingMachine } from 'lucide-react-native'
-import { bookingSchema, COL, SUB, userApplianceInputSchema, type Booking, type UserApplianceInput } from '@app/shared'
 
 import { ProfileShell, SignInPrompt } from '@/components/ProfileShell'
 import { BookingCard } from '@/components/BookingCard'
@@ -14,7 +12,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
 import { fetchAllServices, fetchAppliances } from '@/lib/catalog'
-import { db } from '@/lib/firebase'
+import { fetchApplianceBookings, fetchMyAppliance } from '@/lib/api/appliances'
 import { relativeTime } from '@/lib/format'
 import { useAsync } from '@/lib/useAsync'
 
@@ -58,35 +56,19 @@ function ApplianceDetail({ uid, applianceDocId }: { uid: string; applianceDocId:
   const load = useCallback(async () => {
     if (!applianceDocId) return null
 
-    const snap = await getDoc(doc(db(), COL.users, uid, SUB.appliances, applianceDocId))
-    const parsed = userApplianceInputSchema.safeParse(snap.data())
-    if (!snap.exists() || !parsed.success) return null
+    const saved = await fetchMyAppliance(uid, applianceDocId)
+    if (!saved) return null
 
-    const [catalog, services, history] = await Promise.all([
+    const [catalog, services, bookings] = await Promise.all([
       fetchAppliances(),
       fetchAllServices(),
-      getDocs(
-        query(
-          collection(db(), COL.bookings),
-          where('uid', '==', uid),
-          where('userApplianceId', '==', applianceDocId),
-          orderBy('createdAt', 'desc'),
-          limit(20)
-        )
-      ),
+      fetchApplianceBookings(uid, applianceDocId),
     ])
 
-    const bookings: Booking[] = []
-    for (const document of history.docs) {
-      const booking = bookingSchema.safeParse({ id: document.id, ...document.data() })
-      if (booking.success) bookings.push(booking.data)
-    }
-
-    const lastServicedAt = snap.data()?.lastServicedAt
     return {
-      appliance: parsed.data as UserApplianceInput,
-      lastServicedAt: typeof lastServicedAt === 'number' ? lastServicedAt : undefined,
-      applianceName: catalog.find((a) => a.id === parsed.data.applianceId)?.name ?? parsed.data.applianceId,
+      appliance: saved.appliance,
+      lastServicedAt: saved.lastServicedAt,
+      applianceName: catalog.find((a) => a.id === saved.appliance.applianceId)?.name ?? saved.appliance.applianceId,
       services,
       bookings,
     }

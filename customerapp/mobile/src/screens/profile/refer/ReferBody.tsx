@@ -1,18 +1,20 @@
 import { useCallback, useState } from 'react'
 import { View } from 'react-native'
 import type { Href } from 'expo-router'
-import { ChevronDown, Gift, Ticket, UserRoundPlus, type LucideIcon } from 'lucide-react-native'
+import { Gift, Ticket, UserRoundPlus, type LucideIcon } from 'lucide-react-native'
 import {
   REFERRAL_REWARD,
   REFERRAL_WELCOME,
   formatPaise,
   normaliseReferralCode,
   referralCodeSchema,
+  REFERRAL_CODE_EXAMPLE,
 } from '@app/shared'
 
 import { ReferCard } from '@/components/ReferCard'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { Faq } from '@/screens/profile/refer/ReferFaq'
+import { ErrorState } from '@/components/ui/States'
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
 import { Icon } from '@/components/ui/Icon'
@@ -22,6 +24,7 @@ import { useToast } from '@/components/Toast'
 import { callFn, friendlyError } from '@/lib/callables'
 import { useAsync } from '@/lib/useAsync'
 import { cn } from '@/lib/cn'
+import { brand } from '@/config/brand'
 
 export function Refer() {
   const load = useCallback(() => callFn('getReferral', {}), [])
@@ -118,7 +121,7 @@ function HowItWorks() {
   const steps = [
     {
       title: 'Send your code',
-      body: 'To anyone who has not booked with 24X7 before.',
+      body: `To anyone who has not booked with ${brand.name} before.`,
     },
     {
       title: 'They enter it before their first booking',
@@ -153,72 +156,6 @@ function HowItWorks() {
           </View>
         ))}
       </View>
-    </View>
-  )
-}
-
-/**
- * The questions a referral scheme raises by existing.
- *
- * Every answer here is a rule the server actually enforces — one code per
- * account, before the first booking, paid on completion. A scheme whose small
- * print is looser than its code is a scheme that pays people who read it
- * carefully.
- */
-const FAQ = [
-  {
-    q: 'When exactly do I get paid?',
-    a: 'When the person who used your code has had their first job finished. Not when they sign up, and not when they book — a booking that gets cancelled has cost nobody anything.',
-  },
-  {
-    q: 'How many people can use my code?',
-    a: 'As many as you like. You are paid once for each of them, the first time each one has a job finished.',
-  },
-  {
-    q: 'Can I use my own code?',
-    a: 'No. A code cannot be used on the account that owns it, and it only works on an account that has never booked with us.',
-  },
-  {
-    q: 'Where does the money go?',
-    a: 'Onto your 24X7 balance as credits, which come off your next bill. Like the rest of the balance it never expires, and it can only be spent on 24X7 services.',
-  },
-  {
-    q: 'Can I use more than one code myself?',
-    a: 'One per account. If you have already used one, the box on this screen is gone rather than waiting to refuse you.',
-  },
-] as const
-
-function Faq() {
-  return (
-    <View className="mt-8">
-      <Text accessibilityRole="header" className="text-lg font-bold text-ink">
-        Questions
-      </Text>
-      <View className="mt-2 border-y border-border">
-        {FAQ.map((item, index) => (
-          <FaqItem key={item.q} q={item.q} a={item.a} last={index === FAQ.length - 1} />
-        ))}
-      </View>
-    </View>
-  )
-}
-
-/** The web's <details>: a question that opens to its answer. */
-function FaqItem({ q, a, last }: { q: string; a: string; last: boolean }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <View className={cn(!last && 'border-b border-border')}>
-      <Tappable
-        onPress={() => setOpen((was) => !was)}
-        accessibilityState={{ expanded: open }}
-        className="min-h-14 flex-row items-center justify-between gap-4 py-4"
-      >
-        <Text className="min-w-0 flex-1 text-base font-semibold text-ink">{q}</Text>
-        <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
-          <Icon as={ChevronDown} className="size-4 text-muted" />
-        </View>
-      </Tappable>
-      {open ? <Text className="pb-4 text-sm leading-[22px] text-muted">{a}</Text> : null}
     </View>
   )
 }
@@ -274,7 +211,7 @@ function ApplyCode({ onApplied }: { onApplied: () => void }) {
         <Input
           label="Referral code"
           hideLabel
-          placeholder="24X7-ABCDEF"
+          placeholder={REFERRAL_CODE_EXAMPLE}
           value={value}
           onChangeText={setValue}
           {...(error ? { error } : {})}

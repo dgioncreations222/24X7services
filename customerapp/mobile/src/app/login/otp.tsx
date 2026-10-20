@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
-import { doc, getDoc } from 'firebase/firestore'
-import { COL } from '@app/shared'
 
 import { AuthShell, DevNote } from '@/components/AuthShell'
 import { Button } from '@/components/ui/Button'
@@ -10,7 +8,7 @@ import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
 import { OtpInput } from '@/components/OtpInput'
 import { authErrorMessage, OTP_IS_SIMULATED, startPhoneSignIn } from '@/lib/auth'
-import { auth, db } from '@/lib/firebase'
+import { currentUserHasName } from '@/lib/api/profile'
 import { formatPhone } from '@/lib/format'
 import { clearPendingSignIn, safeNext, setPendingSignIn, takePendingSignIn } from '@/lib/pendingSignIn'
 
@@ -60,7 +58,7 @@ export default function OtpScreen() {
         // A customer who has never given a name goes and gives one; everyone
         // else goes straight back to whatever they were doing.
         router.replace(
-          (await hasName()) ? next : (`/login/name?next=${encodeURIComponent(String(next))}` as Href)
+          (await currentUserHasName()) ? next : (`/login/name?next=${encodeURIComponent(String(next))}` as Href)
         )
       } catch (caught) {
         setError(authErrorMessage(caught))
@@ -157,25 +155,4 @@ export default function OtpScreen() {
       ) : null}
     </AuthShell>
   )
-}
-
-/**
- * Whether this customer has told us their name before.
- *
- * The auth trigger writes the user document a moment after sign-in, so this
- * can legitimately find nothing at all. Both "no document" and "no name" mean
- * the same thing here, and a read that fails means the same again — asking a
- * returning customer for their name once more is a smaller cost than skipping
- * the question for someone who has never answered it.
- */
-async function hasName(): Promise<boolean> {
-  const uid = auth().currentUser?.uid
-  if (!uid) return false
-  try {
-    const snap = await getDoc(doc(db(), COL.users, uid))
-    const name = snap.data()?.name
-    return typeof name === 'string' && name.trim().length > 0
-  } catch {
-    return false
-  }
 }

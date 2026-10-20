@@ -8,6 +8,7 @@ import {
   normaliseGiftCode,
   type GiftCard,
   type Paise,
+  GIFT_CARD_CODE_EXAMPLE,
 } from '@app/shared'
 
 import { ProfileShell, SignInPrompt } from '@/components/ProfileShell'
@@ -29,6 +30,7 @@ import { copyText, shareText } from '@/lib/share'
 import { formatDateTime } from '@/lib/format'
 import { useAsync } from '@/lib/useAsync'
 import { cn } from '@/lib/cn'
+import { brand } from '@/config/brand'
 
 /** The web's font-mono: the codes read character by character. */
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' })
@@ -42,7 +44,7 @@ const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'mon
  * in their hand outnumbers someone deciding to buy one.
  *
  * What lands is credits on the balance, which means every limit already on the
- * balance applies without being restated: 24X7 services only, no transfer, no
+ * balance applies without being restated: our services only, no transfer, no
  * cash. That is also why there is no "check balance" for a card — a redeemed
  * card is not a card any more, it is a line on a statement.
  */
@@ -86,15 +88,13 @@ function GiftCardsSignedOut() {
         </Text>
         <View className="mt-3 gap-3">
           <Point lead="A code, not a card.">
-            We give you a code like 24X7-ABCD-EFGH. Forward it, screenshot it, read it out — whoever has it can
-            redeem it, once.
+            {`We give you a code like ${GIFT_CARD_CODE_EXAMPLE}. Forward it, screenshot it, read it out — whoever has it can redeem it, once.`}
           </Point>
           <Point lead="It lands on a balance.">
-            Redeeming puts the amount on the 24X7 balance and it comes off the next bill. Nothing to enter at
-            checkout.
+            {`Redeeming puts the amount on the ${brand.name} balance and it comes off the next bill. Nothing to enter at checkout.`}
           </Point>
           <Point lead="It never expires.">There is no date on it and no sweep that takes it back.</Point>
-          <Point lead="24X7 services only.">
+          <Point lead={`${brand.name} services only.`}>
             Like the rest of the balance, it cannot be transferred or taken as cash.
           </Point>
         </View>
@@ -169,7 +169,7 @@ export function GiftCardsBody({
             className="py-12"
             icon={Gift}
             title="No gift cards yet"
-            description="Buy one and we give you a code to pass on. It never expires, and it can only be spent on 24X7 services."
+            description={`Buy one and we give you a code to pass on. It never expires, and it can only be spent on ${brand.name} services.`}
             action={{ label: 'Buy a gift card', onClick: () => setBuying(true) }}
           />
         ) : (
@@ -231,14 +231,14 @@ function Redeem() {
         Redeem a gift card
       </Text>
       <Text className="mt-1 text-sm text-muted">
-        The amount lands on your 24X7 balance and comes off your next bill. It never expires.
+        The amount lands on your {brand.name} balance and comes off your next bill. It never expires.
       </Text>
 
       <View className="mt-3 gap-3">
         <Input
           label="Gift card code"
           hideLabel
-          placeholder="24X7-ABCD-EFGH"
+          placeholder={GIFT_CARD_CODE_EXAMPLE}
           value={value}
           onChangeText={setValue}
           {...(error ? { error } : {})}
@@ -275,9 +275,9 @@ function CardRow({ card }: { card: GiftCard }) {
 
   async function send(): Promise<void> {
     const outcome = await shareText(
-      `Here is a ${formatPaise(card.amount)} 24X7 gift card: ${card.code}. ` +
+      `Here is a ${formatPaise(card.amount)} ${brand.name} gift card: ${card.code}. ` +
         'Enter it under Profile, Gift cards, and it goes onto your balance.',
-      '24X7 gift card'
+      `${brand.name} gift card`
     )
     if (outcome === 'copied') {
       toast.show('Gift card copied.', { tone: 'success' })
@@ -397,7 +397,7 @@ function BuySheet({ open, onClose, onBought }: { open: boolean; onClose: () => v
       onClose={onClose}
       dismissable={!busy}
       title="Buy a gift card"
-      description="We give you a code to pass on. It never expires, and it can only be spent on 24X7 services."
+      description={`We give you a code to pass on. It never expires, and it can only be spent on ${brand.name} services.`}
       footer={
         <Button fullWidth loading={busy} onPress={() => void pay()}>
           {`Pay ${formatPaise(amount)}`}

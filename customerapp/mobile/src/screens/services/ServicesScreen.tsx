@@ -20,9 +20,9 @@ import { HowItWorks, HOW_IT_WORKS_SUBTITLE } from '@/components/HowItWorks'
 import { AllBrandsGrid, TopTechnicians } from '@/components/TopTechnicians'
 import { ServicesFaq } from '@/components/ServicesFaq'
 import { SupportCard } from '@/components/SupportCard'
-import { EmptyState } from '@/components/EmptyState'
-import { ErrorState } from '@/components/ErrorState'
-import { ApplianceGridSkeleton } from '@/components/SkeletonLoader'
+import { EmptyState , ErrorState } from '@/components/ui/States'
+
+import { ApplianceGridSkeleton } from '@/components/ui/Skeleton'
 import {
   cheapestByAppliance,
   fetchAllServices,

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "24X7 Services",
+    "name": "Customer Service",
     "slug": "twentyfourseven-customer",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -52,7 +52,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "24X7 uses your location to check that we cover your area and to fill in your address."
+          "locationWhenInUsePermission": "Customer Service uses your location to check that we cover your area and to fill in your address."
         }
       ],
       [

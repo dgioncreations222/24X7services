@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CODE_PREFIX, withoutCodePrefix } from './giftcard'
 import { paiseSchema, type Paise } from './money'
 
 /**
@@ -22,23 +23,26 @@ export const REFERRAL_REWARD = 25_000 as Paise // ₹250
 export const REFERRAL_WELCOME = 25_000 as Paise // ₹250
 
 /**
- * `24X7-ABCDEF`. Same alphabet as a gift card — no O, 0, I or 1 — because this
- * is read off one phone screen and typed into another.
+ * `<prefix>-ABCDEF`, with the gift card's prefix. Same alphabet as a gift card
+ * — no O, 0, I or 1 — because this is read off one phone screen and typed
+ * into another.
  */
 export const REFERRAL_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+/** What a referral code looks like, for screens to show as an example. */
+export const REFERRAL_CODE_EXAMPLE = `${CODE_PREFIX}-ABCDEF`
 export const referralCodeSchema = z
   .string()
   .trim()
   .toUpperCase()
   .regex(
-    /^24X7-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/,
-    'A referral code looks like 24X7-ABCDEF'
+    new RegExp(`^${CODE_PREFIX}-[${REFERRAL_CODE_ALPHABET}]{6}$`),
+    `A referral code looks like ${REFERRAL_CODE_EXAMPLE}`
   )
 
 export function normaliseReferralCode(input: string): string {
-  const body = input.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^24X7/, '')
+  const body = withoutCodePrefix(input)
   if (body.length !== 6) return input.trim().toUpperCase()
-  return `24X7-${body}`
+  return `${CODE_PREFIX}-${body}`
 }
 
 /**

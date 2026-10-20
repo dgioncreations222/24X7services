@@ -59,7 +59,7 @@ export function ApplianceSpaceCard({
         </Text>
         {rating !== undefined ? (
           <View className="mt-1 flex-row items-center gap-1">
-            <Icon as={Star} className="size-3 text-white" fill="#ffffff" />
+            <Icon as={Star} className="size-3 text-white" filled />
             <Text className="text-xs font-semibold text-white">{rating.toFixed(1)}</Text>
           </View>
         ) : null}

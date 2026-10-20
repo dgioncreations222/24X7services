@@ -1,19 +1,18 @@
 import { useCallback, useState } from 'react'
 import { View } from 'react-native'
 import type { Href } from 'expo-router'
-import { collection, doc, getDocs, limit, orderBy, query, updateDoc } from 'firebase/firestore'
 import { Bell, CalendarCheck, ChevronRight, FileCheck2, ReceiptText, Truck, UserCheck } from 'lucide-react-native'
-import { COL, notificationSchema, SUB, type AppNotification } from '@app/shared'
+import type { AppNotification } from '@app/shared'
 
 import { ProfileShell, SignInPrompt } from '@/components/ProfileShell'
 import { Card } from '@/components/ui/Card'
 import { Icon } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
-import { EmptyState } from '@/components/EmptyState'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
-import { db } from '@/lib/firebase'
+import { EmptyState , ErrorState } from '@/components/ui/States'
+
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
+import { fetchNotifications, markNotificationRead } from '@/lib/api/notifications'
 import { relativeTime } from '@/lib/format'
 import { useAsync } from '@/lib/useAsync'
 import { cn } from '@/lib/cn'
@@ -78,17 +77,7 @@ export default function NotificationsScreen() {
 function NotificationList({ uid }: { uid: string }) {
   const [read, setRead] = useState<Set<string>>(new Set())
 
-  const load = useCallback(async (): Promise<AppNotification[]> => {
-    const snap = await getDocs(
-      query(collection(db(), COL.notifications, uid, SUB.items), orderBy('at', 'desc'), limit(100))
-    )
-    const items: AppNotification[] = []
-    for (const document of snap.docs) {
-      const parsed = notificationSchema.safeParse({ id: document.id, ...document.data() })
-      if (parsed.success) items.push(parsed.data)
-    }
-    return items
-  }, [uid])
+  const load = useCallback((): Promise<AppNotification[]> => fetchNotifications(uid), [uid])
 
   const notifications = useAsync(load)
 
@@ -99,7 +88,7 @@ function NotificationList({ uid }: { uid: string }) {
       // about something the customer has visibly just read.
       setRead((current) => new Set(current).add(item.id))
       try {
-        await updateDoc(doc(db(), COL.notifications, uid, SUB.items, item.id), { readAt: Date.now() })
+        await markNotificationRead(uid, item.id)
       } catch {
         // Left as read on screen. It will come back unread next time.
       }

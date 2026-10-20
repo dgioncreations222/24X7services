@@ -88,12 +88,15 @@ export default function CareScreen() {
   const signIn = useSignInHref('/care')
 
   // The web's #plans / #plus jumps: where each section starts in the scroll.
+  // The refs are read only in press and layout callbacks, never while rendering.
+  /* eslint-disable react-hooks/refs */
   const scroller = useRef<ScrollView>(null)
   const anchors = useRef<Record<Anchor, number>>({ plans: 0, plus: 0 })
   const jump = (to: Anchor) => scroller.current?.scrollTo({ y: Math.max(0, anchors.current[to] - 8) })
   const mark = (to: Anchor) => (event: { nativeEvent: { layout: { y: number } } }) => {
     anchors.current[to] = event.nativeEvent.layout.y
   }
+  /* eslint-enable react-hooks/refs */
 
   const load = useCallback(async (): Promise<CareData> => {
     const [plans, appliances, membership] = await Promise.all([
@@ -625,7 +628,7 @@ function OfferCard({ icon, title, detail }: { icon: LucideIcon; title: string; d
  * Every line is elsewhere in the app as a screen or a step, not a claim made
  * for this page: the quote before the work, the warranty, the invoice.
  */
-const VISIT_POINTS: ReadonlyArray<{
+const VISIT_POINTS: readonly {
   key: string
   title: string
   detail: string
@@ -638,7 +641,7 @@ const VISIT_POINTS: ReadonlyArray<{
    * of them looking like a mistake.
    */
   photo?: boolean
-}> = [
+}[] = [
   {
     key: 'quote',
     title: 'Quoted before it is started',

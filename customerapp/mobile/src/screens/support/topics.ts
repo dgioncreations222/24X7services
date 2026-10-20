@@ -1,3 +1,5 @@
+import { brand } from '@/config/brand'
+
 /**
  * Everything the support inbox actually fills up with, sorted into the six
  * things people arrive asking about.
@@ -82,7 +84,7 @@ export const SUPPORT_TOPICS = [
   {
     id: 'payments',
     label: 'Payments & balance',
-    blurb: 'How you pay, your 24X7 balance, and invoices',
+    blurb: `How you pay, your ${brand.name} balance, and invoices`,
     questions: [
       {
         q: 'How do I pay?',
@@ -93,7 +95,7 @@ export const SUPPORT_TOPICS = [
         a: 'No. Your card, UPI id and netbanking details go straight from your phone to Razorpay and never reach us. There is no saved card list in this app because there are no saved cards.',
       },
       {
-        q: 'What is my 24X7 balance?',
+        q: `What is my ${brand.name} balance?`,
         a: 'Two things in one number: credits we gave you — for a visit we reached late, a job we had to cancel, a referral or a gift card — and money you added yourself. Both come off your next bill, and the activity list says which is which on every line.',
       },
       {
@@ -102,7 +104,7 @@ export const SUPPORT_TOPICS = [
       },
       {
         q: 'Can I withdraw my balance or send it to someone?',
-        a: 'It can only be spent on 24X7 services, on your own account — it cannot be transferred or taken as cash. Money you added yourself is refundable on request: ask support and it goes back the way it came.',
+        a: `It can only be spent on ${brand.name} services, on your own account — it cannot be transferred or taken as cash. Money you added yourself is refundable on request: ask support and it goes back the way it came.`,
       },
       {
         q: 'Where are my invoices?',
@@ -112,7 +114,7 @@ export const SUPPORT_TOPICS = [
   },
   {
     id: 'plans-membership',
-    label: 'Plans & 24X7 Plus',
+    label: `Plans & ${brand.name} Plus`,
     blurb: 'Annual cover, membership, and what each one changes',
     questions: [
       {
@@ -124,7 +126,7 @@ export const SUPPORT_TOPICS = [
         a: 'When a job is finished, not when it is booked. A booking you cancel has cost you nothing. The plan screen shows visits left and days left, because those are the two ways a plan ends.',
       },
       {
-        q: 'Does 24X7 Plus renew on its own?',
+        q: `Does ${brand.name} Plus renew on its own?`,
         a: 'No, and there is no switch for it. It runs out and you buy it again if you want it. Buying while it is still live adds to what is left rather than starting again.',
       },
       {
@@ -175,7 +177,7 @@ export const SUPPORT_TOPICS = [
       },
     ],
   },
-] as const satisfies ReadonlyArray<SupportTopic>
+] as const satisfies readonly SupportTopic[]
 
 export function supportTopic(id: string | null): SupportTopic | null {
   return SUPPORT_TOPICS.find((topic) => topic.id === id) ?? null

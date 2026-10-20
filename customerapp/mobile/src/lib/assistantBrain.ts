@@ -9,6 +9,7 @@ import {
   type ServiceArea,
   type ServiceKey,
 } from '@app/shared'
+import { brand } from '@/config/brand'
 
 /**
  * How the assistant reads a message and what it says back.
@@ -74,7 +75,7 @@ const APPLIANCE_NAMES: Record<ApplianceId, string> = {
 }
 
 /** Tested in order; the first appliance whose pattern matches wins. */
-const APPLIANCE_PATTERNS: Array<[ApplianceId, RegExp]> = [
+const APPLIANCE_PATTERNS: [ApplianceId, RegExp][] = [
   ['washing-machine', /washing|washer|laundry|front ?load|top ?load/],
   ['refrigerator', /fridge|frige|refrigerat|freezer|double door|single door/],
   ['air-conditioner', /\bac\b|\ba\.c\b|air ?con|aircon|split ac|window ac|inverter ac/],
@@ -83,7 +84,7 @@ const APPLIANCE_PATTERNS: Array<[ApplianceId, RegExp]> = [
 ]
 
 /** Things people will ask about that we do not repair. */
-const NOT_SERVICED: Array<[string, RegExp]> = [
+const NOT_SERVICED: [string, RegExp][] = [
   ['TVs', /\btv\b|television|\bled tv\b/],
   ['laptops and computers', /laptop|computer|\bpc\b|desktop/],
   ['phones', /\bphone\b|mobile|iphone|android/],
@@ -99,7 +100,7 @@ const NOT_SERVICED: Array<[string, RegExp]> = [
 ]
 
 /** Hinglish and common misspellings, rewritten into words the catalog uses. */
-const FOLDS: Array<[RegExp, string]> = [
+const FOLDS: [RegExp, string][] = [
   [/\b(thanda|thandi|thanda nahi)\b/g, 'cooling'],
   [/\b(garam|garm)\b/g, 'hot heating'],
   [/\b(awaaz|awaz|aawaz|avaaz|shor)\b/g, 'noise'],
@@ -147,7 +148,7 @@ const SYMPTOM_WORDS: Record<string, string[]> = {
 }
 
 /** The kind of job, when the message names one. Repair is the default. */
-const JOB_PATTERNS: Array<[ServiceKey, RegExp]> = [
+const JOB_PATTERNS: [ServiceKey, RegExp][] = [
   ['uninstallation', /uninstall|dismount|remov(e|al|ing)|relocat|shift(ing)? (the|my|it|house)/],
   ['installation', /install|new (ac|fridge|geyser|machine|washing|microwave)|\bmount/],
   ['gas-refill', /\bgas\b|refill|recharg/],
@@ -179,7 +180,7 @@ type Topic =
   | 'booking'
   | 'capabilities'
 
-const TOPICS: Array<[Topic, RegExp]> = [
+const TOPICS: [Topic, RegExp][] = [
   ['thanks', /^(thanks|thank you|thank u|thx|ty|ok thanks|okay thanks|great thanks|shukriya|dhanyavad)\b/],
   ['greeting', /^(hi+|hello|hey|namaste|namaskar|good (morning|afternoon|evening))\b[\s!.]*$/],
   ['human', /talk to (a )?(human|person|someone|agent)|customer care|call (you|me|support)|phone number|contact|helpline|support team|complain/],
@@ -239,8 +240,8 @@ function hasWord(text: string, word: string): boolean {
 function rankIssues(
   text: string,
   issues: readonly CatalogIssue[]
-): Array<{ issue: CatalogIssue; score: number }> {
-  const ranked: Array<{ issue: CatalogIssue; score: number }> = []
+): { issue: CatalogIssue; score: number }[] {
+  const ranked: { issue: CatalogIssue; score: number }[] = []
   for (const issue of issues) {
     const label = issue.label.toLowerCase()
     // A tapped quick reply is the label itself: that is the answer outright.
@@ -650,7 +651,7 @@ export async function answerWith(
 
 /** Where the conversation starts, and what to tap if typing feels like work. */
 export const OPENING: AssistantReply = {
-  text: `Hi, I am the 24X7 assistant. Ask me about a problem with your ${applianceList()} — or about prices, timings, payment, warranty or your booking.`,
+  text: `Hi, I am the ${brand.name} assistant. Ask me about a problem with your ${applianceList()} — or about prices, timings, payment, warranty or your booking.`,
   quickReplies: [
     'My fridge is not cooling',
     'Washing machine is making a loud noise',

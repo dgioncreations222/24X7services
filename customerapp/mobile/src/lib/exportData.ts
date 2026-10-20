@@ -40,7 +40,7 @@ async function rows(
   path: string,
   uid: string,
   order?: string
-): Promise<Array<Record<string, unknown>>> {
+): Promise<Record<string, unknown>[]> {
   try {
     const base = collection(db(), path)
     const snap = await getDocs(
@@ -59,7 +59,7 @@ async function rows(
 async function subRows(
   uid: string,
   sub: string
-): Promise<Array<Record<string, unknown>>> {
+): Promise<Record<string, unknown>[]> {
   try {
     const snap = await getDocs(collection(db(), COL.users, uid, sub))
     return snap.docs.map((document) => ({ id: document.id, ...document.data() }))

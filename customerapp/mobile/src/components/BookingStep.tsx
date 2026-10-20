@@ -4,7 +4,7 @@ import { router, type Href } from 'expo-router'
 import Animated, { ReduceMotion, useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import { Header, Screen, StickyCTA } from '@/components/Screen'
 import { Button } from '@/components/ui/Button'
-import { Skeleton, SkeletonGroup } from '@/components/States'
+import { Skeleton, SkeletonGroup } from '@/components/ui/States'
 import { useAuth } from '@/lib/auth'
 import {
   BOOKING_STEPS,

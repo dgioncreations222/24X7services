@@ -1,16 +1,16 @@
 import { useCallback } from 'react'
 import { View } from 'react-native'
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore'
 import { Star } from 'lucide-react-native'
-import { bookingSchema, COL, reviewSchema, type Booking, type Review } from '@app/shared'
+import type { Booking } from '@app/shared'
 
 import { ProfileShell, SignInPrompt } from '@/components/ProfileShell'
 import { ReviewCard } from '@/components/ReviewCard'
-import { EmptyState } from '@/components/EmptyState'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { EmptyState , ErrorState } from '@/components/ui/States'
+
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { fetchAllServices } from '@/lib/catalog'
-import { db } from '@/lib/firebase'
+import { fetchBooking } from '@/lib/api/booking'
+import { fetchMyReviews } from '@/lib/api/reviews'
 import { useAsync } from '@/lib/useAsync'
 
 /**
@@ -39,16 +39,7 @@ export default function ReviewsScreen() {
 
 function ReviewList({ uid }: { uid: string }) {
   const load = useCallback(async () => {
-    const [snap, services] = await Promise.all([
-      getDocs(query(collection(db(), COL.reviews), where('uid', '==', uid), orderBy('createdAt', 'desc'), limit(100))),
-      fetchAllServices(),
-    ])
-
-    const reviews: Review[] = []
-    for (const document of snap.docs) {
-      const parsed = reviewSchema.safeParse({ id: document.id, ...document.data() })
-      if (parsed.success) reviews.push(parsed.data)
-    }
+    const [reviews, services] = await Promise.all([fetchMyReviews(uid), fetchAllServices()])
 
     // The service a review was left against lives on its booking. The review
     // carries the booking id, so each is one document read by key rather than a
@@ -56,9 +47,8 @@ function ReviewList({ uid }: { uid: string }) {
     const bookings = new Map<string, Booking>()
     await Promise.all(
       reviews.map(async (review) => {
-        const snapshot = await getDoc(doc(db(), COL.bookings, review.bookingId))
-        const booking = bookingSchema.safeParse({ id: snapshot.id, ...snapshot.data() })
-        if (booking.success) bookings.set(review.id, booking.data)
+        const booking = await fetchBooking(review.bookingId)
+        if (booking) bookings.set(review.id, booking)
       })
     )
 

@@ -2,7 +2,7 @@ import { ProfileShell } from '@/components/ProfileShell'
 import { Plus } from '@/screens/profile/membership/MembershipBody'
 
 /**
- * 24X7 Plus: what it does, what it costs, and when it runs out.
+ * Plus: what it does, what it costs, and when it runs out.
  *
  * Every benefit listed here is one the backend actually applies at checkout —
  * the visit fee is waived on the booking and the repair discount comes off the

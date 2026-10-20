@@ -1,4 +1,4 @@
-# 24X7 customer app — native (Expo)
+# Customer Service app (placeholder name) — native (Expo)
 
 The customer app as a real React Native app: Expo SDK 57, Expo Router, Uniwind
 (Tailwind v4 on native). It shares `@app/shared` and the Firebase backend with

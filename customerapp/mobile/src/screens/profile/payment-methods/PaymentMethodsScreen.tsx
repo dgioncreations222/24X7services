@@ -1,27 +1,21 @@
 import { useCallback, useState } from 'react'
 import { View } from 'react-native'
 import { router } from 'expo-router'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { Banknote, Check, Lock, Smartphone, WalletMinimal, type LucideIcon } from 'lucide-react-native'
-import {
-  COL,
-  DEFAULT_PAYMENT_PREFERENCE,
-  formatPaise,
-  userProfileSchema,
-  type PaymentPreference,
-} from '@app/shared'
+import { DEFAULT_PAYMENT_PREFERENCE, formatPaise, type PaymentPreference } from '@app/shared'
 
 import { ProfileShell, useSignInHref } from '@/components/ProfileShell'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { ErrorState } from '@/components/ui/States'
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/Toast'
 import { Icon } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
-import { db } from '@/lib/firebase'
+import { fetchPaymentPreference, savePaymentPreference } from '@/lib/api/payment-methods'
 import { fetchWallet } from '@/lib/wallet'
 import { useAsync } from '@/lib/useAsync'
 import { cn } from '@/lib/cn'
+import { brand } from '@/config/brand'
 
 /**
  * How this customer would rather pay.
@@ -44,7 +38,7 @@ import { cn } from '@/lib/cn'
 const OPTIONS = [
   {
     id: 'balance_first',
-    label: 'Use my 24X7 balance first',
+    label: `Use my ${brand.name} balance first`,
     detail: 'Credits and money you have added come off the bill, and you pay the rest.',
     icon: WalletMinimal,
   },
@@ -60,17 +54,12 @@ const OPTIONS = [
     detail: 'Settle with the technician once the job is done, where the service allows it.',
     icon: Banknote,
   },
-] as const satisfies ReadonlyArray<{
+] as const satisfies readonly {
   id: PaymentPreference
   label: string
   detail: string
   icon: LucideIcon
-}>
-
-/** The write, kept outside the component. */
-async function savePreference(uid: string, preference: PaymentPreference): Promise<void> {
-  await setDoc(doc(db(), COL.users, uid), { paymentPreference: preference, updatedAt: Date.now() }, { merge: true })
-}
+}[]
 
 export function PaymentMethodsScreen() {
   return (
@@ -86,12 +75,8 @@ function Methods({ uid }: { uid: string | null }) {
     if (!uid) {
       return { preference: DEFAULT_PAYMENT_PREFERENCE, balance: 0 }
     }
-    const [snap, wallet] = await Promise.all([getDoc(doc(db(), COL.users, uid)), fetchWallet(uid)])
-    const parsed = userProfileSchema.safeParse(snap.data())
-    return {
-      preference: (parsed.success ? parsed.data.paymentPreference : undefined) ?? DEFAULT_PAYMENT_PREFERENCE,
-      balance: wallet.balance,
-    }
+    const [preference, wallet] = await Promise.all([fetchPaymentPreference(uid), fetchWallet(uid)])
+    return { preference, balance: wallet.balance }
   }, [uid])
 
   const data = useAsync(load)
@@ -125,7 +110,7 @@ function Methods({ uid }: { uid: string | null }) {
     setChosen(next)
     setSaving(true)
     try {
-      await savePreference(uid, next)
+      await savePaymentPreference(uid, next)
     } catch {
       // Put the tick back where it was. A preference that silently did not
       // save is one the customer finds out about at checkout.

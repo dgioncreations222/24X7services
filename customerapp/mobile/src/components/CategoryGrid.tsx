@@ -4,7 +4,7 @@ import { router, type Href } from 'expo-router'
 import { ArrowRight, ChevronRight } from 'lucide-react-native'
 import { formatPaise, type ApplianceId, type CatalogAppliance, type CatalogService } from '@app/shared'
 
-import { BottomSheet } from '@/components/BottomSheet'
+import { BottomSheet } from '@/components/ui/Overlay'
 import { durationNote } from '@/components/ServiceRail'
 import { Icon } from '@/components/ui/Icon'
 import { Img } from '@/components/ui/Img'
@@ -46,14 +46,15 @@ export interface CategoryGridProps {
 /**
  * A light colour per appliance for its tile, so the grid reads in colour
  * rather than as five grey machines on five grey squares. Fixed light values
- * in both themes, like `plate`, because the photographs are shot on white.
+ * in both themes (the tint-* tokens), like `plate`, because the photographs
+ * are shot on white.
  */
 const TILE_TINTS: Partial<Record<ApplianceId, string>> = {
-  'washing-machine': '#E4ECFF',
-  'air-conditioner': '#DCF2FA',
-  refrigerator: '#DFF4EA',
-  geyser: '#FDE9D9',
-  microwave: '#EEE5FB',
+  'washing-machine': 'bg-tint-blue',
+  'air-conditioner': 'bg-tint-sky',
+  refrigerator: 'bg-tint-mint',
+  geyser: 'bg-tint-peach',
+  microwave: 'bg-tint-lilac',
 }
 
 /** Three columns with a 12px gutter, sized off the grid's own width. */
@@ -102,10 +103,7 @@ export function CategoryGrid({ appliances, services, className }: CategoryGridPr
                 accessibilityLabel={appliance.name}
                 className="w-full min-w-0 items-center gap-2 active:opacity-80"
               >
-                <View
-                  className="aspect-square w-full overflow-hidden rounded-card bg-plate"
-                  style={tint ? { backgroundColor: tint } : undefined}
-                >
+                <View className={cn('aspect-square w-full overflow-hidden rounded-card', tint ?? 'bg-plate')}>
                   {/* Multiplied, so the photograph's white ground takes the
                       tile's colour instead of sitting on it as a white box. */}
                   <View className="absolute inset-0 p-4" style={{ mixBlendMode: 'multiply' }}>

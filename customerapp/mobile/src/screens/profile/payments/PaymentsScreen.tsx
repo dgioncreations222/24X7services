@@ -1,20 +1,19 @@
 import { useCallback } from 'react'
 import { View } from 'react-native'
 import type { Href } from 'expo-router'
-import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore'
 import { ChevronRight, FileText } from 'lucide-react-native'
-import { COL, invoiceSchema, type Invoice } from '@app/shared'
+import type { Invoice } from '@app/shared'
 
 import { ProfileShell, SignInPrompt } from '@/components/ProfileShell'
 import { Card } from '@/components/ui/Card'
-import { ToneBadge } from '@/components/StatusBadge'
-import { EmptyState } from '@/components/EmptyState'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { ToneBadge , EmptyState , ErrorState } from '@/components/ui/States'
+
+
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { Icon } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
-import { db } from '@/lib/firebase'
+import { fetchMyInvoices } from '@/lib/api/invoices'
 import { formatDateTime, formatPaise } from '@/lib/format'
 import { useAsync } from '@/lib/useAsync'
 import { cn } from '@/lib/cn'
@@ -45,17 +44,7 @@ export function PaymentsScreen() {
 }
 
 function InvoiceList({ uid }: { uid: string }) {
-  const load = useCallback(async (): Promise<Invoice[]> => {
-    const snap = await getDocs(
-      query(collection(db(), COL.invoices), where('uid', '==', uid), orderBy('issuedAt', 'desc'), limit(100))
-    )
-    const invoices: Invoice[] = []
-    for (const document of snap.docs) {
-      const parsed = invoiceSchema.safeParse({ id: document.id, ...document.data() })
-      if (parsed.success) invoices.push(parsed.data)
-    }
-    return invoices
-  }, [uid])
+  const load = useCallback((): Promise<Invoice[]> => fetchMyInvoices(uid), [uid])
 
   const invoices = useAsync(load)
 

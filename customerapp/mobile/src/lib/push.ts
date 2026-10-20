@@ -26,6 +26,8 @@ export const PUSH_IS_CONFIGURED =
   !demoMode && Boolean(EAS_PROJECT_ID) && !IN_EXPO_GO
 
 function notifications(): typeof import('expo-notifications') {
+  // Loaded lazily so Expo Go, where push cannot work, never evaluates it.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   return require('expo-notifications')
 }
 

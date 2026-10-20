@@ -1,7 +1,7 @@
 import { View } from 'react-native'
 import { Star } from 'lucide-react-native'
 import { cn } from '@/lib/cn'
-import { Icon, useColor } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
 import { Text } from '@/components/ui/Text'
 
 /**
@@ -31,14 +31,13 @@ export function ServiceScore({
   variant = 'full',
   className,
 }: ServiceScoreProps) {
-  const ink = useColor('text-ink')
   if (rating === undefined || reviewCount === undefined) return null
 
   const compact = variant === 'compact'
   const size = compact ? 'text-xs' : 'text-sm'
   return (
     <View className={cn('flex-row items-center gap-1.5', className)}>
-      <Icon as={Star} fill={ink} className={cn('text-ink', compact ? 'size-3' : 'size-3.5')} />
+      <Icon as={Star} filled className={cn('text-ink', compact ? 'size-3' : 'size-3.5')} />
       <Text className={cn(size, 'font-bold text-ink')}>{rating.toFixed(1)}</Text>
       <Text numberOfLines={1} className={cn(size, 'shrink text-muted')}>
         ({countNote(reviewCount)}

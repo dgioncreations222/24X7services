@@ -2,7 +2,7 @@ import { View } from 'react-native'
 import type { Invoice } from '@app/shared'
 import { Card } from '@/components/ui/Card'
 import { Text } from '@/components/ui/Text'
-import { ToneBadge } from '@/components/StatusBadge'
+import { ToneBadge } from '@/components/ui/States'
 import { formatDateTime, formatPaise } from '@/lib/format'
 import { cn } from '@/lib/cn'
 

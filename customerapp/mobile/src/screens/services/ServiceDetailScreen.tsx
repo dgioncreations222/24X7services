@@ -10,8 +10,8 @@ import {
 } from '@app/shared'
 
 import { Header, Screen } from '@/components/Screen'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { ErrorState } from '@/components/ui/States'
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { ServiceDetails } from '@/components/ServiceSheet'
 import { fetchAppliance, fetchIssuesFor, fetchServicesFor } from '@/lib/catalog'
 import { useAsync } from '@/lib/useAsync'

@@ -1,34 +1,25 @@
 import { useCallback } from 'react'
 import { View } from 'react-native'
-import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore'
 import { ShieldCheck } from 'lucide-react-native'
-import { COL, warrantySchema, type Warranty } from '@app/shared'
+import type { Warranty } from '@app/shared'
 
 import { WarrantyCard } from '@/components/WarrantyCard'
-import { EmptyState } from '@/components/EmptyState'
-import { ErrorState } from '@/components/ErrorState'
-import { Skeleton, SkeletonGroup } from '@/components/SkeletonLoader'
+import { EmptyState , ErrorState } from '@/components/ui/States'
+
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton'
 import { Text } from '@/components/ui/Text'
 import { fetchAllServices, fetchAppliances } from '@/lib/catalog'
-import { db } from '@/lib/firebase'
+import { fetchMyWarranties } from '@/lib/api/warranty'
 import { daysUntil } from '@/lib/format'
 import { useAsync } from '@/lib/useAsync'
 
 export function WarrantyList({ uid }: { uid: string }) {
   const load = useCallback(async () => {
-    const [snap, services, appliances] = await Promise.all([
-      getDocs(
-        query(collection(db(), COL.warranties), where('uid', '==', uid), orderBy('expiresAt', 'asc'), limit(100))
-      ),
+    const [warranties, services, appliances] = await Promise.all([
+      fetchMyWarranties(uid),
       fetchAllServices(),
       fetchAppliances(),
     ])
-
-    const warranties: Warranty[] = []
-    for (const document of snap.docs) {
-      const parsed = warrantySchema.safeParse({ id: document.id, ...document.data() })
-      if (parsed.success) warranties.push(parsed.data)
-    }
 
     return { warranties, services, appliances }
   }, [uid])
@@ -65,8 +56,8 @@ export function WarrantiesView({
   appliances,
 }: {
   warranties: readonly Warranty[]
-  services: ReadonlyArray<{ applianceId: string; serviceKey: string; name: string }>
-  appliances: ReadonlyArray<{ id: string; name: string }>
+  services: readonly { applianceId: string; serviceKey: string; name: string }[]
+  appliances: readonly { id: string; name: string }[]
 }) {
   if (warranties.length === 0) {
     return (

@@ -18,16 +18,16 @@ import {
 } from '@app/shared'
 
 import { AppShell } from '@/components/AppShell'
-import { Header } from '@/components/Header'
+import { Header } from '@/components/Screen'
 import { BookingCard } from '@/components/BookingCard'
-import { EmptyState } from '@/components/EmptyState'
-import { ErrorState } from '@/components/ErrorState'
+import { EmptyState , ErrorState } from '@/components/ui/States'
+
 import { Card } from '@/components/ui/Card'
 import { Icon } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
 import { useSignInHref } from '@/components/ProfileShell'
-import { BookingListSkeleton } from '@/components/SkeletonLoader'
+import { BookingListSkeleton } from '@/components/ui/Skeleton'
 import { useAuth } from '@/lib/auth'
 import { fetchAllServices } from '@/lib/catalog'
 import { useAsync } from '@/lib/useAsync'
@@ -70,11 +70,11 @@ const TABS = [
   { key: 'active', label: 'Active', statuses: ACTIVE_STATUSES },
   { key: 'upcoming', label: 'Upcoming', statuses: UPCOMING_STATUSES },
   { key: 'past', label: 'Past', statuses: CLOSED_STATUSES },
-] as const satisfies ReadonlyArray<{
+] as const satisfies readonly {
   key: string
   label: string
   statuses: readonly BookingStatus[]
-}>
+}[]
 
 type TabKey = (typeof TABS)[number]['key']
 
@@ -225,12 +225,12 @@ export default function BookingsScreen() {
  * or a guarantee, because those are the parts that go stale without anybody
  * noticing.
  */
-const CARRIED: ReadonlyArray<{
+const CARRIED: readonly {
   key: string
   icon: LucideIcon
   label: string
   detail: string
-}> = [
+}[] = [
   {
     key: 'track',
     icon: Truck,

@@ -5,7 +5,7 @@ import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated'
 import { ChevronDown, MessageSquare } from 'lucide-react-native'
 
 import { Header, Screen } from '@/components/Screen'
-import { ErrorState } from '@/components/ErrorState'
+import { ErrorState } from '@/components/ui/States'
 import { Icon } from '@/components/ui/Icon'
 import { Tappable } from '@/components/ui/Tappable'
 import { Text } from '@/components/ui/Text'
