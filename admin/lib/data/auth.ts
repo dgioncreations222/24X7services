@@ -54,6 +54,12 @@ export function useAdminSession(): AdminSession {
   return useSyncExternalStore(subscribeAll, snapshot, () => LOADING)
 }
 
+/** The signed-in admin, for actions that record who did them. */
+export function currentAdmin(): AdminAccount | null {
+  const s = snapshot()
+  return s.status === 'signed_in' ? s.admin : null
+}
+
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function admit(email: string, provider: StoredSession['provider']) {
