@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Bell, Star } from 'lucide-react-native'
-import { setOnline, useEarnings, useJobs, useProfile } from '@/lib/data'
+import { setOnline, useEarnings, useJobs, useProfile, useUnreadCount } from '@/lib/data'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
 import { rupees } from '@/lib/money'
@@ -24,6 +24,7 @@ export function HomeHeader() {
   const t = useT()
   const insets = useSafeAreaInsets()
   const profile = useProfile()
+  const unread = useUnreadCount()
   const earnings = useEarnings('today')
   const upcoming = useJobs('upcoming')
   const ongoing = useJobs('ongoing')
@@ -64,6 +65,7 @@ export function HomeHeader() {
         </View>
         <Tappable href="/notifications" accessibilityLabel={t('Notifications')} className="size-12 items-center justify-center rounded-full bg-white/10">
           <Icon as={Bell} className="size-5 text-white" />
+          {unread > 0 ? <View accessibilityLabel={t('{n} unread', { n: unread })} className="absolute right-2.5 top-2.5 size-2.5 rounded-full border-2 border-brand-ink bg-danger" /> : null}
         </Tappable>
       </View>
 

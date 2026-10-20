@@ -6,9 +6,19 @@
  * subscriber, which is how a screen sees a job it accepted move to Ongoing.
  */
 import { APPLIANCE_LABEL, BRAND_LABEL } from '../catalog'
-import { DEFAULT_SETTINGS, TECHNICIAN, seedJobs, seedReviews } from '../seed'
-import type { Job } from '../types'
-import type { PartnerJob, PartnerJobStatus, PartnerProfile, PartnerReview, Payout, RateCardItem } from '../data/types'
+import { DEFAULT_SETTINGS, TECHNICIAN, seedJobs, seedNotices, seedReviews } from '../seed'
+import type { Job, Notice } from '../types'
+import type {
+  PartnerJob,
+  PartnerJobStatus,
+  PartnerNotification,
+  PartnerNotificationKind,
+  PartnerProfile,
+  PartnerReview,
+  Payout,
+  RateCardItem,
+  SupportTicket,
+} from '../data/types'
 
 /** The platform's cut of each job, until the backend says otherwise. */
 export const COMMISSION_RATE = 0.2
@@ -19,6 +29,10 @@ export interface MockDb {
   payouts: Payout[]
   reviews: PartnerReview[]
   rateCard: RateCardItem[]
+  /** How many 5★, 4★ … 1★ ratings make up the profile's average. */
+  ratingBreakdown: [number, number, number, number, number]
+  notifications: PartnerNotification[]
+  tickets: SupportTicket[]
 }
 
 const paise = (rupees: number) => Math.round(rupees * 100)
@@ -136,11 +150,61 @@ const RATE_CARD: RateCardItem[] = [
   { id: 'rc-oven-element', categoryId: 'oven', name: 'Grill element', price: paise(1300), active: true },
 ]
 
+const NOTICE_KIND: Partial<Record<Notice['kind'], PartnerNotificationKind>> = {
+  request: 'request',
+  emergency: 'emergency',
+  assigned: 'assigned',
+  accepted: 'assigned',
+  schedule: 'schedule',
+  cancelled: 'cancelled',
+  customer: 'customer',
+  payment: 'payment',
+  rating: 'rating',
+}
+
+/** The seeded inbox, plus last week's payout; AI call summaries are left out. */
+function seedNotifications(payouts: Payout[]): PartnerNotification[] {
+  const paid = payouts.find((p) => p.status === 'paid')
+  const seeded = seedNotices().flatMap((n) => {
+    const kind = NOTICE_KIND[n.kind]
+    return kind ? [{ id: n.id, kind, title: n.title, body: n.body, at: new Date(n.at).getTime(), read: n.read, jobId: n.jobId }] : []
+  })
+  return paid?.paidAt
+    ? [
+        ...seeded,
+        {
+          id: 'n-payout',
+          kind: 'payout',
+          title: `Payout sent · ₹${Math.round(paid.net / 100).toLocaleString('en-IN')}`,
+          body: `${paid.jobCount} jobs, paid to your bank account.`,
+          at: Math.min(paid.paidAt, Date.now() - 86_400_000),
+          read: true,
+        },
+      ]
+    : seeded
+}
+
+/** One ticket the desk already answered, so the list is not empty on day one. */
+function seedTickets(now: number): SupportTicket[] {
+  return [
+    {
+      id: 'SUP-20417',
+      topic: 'payment',
+      jobId: 'JB-24829',
+      details: 'Customer says they paid by UPI but the job still showed payment pending for a while.',
+      status: 'resolved',
+      createdAt: now - 3 * 86_400_000,
+      reply: 'The payment reached us after a short bank delay. It is in this week’s payout.',
+    },
+  ]
+}
+
 function fresh(): MockDb {
   const now = Date.now()
   const jobs = seedJobs()
     .map(toPartnerJob)
     .filter((j): j is PartnerJob => j !== null)
+  const payouts = seedPayouts(now)
   const bankLast4 = DEFAULT_SETTINGS.bank.replace(/\D/g, '').slice(-4)
   return {
     jobs,
@@ -162,7 +226,7 @@ function fresh(): MockDb {
       bank: { name: DEFAULT_SETTINGS.bank.split('·')[0]!.trim(), last4: bankLast4 },
       upiId: DEFAULT_SETTINGS.upi,
     },
-    payouts: seedPayouts(now),
+    payouts,
     reviews: seedReviews().map((r) => ({
       id: r.id,
       bookingId: r.id,
@@ -173,6 +237,9 @@ function fresh(): MockDb {
       serviceName: r.appliance,
     })),
     rateCard: RATE_CARD,
+    ratingBreakdown: TECHNICIAN.ratingBreakdown,
+    notifications: seedNotifications(payouts),
+    tickets: seedTickets(now),
   }
 }
 
@@ -192,6 +259,11 @@ export function write(next: (current: MockDb) => MockDb) {
 export function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
+}
+
+/** Put a new notification at the top of the inbox. */
+export function addNotification(n: Omit<PartnerNotification, 'id' | 'at' | 'read'>) {
+  write((db) => ({ ...db, notifications: [{ ...n, id: `n-${Date.now()}`, at: Date.now(), read: false }, ...db.notifications] }))
 }
 
 /** Back to the seeded day — for the dev screen and tests. */

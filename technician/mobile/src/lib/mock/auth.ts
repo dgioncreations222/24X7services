@@ -40,7 +40,11 @@ const SEEDED: Account = {
   provider: 'email',
   status: 'active',
   registration: { name: TECHNICIAN.name, phone: TECHNICIAN.phone, city: 'Hyderabad', skills: ['washer', 'fridge', 'oven', 'ac', 'geyser'], experienceYears: TECHNICIAN.experienceYears },
-  documents: {},
+  // Checked when they joined; the files themselves stay with the admin.
+  documents: Object.fromEntries(
+    (['aadhaar', 'pan', 'photo', 'bank'] as const).map((type) => [type, { type, fileUrl: '', status: 'approved', uploadedAt: Date.parse('2019-03-04') }])
+  ),
+  payout: { accountName: TECHNICIAN.name, accountNumber: '50100234184471', ifsc: 'HDFC0001922' },
 }
 
 function load(): AuthState {

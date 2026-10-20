@@ -18,7 +18,10 @@ export {
   useJobs,
   useRateCard,
 } from './jobs'
-export { setOnline, useEarnings, usePayouts, useProfile, useReviews } from './account'
+export { setOnline, useEarnings, usePayouts, useProfile, useRatingSummary, useReviews, type RatingSummary } from './account'
+export { markAllNotificationsRead, markNotificationRead, useNotifications, useUnreadCount } from './notifications'
+export { TicketError, raiseTicket, useFaqs, useTickets } from './support'
+export { useDeviceSettings } from './settings'
 export {
   AuthError,
   REQUIRED_DOCS,
