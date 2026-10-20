@@ -77,7 +77,7 @@ export function BannerCard({
     ) : (
       <View
         className={cn(
-          'relative h-full min-h-52 flex-row gap-5 overflow-hidden rounded-card p-5',
+          'relative grow min-h-52 flex-row gap-5 overflow-hidden rounded-card p-5',
           // No ground of its own edge to edge: Home paints one gradient
           // behind the header and this card together.
           edgeToEdge && 'min-h-48 rounded-none px-4 pb-7 pt-4',
@@ -131,7 +131,7 @@ export function BannerCard({
     )
 
   return banner.ctaHref ? (
-    <Tappable href={banner.ctaHref as Href} accessibilityLabel={bannerLabel(banner)} className="h-full active:opacity-90">
+    <Tappable href={banner.ctaHref as Href} accessibilityLabel={bannerLabel(banner)} className="grow active:opacity-90">
       {body}
     </Tappable>
   ) : (

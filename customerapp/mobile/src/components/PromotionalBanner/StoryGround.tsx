@@ -18,7 +18,7 @@ export function StoryGround({
   return (
     <View
       className={cn(
-        'relative h-full min-h-52 overflow-hidden',
+        'relative grow min-h-52 overflow-hidden',
         edgeToEdge ? 'min-h-48 rounded-none' : 'rounded-card',
         className
       )}
