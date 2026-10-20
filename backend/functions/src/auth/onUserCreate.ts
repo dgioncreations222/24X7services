@@ -3,7 +3,7 @@ import { logger } from 'firebase-functions'
 import { FieldValue } from 'firebase-admin/firestore'
 import { auth, db } from '../lib/admin'
 import { REGION } from '../lib/options'
-import type { Role } from '../lib/roles'
+import { isRole, type Role } from '../lib/roles'
 
 /**
  * Runs once for every new account (Google or email/password) and does the two
@@ -16,38 +16,56 @@ import type { Role } from '../lib/roles'
  * 2. Write the half of users/{uid} the rules do not let the client write:
  *    email and role come from the auth account, not from anything typed.
  *
+ * The trigger is asynchronous and can run late, so it never overwrites
+ * anything that got there first: a role granted by setRole.ts, or a name and
+ * photo the customer already saved on the profile screen.
+ *
  * This is a 1st-generation trigger because 2nd-generation functions only offer
  * blocking auth triggers, which need Identity Platform enabled on the project.
- * It is pinned to Mumbai with the rest of the backend.
+ * It is pinned to Mumbai with the rest of the backend. setGlobalOptions does
+ * not reach 1st-generation functions, so the instance cap is set here too.
  */
 export const onUserCreate = functionsV1
   .region(REGION)
+  .runWith({ maxInstances: 20 })
   .auth.user()
   .onCreate(async (user) => {
-    const role: Role = 'customer'
+    const existingRole = user.customClaims?.role
+    const role: Role = isRole(existingRole) ? existingRole : 'customer'
 
-    await auth().setCustomUserClaims(user.uid, { role })
+    if (!isRole(existingRole)) {
+      await auth().setCustomUserClaims(user.uid, { ...user.customClaims, role })
+    }
 
-    await db()
-      .collection('users')
-      .doc(user.uid)
-      .set(
+    const ref = db().collection('users').doc(user.uid)
+    await db().runTransaction(async (tx) => {
+      const current = (await tx.get(ref)).data() ?? {}
+
+      tx.set(
+        ref,
         {
           email: user.email ?? undefined,
-          // Prefill from the Google profile. Trimmed to what the rules accept
-          // so the customer can still edit the rest of their profile.
-          name: user.displayName?.trim().slice(0, 80) || undefined,
-          photoUrl: user.photoURL ?? undefined,
-          role,
-          createdAt: FieldValue.serverTimestamp(),
+          role: isRole(current.role) ? current.role : role,
+          // Prefill from the Google profile only where the customer has not
+          // already set something, and only with values the rules accept, so
+          // the customer can still edit the rest of their profile afterwards.
+          name: current.name ?? (user.displayName?.trim().slice(0, 80) || undefined),
+          photoUrl: current.photoUrl ?? fitsRules(user.photoURL, 500),
+          createdAt: current.createdAt ?? FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         },
-        // Merge, because the profile screen may have written first.
         { merge: true }
       )
+    })
 
-    logger.info('onUserCreate: new customer', {
+    logger.info('onUserCreate: new account', {
       uid: user.uid,
+      role,
       provider: user.providerData[0]?.providerId,
     })
   })
+
+/** A string the rules would reject is dropped rather than stored. */
+function fitsRules(v: string | undefined, maxLen: number): string | undefined {
+  return v && v.length <= maxLen ? v : undefined
+}

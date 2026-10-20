@@ -57,6 +57,23 @@ service cloud.firestore {
       return v is string && v.size() > 0 && v.size() <= maxLen;
     }
 
+    // Timestamps must be the server's clock (serverTimestamp() in the app) or,
+    // on an update, left as they were. A client cannot backdate or forge them.
+    function isServerTime(field) {
+      return !(field in incoming())
+        || incoming()[field] == request.time
+        || (resource != null && field in resource.data
+            && incoming()[field] == resource.data[field]);
+    }
+
+    // createdAt is set once, on create, and never moves after that.
+    function isCreatedAt() {
+      return resource == null
+        ? (!('createdAt' in incoming()) || incoming().createdAt == request.time)
+        : (!('createdAt' in incoming()) || ('createdAt' in resource.data
+            && incoming().createdAt == resource.data.createdAt));
+    }
+
     function isPincode(v) {
       return v is string && v.matches('[1-9][0-9]{5}');
     }
@@ -124,7 +141,9 @@ service cloud.firestore {
           && isPincode(incoming().pincode)
           && (!('customLabel' in incoming()) || isString(incoming().customLabel, 40))
           && (!('landmark' in incoming()) || isString(incoming().landmark, 120))
-          && (!('geo' in incoming()) || incoming().geo is latlng);
+          && (!('geo' in incoming()) || incoming().geo is latlng)
+          && isCreatedAt()
+          && isServerTime('updatedAt');
       }
     }
 
@@ -133,6 +152,7 @@ service cloud.firestore {
         && (!('phone' in incoming()) || isPhone(incoming().phone))
         && (!('photoUrl' in incoming()) || isString(incoming().photoUrl, 500))
         && (!('defaultAddressId' in incoming()) || isString(incoming().defaultAddressId, 200))
+        && isServerTime('updatedAt')
         // Two booleans and nothing else.
         && (!('notifications' in incoming())
             || (incoming().notifications.keys().hasOnly(['push', 'inApp'])

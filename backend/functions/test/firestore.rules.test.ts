@@ -22,6 +22,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  serverTimestamp,
   setDoc,
   setLogLevel,
   updateDoc,
@@ -167,6 +168,13 @@ describe('users/{uid}', () => {
     await assertFails(setDoc(doc(alice(), `users/${ALICE}`), { notifications: { sms: true } }))
   })
 
+  it('updatedAt must be the server clock, not a value the client picks', async () => {
+    await assertSucceeds(setDoc(doc(alice(), `users/${ALICE}`), { name: 'Alice', updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(alice(), `users/${ALICE}`), { updatedAt: new Date('2099-01-01') }))
+    await assertFails(updateDoc(doc(alice(), `users/${ALICE}`), { updatedAt: 'yesterday' }))
+    await assertSucceeds(updateDoc(doc(alice(), `users/${ALICE}`), { name: 'A', updatedAt: serverTimestamp() }))
+  })
+
   it('nobody can write to another user or delete a profile', async () => {
     await assertFails(setDoc(doc(bob(), `users/${ALICE}`), { name: 'Bob' }))
     await assertFails(setDoc(doc(admin(), `users/${ALICE}`), { name: 'Admin' }))
@@ -189,6 +197,17 @@ describe('users/{uid}/addresses', () => {
     await assertFails(getDoc(doc(bob(), path)))
     await assertFails(setDoc(doc(bob(), path), ADDRESS))
     await assertFails(getDoc(doc(guest(), path)))
+  })
+
+  it('createdAt/updatedAt must be the server clock, and createdAt cannot be moved later', async () => {
+    await assertSucceeds(setDoc(doc(alice(), path), {
+      ...ADDRESS, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    }))
+    await assertSucceeds(updateDoc(doc(alice(), path), { area: 'Gachibowli', updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(alice(), path), { createdAt: serverTimestamp() }))
+    await assertFails(setDoc(doc(alice(), `users/${ALICE}/addresses/a2`), {
+      ...ADDRESS, createdAt: new Date('2020-01-01'),
+    }))
   })
 
   it('rejects missing fields, extra fields, a bad label and a bad pincode', async () => {

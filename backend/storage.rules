@@ -27,7 +27,9 @@ service firebase.storage {
       allow write: if false;
     }
 
-    match /users/{uid}/profile/{fileName} {
+    // One fixed name per user, so a new photo replaces the old one and an
+    // account can never fill the bucket with files under made-up names.
+    match /users/{uid}/profile/avatar {
       allow read, delete: if isOwner(uid);
       allow create, update: if isOwner(uid) && isImage() && withinPhotoSize();
     }
