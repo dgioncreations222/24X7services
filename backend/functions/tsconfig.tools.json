@@ -1,0 +1,11 @@
+{
+  "//": "Type-checks the scripts and tests, which run with tsx/vitest rather than being bundled.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
+  },
+  "include": ["scripts/**/*.ts", "test/**/*.ts"]
+}

@@ -1,0 +1,153 @@
+rules_version = '2';
+
+// One rules file serves all three apps: customer, partner (technician) and
+// admin. The shape follows one principle: a client reads what belongs to it and
+// writes almost nothing. Prices, statuses and anything that moves money are
+// decided by Cloud Functions, which bypass these rules. Everything not named
+// below is denied by the final catch-all.
+//
+// Roles live in the auth token as a custom claim (`role`), set by the
+// onUserCreate function and, for partner/admin, by scripts/setRole.ts. A client
+// cannot set its own claims, so `request.auth.token.role` can be trusted here.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // A brand-new account has no claim until onUserCreate has run and the app
+    // has refreshed its token, so a missing role reads as 'customer'. Nothing a
+    // customer can do depends on the claim; only partner/admin access does.
+    function role() {
+      return signedIn() ? request.auth.token.get('role', 'customer') : null;
+    }
+
+    function isAdmin() {
+      return role() == 'admin';
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Field-set checks. `required` must all be present; nothing outside
+    // `required + optional` may appear, so a client cannot smuggle in a field
+    // the rules do not validate.
+    function onlyFields(required, optional) {
+      return incoming().keys().hasAll(required)
+        && incoming().keys().hasOnly(required.concat(optional));
+    }
+
+    // For updates: the fields that changed must all be in `allowed`.
+    function changesOnly(allowed) {
+      return incoming().diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    function isString(v, maxLen) {
+      return v is string && v.size() > 0 && v.size() <= maxLen;
+    }
+
+    function isPincode(v) {
+      return v is string && v.matches('[1-9][0-9]{5}');
+    }
+
+    // Indian mobile number, stored as +91XXXXXXXXXX. Typed by the customer and
+    // not verified (there is no OTP), so it is a contact number, never an
+    // identity.
+    function isPhone(v) {
+      return v is string && v.matches('\\+91[6-9][0-9]{9}');
+    }
+
+    // -----------------------------------------------------------------------
+    // Catalog: public read, written only by the seed script and admin tools
+    // -----------------------------------------------------------------------
+
+    match /categories/{id} { allow read: if true; allow write: if false; }
+    match /services/{id} {
+      allow read: if true;
+      allow write: if false;
+
+      match /questions/{questionId} { allow read: if true; allow write: if false; }
+    }
+    match /cities/{id} { allow read: if true; allow write: if false; }
+    match /zones/{id}  { allow read: if true; allow write: if false; }
+
+    // The public half of the config. Commission rates, provider keys and
+    // anything else private live in config/private, which no rule grants.
+    match /config/public { allow read: if true; allow write: if false; }
+
+    // -----------------------------------------------------------------------
+    // Users: the one place a customer writes
+    // -----------------------------------------------------------------------
+
+    match /users/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+
+      // email, role and createdAt come from the auth account and are written by
+      // onUserCreate. A client may set only its display fields. Create is
+      // allowed because the profile screen can race the trigger on first
+      // sign-in; the trigger merges, so neither write loses the other's fields.
+      allow create: if isOwner(uid)
+        && onlyFields([], ['name', 'phone', 'photoUrl', 'defaultAddressId',
+                           'notifications', 'updatedAt'])
+        && validProfile();
+
+      allow update: if isOwner(uid)
+        && changesOnly(['name', 'phone', 'photoUrl', 'defaultAddressId',
+                        'notifications', 'updatedAt'])
+        && validProfile();
+
+      allow delete: if false; // a deleteAccount function will handle this
+
+      match /addresses/{addressId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && onlyFields(
+               ['label', 'flat', 'area', 'city', 'pincode'],
+               ['customLabel', 'landmark', 'geo', 'createdAt', 'updatedAt']
+             )
+          && incoming().label in ['home', 'office', 'other']
+          && isString(incoming().flat, 120)
+          && isString(incoming().area, 160)
+          && isString(incoming().city, 80)
+          && isPincode(incoming().pincode)
+          && (!('customLabel' in incoming()) || isString(incoming().customLabel, 40))
+          && (!('landmark' in incoming()) || isString(incoming().landmark, 120))
+          && (!('geo' in incoming()) || incoming().geo is latlng);
+      }
+    }
+
+    function validProfile() {
+      return (!('name' in incoming()) || isString(incoming().name, 80))
+        && (!('phone' in incoming()) || isPhone(incoming().phone))
+        && (!('photoUrl' in incoming()) || isString(incoming().photoUrl, 500))
+        && (!('defaultAddressId' in incoming()) || isString(incoming().defaultAddressId, 200))
+        // Two booleans and nothing else.
+        && (!('notifications' in incoming())
+            || (incoming().notifications.keys().hasOnly(['push', 'inApp'])
+                && (!('push' in incoming().notifications)
+                    || incoming().notifications.push is bool)
+                && (!('inApp' in incoming().notifications)
+                    || incoming().notifications.inApp is bool)));
+    }
+
+    // -----------------------------------------------------------------------
+    // Everything else
+    // -----------------------------------------------------------------------
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

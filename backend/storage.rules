@@ -1,0 +1,39 @@
+rules_version = '2';
+
+// For now a customer uploads one thing: a profile photo. Catalog images
+// (category and service pictures) are public and uploaded through admin tools.
+// Booking photos, support attachments, invoices and partner KYC are added with
+// the phases that need them.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)');
+    }
+
+    // The app compresses photos before upload. The ceiling is looser so an
+    // unusual but honest file still lands, while a full-resolution photo does not.
+    function withinPhotoSize() {
+      return request.resource.size <= 2 * 1024 * 1024;
+    }
+
+    match /catalog/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /users/{uid}/profile/{fileName} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && isImage() && withinPhotoSize();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

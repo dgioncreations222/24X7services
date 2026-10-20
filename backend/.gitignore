@@ -1,0 +1,18 @@
+node_modules/
+functions/lib/
+
+# Env files hold per-project settings and must never be committed.
+# Copy functions/.env.example to functions/.env.<projectId> instead.
+.env
+.env.*
+!.env.example
+
+# Secrets live in Secret Manager; a service account key on disk is a leak waiting to happen.
+*-service-account*.json
+serviceAccount*.json
+
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+.emulator-data/
