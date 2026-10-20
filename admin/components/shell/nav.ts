@@ -63,7 +63,8 @@ export const NAV: { group: string; side?: Side; items: Item[] }[] = [
     group: 'Business',
     items: [
       { href: '/payments', label: 'Payments', icon: CreditCard },
-      { href: '/catalog', label: 'Services & Pricing', icon: Tags },
+      // The old Services & Pricing page (/catalog) stays in the repo, unlinked.
+      { href: '/catalog/categories', label: 'Catalog', icon: Tags },
       { href: '/reports', label: 'Reports', icon: ChartColumn },
     ],
   },
@@ -80,7 +81,11 @@ export const NAV: { group: string; side?: Side; items: Item[] }[] = [
 
 export const COLLAPSE_KEY = 'admin.nav.collapsed'
 
-export const TITLES: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.items.map((i) => [i.href, i.label])))
+/** '/catalog/categories' → '/catalog': the part of a path that names its section. */
+export const section = (path: string) => '/' + (path.split('/')[1] ?? '')
+
+/** Page titles by section, for the phone top bar. */
+export const TITLES: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.items.map((i) => [section(i.href), i.label])))
 
 /** Counts that sit beside menu items: things waiting on a person. */
 export function useBadges() {

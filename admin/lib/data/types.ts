@@ -30,3 +30,80 @@ export type AdminSession =
   | { status: 'loading' }
   | { status: 'signed_out' }
   | { status: 'signed_in'; admin: AdminAccount; provider: 'google' | 'email' }
+
+/* -------------------------------------------------------------- Catalog */
+
+/** Paise, as everywhere money is stored; shown as rupees. */
+export type Paise = number
+
+/**
+ * TODO(catalog-v2): Member 1's Category. Until it lands these are local, in
+ * the shape the shared CatalogAppliance already has (id, name, image, order,
+ * active), so the swap is a rename.
+ */
+export interface Category {
+  id: string
+  name: string
+  description: string
+  /** A path under /public or a data: URL picked on this device. */
+  image?: string
+  order: number
+  active: boolean
+}
+
+/** TODO(catalog-v2): Member 1's Service. Mirrors shared CatalogService's fields. */
+export interface Service {
+  id: string
+  categoryId: string
+  name: string
+  description: string
+  price: Paise
+  durationMinutes: number
+  included: string[]
+  excluded: string[]
+  images: string[]
+  faqs: { q: string; a: string }[]
+  order: number
+  active: boolean
+}
+
+export type QuestionKind = 'options' | 'text' | 'number' | 'photo'
+
+/**
+ * TODO(catalog-v2): Member 1's Question. What the booking asks the customer
+ * about this service — "Front load or top load?" — built here, not in code.
+ */
+export interface Question {
+  id: string
+  serviceId: string
+  label: string
+  kind: QuestionKind
+  /** For `options`. */
+  options: string[]
+  /** For `options`: pick several rather than one. */
+  multiple: boolean
+  /** For `number`, e.g. "litres". */
+  unit?: string
+  help?: string
+  required: boolean
+  order: number
+}
+
+/** TODO(ratecard.ts): the shared RateCardItem proposal. */
+export interface RateCardItem {
+  id: string
+  categoryId: string
+  name: string
+  price: Paise
+  active: boolean
+  order: number
+  updatedAt: number
+}
+
+/** The shared ServiceArea: one pincode customers can book in. */
+export interface ServiceArea {
+  pincode: string
+  city: string
+  area: string
+  active: boolean
+}

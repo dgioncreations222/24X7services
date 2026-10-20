@@ -9,7 +9,7 @@ import { ROUTE_MODULE } from '@/lib/control'
 import { signOut } from '@/lib/data'
 import { useStore } from '@/lib/store'
 import { Logo } from '../Logo'
-import { COLLAPSE_KEY, NAV, useBadges } from './nav'
+import { COLLAPSE_KEY, NAV, section, useBadges } from './nav'
 
 /** Logo, every page the role may open, the network's pulse, and Logout. */
 export function SidebarBody() {
@@ -34,7 +34,7 @@ export function SidebarBody() {
       /* per-viewer convenience only */
     }
   }
-  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => store.can(ROUTE_MODULE[i.href] ?? 'dashboard')) })).filter((g) => g.items.length)
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => store.can(ROUTE_MODULE[section(i.href)] ?? 'dashboard')) })).filter((g) => g.items.length)
   return (
     <>
       <div className="flex h-16 shrink-0 items-center border-b border-line px-5">
@@ -46,7 +46,7 @@ export function SidebarBody() {
       <nav aria-label="Admin" className="flex-1 overflow-y-auto px-3 py-3">
         {groups.map((g) => {
           // The group holding the current page never folds away.
-          const hasActive = g.items.some((i) => pathname === i.href || pathname.startsWith(`${i.href}/`))
+          const hasActive = g.items.some((i) => section(pathname) === section(i.href))
           const shut = collapsed.includes(g.group) && !hasActive
           return (
           <div key={g.group} className="mb-2 last:mb-0">
@@ -65,7 +65,7 @@ export function SidebarBody() {
             </button>
             {!shut && <ul className={cn('space-y-0.5', g.side && 'ml-1.5 border-l-2 pl-1.5', g.side === 'customer' && 'border-cust/25', g.side === 'technician' && 'border-tech/25')}>
               {g.items.map(({ href, label, icon: Icon, badge }) => {
-                const active = pathname === href || pathname.startsWith(`${href}/`)
+                const active = section(pathname) === section(href)
                 const n = badge ? badges[badge] : 0
                 return (
                   <li key={href}>
