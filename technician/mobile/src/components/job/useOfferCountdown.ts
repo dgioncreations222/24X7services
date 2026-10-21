@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { rejectJob } from '@/lib/data'
+import { useEffect, useState } from 'react'
+import { isNetworkError, rejectJob } from '@/lib/data'
 
 /** How long a technician has to answer a new request. */
 export const OFFER_SECONDS = 30
@@ -18,8 +18,23 @@ function firstShown(id: string, now: number): number {
 }
 
 /**
+ * Decline an expired offer, once. If the network dropped the answer, the id
+ * is freed again after RETRY_MS so any clock still showing the offer (pop-up,
+ * Home, request screen) declines it on its next tick. The retry belongs to
+ * the module, not a component, so closing a screen cannot cancel it. Any other
+ * failure (already answered, gone) is final.
+ */
+export function autoDecline(id: string, decline: (id: string) => Promise<unknown> = rejectJob) {
+  if (expired.has(id)) return
+  expired.add(id)
+  decline(id).catch((e: unknown) => {
+    if (isNetworkError(e)) setTimeout(() => expired.delete(id), RETRY_MS)
+  })
+}
+
+/**
  * Seconds left to answer offer `id`. At zero the offer is turned down
- * automatically (dispatch then tries the next technician), once.
+ * automatically (dispatch then tries the next technician).
  */
 export function useOfferCountdown(id: string | undefined): number {
   const [now, setNow] = useState(() => Date.now())
@@ -32,22 +47,9 @@ export function useOfferCountdown(id: string | undefined): number {
     return () => clearInterval(timer)
   }, [id])
 
-  // A pending retry, cleared if the screen showing this offer goes away.
-  const retry = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => {
-    if (retry.current) clearTimeout(retry.current)
-  }, [])
-
+  // `now` keeps ticking while left stays at 0, so a freed id is declined again.
   useEffect(() => {
-    if (id && left === 0 && !expired.has(id)) {
-      expired.add(id)
-      rejectJob(id).catch((e: unknown) => {
-        // Only a dropped network is worth another try: `now` keeps ticking
-        // while left stays at 0, so this effect runs again once the id is
-        // free. Anything else (already answered, gone) is final.
-        if (e instanceof Error && e.name === 'NetworkError') retry.current = setTimeout(() => expired.delete(id), RETRY_MS)
-      })
-    }
+    if (id && left === 0) autoDecline(id)
   }, [id, left, now])
 
   return left

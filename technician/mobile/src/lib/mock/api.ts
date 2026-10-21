@@ -20,6 +20,17 @@ export class NetworkError extends Error {
   }
 }
 
+/**
+ * Whether a failed call is worth trying again because the connection dropped:
+ * the mock's NetworkError, or Firebase's 'unavailable' / 'deadline-exceeded'
+ * codes once Firebase replaces this file.
+ */
+export function isNetworkError(e: unknown): boolean {
+  if (e instanceof NetworkError) return true
+  const code = (e as { code?: unknown } | null)?.code
+  return typeof code === 'string' && /(^|\/)(unavailable|deadline-exceeded)$/.test(code)
+}
+
 /** Make the next request fail (`once`), every request fail (`always`), or none. */
 export function setMockFailure(mode: FailureMode) {
   config.failure = mode

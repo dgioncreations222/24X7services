@@ -41,5 +41,5 @@ export {
   useSession,
   type KycState,
 } from './auth'
-export { NetworkError } from '../mock/api'
+export { NetworkError, isNetworkError } from '../mock/api'
 export type * from './types'
