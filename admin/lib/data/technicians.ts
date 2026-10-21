@@ -15,7 +15,7 @@ import { assertCan } from './permissions'
 import { audit } from './audit'
 import { bankKeyOf, digits, normalPhone } from '../identity'
 import { useResource, type Query } from './query'
-import type { AdminBooking, KycDocType, KycDocument, Partner, PartnerStatus, PayoutDestination } from './types'
+import type { AdminAccount, AdminBooking, KycDocType, KycDocument, Partner, PartnerStatus, PayoutDestination } from './types'
 
 export class PartnerError extends Error {
   constructor(message: string) {
@@ -73,10 +73,17 @@ function setPartner(id: string, patch: Partial<Partner>) {
  * Maker-checker: the admin who added a technician neither reviews their
  * documents nor approves them (a Super Admin may). Nobody signed in is refused.
  */
-function checkNotAddedByMe(p: Partner) {
-  const me = currentAdmin()
-  if (!me) throw new PartnerError('Sign in again to review technicians.')
-  if (p.addedBy && p.addedBy.id === me.id && me.role !== 'Super Admin') throw new PartnerError('You added this technician, so another admin reviews and approves them.')
+export function isOwnAddition(p: Pick<Partner, 'addedBy'>, me: Pick<AdminAccount, 'id' | 'role'> | null | undefined) {
+  return !!me && !!p.addedBy && p.addedBy.id === me.id && me.role !== 'Super Admin'
+}
+
+/**
+ * For a KYC decision (document, approve, reject): the signed-in admin must
+ * have technicians:approve and must not be the one who added them.
+ */
+function checkReviewer(p: Partner) {
+  const me = assertCan('technicians', 'approve')
+  if (isOwnAddition(p, me)) throw new PartnerError('You added this technician, so another admin reviews and approves them.')
 }
 
 /** Who is deciding: the name to show and the id to keep. */
@@ -116,14 +123,14 @@ export function reviewDoc(docId: string, decision: 'approved' | 'rejected', why?
   return mockRequest(() => {
     const doc = read().kycDocs.find((d) => d.id === docId)
     if (!doc) throw new PartnerError('This document is no longer there.')
-    if (partner(read(), doc.partnerId).status !== 'kyc_pending') throw new PartnerError('Documents can only be reviewed while the application is waiting.')
-    checkNotAddedByMe(partner(read(), doc.partnerId))
+    const p = partner(read(), doc.partnerId)
+    if (p.status !== 'kyc_pending') throw new PartnerError('Documents can only be reviewed while the application is waiting.')
+    checkReviewer(p)
     const rejectReason = decision === 'rejected' ? reason(why, 'this document is rejected') : undefined
     write((d) => ({
       ...d,
       kycDocs: d.kycDocs.map((x) => (x.id === docId ? { ...x, status: decision, rejectReason, ...reviewer(), reviewedAt: Date.now() } : x)),
     }))
-    const p = partner(read(), doc.partnerId)
     audit('technicians', decision === 'approved' ? 'Approved document' : 'Rejected document', { target: `${p.name} · ${doc.type}`, new: rejectReason })
   })
 }
@@ -138,7 +145,7 @@ export function approvePartner(id: string) {
     const notOk = KYC_DOC_TYPES.filter((t) => docs.find((d) => d.type === t)?.status !== 'approved')
     if (notOk.length) throw new PartnerError(`Approve every document first — ${notOk.length} still ${notOk.length === 1 ? 'needs' : 'need'} a look.`)
     // Maker-checker: whoever added a technician cannot also let them in.
-    checkNotAddedByMe(p)
+    checkReviewer(p)
     setPartner(id, { status: 'approved', statusReason: undefined })
     audit('technicians', 'Approved technician', { target: p.name, old: 'KYC to review', new: 'Approved' })
   })
@@ -152,6 +159,7 @@ export function rejectPartner(id: string, why: string) {
   return mockRequest(() => {
     const p = partner(read(), id)
     if (p.status !== 'kyc_pending') throw new PartnerError('Only a waiting application can be rejected.')
+    checkReviewer(p)
     const r = reason(why, 'the application is rejected')
     const now = Date.now()
     write((d) => ({
@@ -171,10 +179,12 @@ export function rejectPartner(id: string, why: string) {
 export function suspendPartner(id: string, why: string) {
   return mockRequest(() => {
     const p = partner(read(), id)
+    assertCan('technicians', 'approve')
     if (p.status !== 'active' && p.status !== 'approved') throw new PartnerError('Only an active technician can be suspended.')
     const r = reason(why, 'they are suspended')
     const released = openJobsOf(read(), id)
-    write((d) => holdPayouts(releaseJobs({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'suspended', statusReason: r, online: false, onJob: false } : x)) }, id, `${p.name} suspended`), id, true))
+    const pausedFrom = p.status
+    write((d) => holdPayouts(releaseJobs({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'suspended', statusReason: r, online: false, onJob: false, pausedFrom } : x)) }, id, `${p.name} suspended`), id, true))
     audit('technicians', 'Suspended technician', { target: p.name, old: p.status, new: r })
     return released
   })
@@ -190,22 +200,30 @@ export function deactivatePartner(id: string, why: string) {
     const p = partner(read(), id)
     // Only a vetted technician can be let go: an applicant's application is
     // rejected instead, so reactivating can never skip the KYC review.
+    assertCan('technicians', 'approve')
     if (p.status !== 'active' && p.status !== 'approved' && p.status !== 'suspended') throw new PartnerError('Only an approved, active or suspended technician can be made inactive.')
     const r = reason(why, 'they are made inactive')
     const released = openJobsOf(read(), id)
-    write((d) => holdPayouts(releaseJobs({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'inactive', statusReason: r, online: false, onJob: false } : x)) }, id, `${p.name} made inactive`), id, true))
+    // A suspended technician keeps where they were before the suspension.
+    const pausedFrom = p.status === 'suspended' ? (p.pausedFrom ?? 'active') : p.status
+    write((d) => holdPayouts(releaseJobs({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'inactive', statusReason: r, online: false, onJob: false, pausedFrom } : x)) }, id, `${p.name} made inactive`), id, true))
     audit('technicians', 'Made technician inactive', { target: p.name, old: p.status, new: r })
     return released
   })
 }
 
-/** Back to work: from suspended or inactive to active, on the same account. */
+/**
+ * Back from suspended or inactive, on the same account, to where they were:
+ * active, or approved if they had not started yet (so nothing is skipped).
+ */
 export function reactivatePartner(id: string) {
   return mockRequest(() => {
+    assertCan('technicians', 'approve')
     const p = partner(read(), id)
     if (p.status !== 'suspended' && p.status !== 'inactive') throw new PartnerError('Only a suspended or inactive technician can be reactivated.')
-    write((d) => holdPayouts({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'active', statusReason: undefined } : x)) }, id, false))
-    audit('technicians', 'Reactivated technician', { target: p.name, old: p.status === 'inactive' ? 'Inactive' : 'Suspended', new: 'Active' })
+    const back = p.pausedFrom ?? 'active'
+    write((d) => holdPayouts({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: back, statusReason: undefined, pausedFrom: undefined } : x)) }, id, false))
+    audit('technicians', 'Reactivated technician', { target: p.name, old: p.status === 'inactive' ? 'Inactive' : 'Suspended', new: back === 'approved' ? 'Approved' : 'Active' })
   })
 }
 

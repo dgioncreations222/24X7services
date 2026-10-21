@@ -172,6 +172,8 @@ export interface Partner {
   bankKey?: string
   /** The admin who added them; someone else has to approve them. */
   addedBy?: { id: string; name: string }
+  /** Where they were before being suspended or made inactive; reactivating returns them there. */
+  pausedFrom?: 'active' | 'approved'
   /** Where they are (live while online), for dispatch distances. */
   geo: GeoPoint
 }

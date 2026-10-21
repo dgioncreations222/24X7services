@@ -7,7 +7,7 @@
  * bank transfer goes out. The sums themselves live in lib/money.
  */
 import { useSyncExternalStore } from 'react'
-import { bill, commissionOn, jobMoney, payable } from '../money'
+import { bill, commissionOn, jobMoney, payable, rupees as rs } from '../money'
 import { mockRequest } from '../mock/api'
 import { read, subscribe, write, type MockDb } from '../mock/db'
 import { audit } from './audit'
@@ -24,7 +24,6 @@ export class MoneyError extends Error {
 const fail = (m: string): never => {
   throw new MoneyError(m)
 }
-const rs = (p: number) => `₹${Math.round(p / 100).toLocaleString('en-IN')}`
 
 /* ---------------------------------------------------------- Transactions */
 
@@ -72,15 +71,7 @@ export function useTransactions(): Query<Transaction[]> {
  * platform. Keyed by technician id.
  */
 export function cashHeld(db: MockDb): Record<string, Paise> {
-  // A paid week settles its own jobs, and every earlier week that was carried
-  // into it: their cash was netted off through carriedIn.
-  const lastPaid = new Map<string, number>()
-  for (const p of db.payouts) if (p.status === 'paid') lastPaid.set(p.partnerId, Math.max(lastPaid.get(p.partnerId) ?? 0, p.periodStart))
-  const settled = new Set(
-    db.payouts
-      .filter((p) => p.status === 'paid' || (p.status === 'carried_forward' && p.periodStart < (lastPaid.get(p.partnerId) ?? -1)))
-      .flatMap((p) => p.jobIds)
-  )
+  const settled = settledJobs(db.payouts)
   const out: Record<string, Paise> = {}
   for (const b of db.bookings) {
     if (!b.technicianId || !payable(b) || settled.has(b.id)) continue
@@ -88,6 +79,31 @@ export function cashHeld(db: MockDb): Record<string, Paise> {
     if (cash) out[b.technicianId] = (out[b.technicianId] ?? 0) + cash
   }
   return out
+}
+
+/**
+ * Jobs whose money is settled. A paid week settles its own jobs and the
+ * carried-forward weeks just before it (their balance went in as carriedIn).
+ * A carried week whose next week is still pending, approved or on hold is not
+ * settled yet, whatever later weeks have been paid.
+ */
+export function settledJobs(payouts: PartnerPayout[]): Set<string> {
+  const settled = new Set<string>()
+  const byPartner = new Map<string, PartnerPayout[]>()
+  for (const p of payouts) byPartner.set(p.partnerId, [...(byPartner.get(p.partnerId) ?? []), p])
+  for (const weeks of byPartner.values()) {
+    let carried: PartnerPayout[] = []
+    for (const w of [...weeks].sort((a, b) => a.periodStart - b.periodStart)) {
+      if (w.status === 'carried_forward') {
+        carried.push(w)
+        continue
+      }
+      if (w.status === 'paid') for (const x of [...carried, w]) for (const id of x.jobIds) settled.add(id)
+      // Paid or not, this week took the carried balance; the chain ends here.
+      carried = []
+    }
+  }
+  return settled
 }
 
 let cashCache: { db: MockDb; map: Record<string, Paise> } | null = null

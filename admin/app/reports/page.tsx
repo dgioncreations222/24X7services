@@ -6,11 +6,11 @@ import { BarChart } from '@/components/charts'
 import { fromDay, toDay } from '@/components/growth/CouponModal'
 import { Async, Button, Card, CardHeader, Field, Page, PageHeader, Segmented, StatCard, TableWrap, inputClass, td, th, tr } from '@/components/ui'
 import { useCan, useReport, type Report, type ReportRow } from '@/lib/data'
+import { rupees } from '@/lib/money'
 import { cn } from '@/lib/cn'
 import { downloadCsv } from '@/lib/format'
 
 const DAY = 86_400_000
-const rupees = (p: number) => '₹' + Math.round(p / 100).toLocaleString('en-IN')
 type Preset = '7' | '30' | '90' | 'custom'
 
 /** Bookings and money over any date range, with every table downloadable as CSV. */

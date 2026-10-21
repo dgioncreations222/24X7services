@@ -134,7 +134,7 @@ export function useAction() {
   return { run, busy, error, setError }
 }
 
-export const rupees = (paise: number) => '₹' + Math.round(paise / 100).toLocaleString('en-IN')
+export { rupees } from '@/lib/money'
 
 export function FormError({ error }: { error: string | null }) {
   if (!error) return null

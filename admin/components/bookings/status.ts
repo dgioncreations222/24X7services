@@ -31,7 +31,7 @@ export const EXTRA_STATUS = {
   rejected: { label: 'Declined', tone: 'danger' },
 } as const satisfies Record<AdminBooking['extras'][number]['status'], { label: string; tone: Tone }>
 
-export const rupees = (paise: number) => '₹' + Math.round(paise / 100).toLocaleString('en-IN')
+export { rupees } from '@/lib/money'
 
 /** 4:30 PM · Today / Tue 21 Oct */
 export function slot(ms: number) {

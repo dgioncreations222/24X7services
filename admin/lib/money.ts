@@ -12,6 +12,9 @@
  */
 import type { AdminBooking, Paise } from './data/types'
 
+/** ₹1,234 from paise — whole rupees, Indian grouping, "− " in front of a negative. */
+export const rupees = (paise: number) => `${paise < 0 ? '− ' : ''}₹${Math.round(Math.abs(paise) / 100).toLocaleString('en-IN')}`
+
 /** What the bill comes to, from the booking alone. */
 export function bill(b: AdminBooking) {
   const extras = b.extras.filter((e) => e.status === 'approved').reduce((s, e) => s + e.amount, 0)
@@ -47,8 +50,14 @@ export function jobMoney(b: AdminBooking, fallbackPct: number) {
   }
 }
 
-/** A job that belongs in a payout: completed and paid (refunds or not). */
-export const payable = (b: AdminBooking) => b.status === 'completed' && bill(b).paid > 0
+/**
+ * A job that belongs in a payout: completed and paid in full (refunds or
+ * not). A part-paid job waits for the rest, so it is settled once, whole.
+ */
+export const payable = (b: AdminBooking) => {
+  const m = bill(b)
+  return b.status === 'completed' && m.paid > 0 && m.paid >= m.total
+}
 
 /**
  * One technician's week: the jobs, the sums, and what is left to pay after

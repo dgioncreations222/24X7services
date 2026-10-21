@@ -8,11 +8,11 @@ import { useTable } from '@/components/catalog/useTable'
 import { when } from '@/components/support/labels'
 import { Async, Button, Card, Chip, Empty, Page, PageHeader, Pager, SearchInput, Segmented, Select, StatCard, Tabs, TableWrap, td, th, tr } from '@/components/ui'
 import { useCan, useTransactions, type Transaction } from '@/lib/data'
+import { rupees } from '@/lib/money'
 import { cn } from '@/lib/cn'
 import { downloadCsv } from '@/lib/format'
 
 const DAY = 86_400_000
-const rupees = (p: number) => `${p < 0 ? '− ' : ''}₹${Math.round(Math.abs(p) / 100).toLocaleString('en-IN')}`
 const METHOD = { upi: 'UPI', card: 'Card', cash: 'Cash', wallet: 'Wallet' } as const
 type Range = '7' | '30' | '90' | 'all'
 
