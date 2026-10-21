@@ -3,7 +3,7 @@
 /** Customers: the list with what each has booked and spent, one customer, block and unblock. */
 import { mockRequest } from '../mock/api'
 import { read, write, type MockDb } from '../mock/db'
-import { bill } from './bookings'
+import { bill } from '../money'
 import { audit } from './audit'
 import { assertCan } from './permissions'
 import { useResource, type Query } from './query'

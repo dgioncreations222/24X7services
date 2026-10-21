@@ -11,6 +11,7 @@ import { useSyncExternalStore } from 'react'
 import { mockRequest } from '../mock/api'
 import { read, subscribe, write, type MockDb } from '../mock/db'
 import { currentAdmin } from './auth'
+import { assertCan } from './permissions'
 import { audit } from './audit'
 import { bankKeyOf, digits, normalPhone } from '../identity'
 import { useResource, type Query } from './query'
@@ -68,6 +69,16 @@ function setPartner(id: string, patch: Partial<Partner>) {
   write((d) => ({ ...d, partners: d.partners.map((p) => (p.id === id ? { ...p, ...patch } : p)) }))
 }
 
+/**
+ * Maker-checker: the admin who added a technician neither reviews their
+ * documents nor approves them (a Super Admin may). Nobody signed in is refused.
+ */
+function checkNotAddedByMe(p: Partner) {
+  const me = currentAdmin()
+  if (!me) throw new PartnerError('Sign in again to review technicians.')
+  if (p.addedBy && p.addedBy.id === me.id && me.role !== 'Super Admin') throw new PartnerError('You added this technician, so another admin reviews and approves them.')
+}
+
 /** Who is deciding: the name to show and the id to keep. */
 function reviewer() {
   const a = currentAdmin()
@@ -106,6 +117,7 @@ export function reviewDoc(docId: string, decision: 'approved' | 'rejected', why?
     const doc = read().kycDocs.find((d) => d.id === docId)
     if (!doc) throw new PartnerError('This document is no longer there.')
     if (partner(read(), doc.partnerId).status !== 'kyc_pending') throw new PartnerError('Documents can only be reviewed while the application is waiting.')
+    checkNotAddedByMe(partner(read(), doc.partnerId))
     const rejectReason = decision === 'rejected' ? reason(why, 'this document is rejected') : undefined
     write((d) => ({
       ...d,
@@ -126,8 +138,7 @@ export function approvePartner(id: string) {
     const notOk = KYC_DOC_TYPES.filter((t) => docs.find((d) => d.type === t)?.status !== 'approved')
     if (notOk.length) throw new PartnerError(`Approve every document first — ${notOk.length} still ${notOk.length === 1 ? 'needs' : 'need'} a look.`)
     // Maker-checker: whoever added a technician cannot also let them in.
-    const me = currentAdmin()
-    if (p.addedBy && me && p.addedBy.id === me.id && me.role !== 'Super Admin') throw new PartnerError('You added this technician, so another admin has to approve them.')
+    checkNotAddedByMe(p)
     setPartner(id, { status: 'approved', statusReason: undefined })
     audit('technicians', 'Approved technician', { target: p.name, old: 'KYC to review', new: 'Approved' })
   })
@@ -177,7 +188,9 @@ export function suspendPartner(id: string, why: string) {
 export function deactivatePartner(id: string, why: string) {
   return mockRequest(() => {
     const p = partner(read(), id)
-    if (p.status === 'inactive') throw new PartnerError('Already inactive.')
+    // Only a vetted technician can be let go: an applicant's application is
+    // rejected instead, so reactivating can never skip the KYC review.
+    if (p.status !== 'active' && p.status !== 'approved' && p.status !== 'suspended') throw new PartnerError('Only an approved, active or suspended technician can be made inactive.')
     const r = reason(why, 'they are made inactive')
     const released = openJobsOf(read(), id)
     write((d) => holdPayouts(releaseJobs({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'inactive', statusReason: r, online: false, onJob: false } : x)) }, id, `${p.name} made inactive`), id, true))
@@ -260,9 +273,8 @@ const HYDERABAD = { lat: 17.385, lng: 78.4867 }
  */
 export function addTechnician(input: NewTechnician, override = false) {
   return mockRequest(() => {
+    const me = assertCan('technicians', 'create')
     const db = read()
-    const me = currentAdmin()
-    if (!me) throw new PartnerError('Sign in again to add a technician.')
     const name = input.name.trim()
     const email = input.email.trim().toLowerCase()
     const phone = normalPhone(input.phone)

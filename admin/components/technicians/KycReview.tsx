@@ -22,7 +22,7 @@ export function KycReview({ partner: p }: { partner: Partner }) {
   const reviewing = p.status === 'kyc_pending' && can('technicians', 'approve')
   const session = useAdminSession()
   const me = session.status === 'signed_in' ? session.admin : null
-  // Maker-checker: the admin who added them reviews nothing but a Super Admin may.
+  // Maker-checker: the admin who added them reviews nothing (a Super Admin may).
   const selfAdded = !!p.addedBy && !!me && p.addedBy.id === me.id && me.role !== 'Super Admin'
   const [rejecting, setRejecting] = useState<KycDocument | 'application' | null>(null)
   const [viewing, setViewing] = useState<KycDocument | null>(null)
@@ -53,7 +53,7 @@ export function KycReview({ partner: p }: { partner: Partner }) {
                     </div>
                     {d.rejectReason && <p className="text-xs font-semibold text-danger">{d.rejectReason}</p>}
                     {d.reviewedBy && d.status !== 'pending' && <p className="text-[11px] text-muted">by {d.reviewedBy}</p>}
-                    {reviewing && d.status !== 'approved' && (
+                    {reviewing && !selfAdded && d.status !== 'approved' && (
                       <div className="flex gap-2">
                         <Button size="sm" variant="success" disabled={busy} onClick={() => void run(() => reviewDoc(d.id, 'approved'), `${DOC_LABEL[d.type]} approved`)}>
                           <Check /> Approve

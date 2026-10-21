@@ -40,7 +40,7 @@ export function transactions(db: MockDb): Transaction[] {
     const base = { bookingId: b.id, displayId: b.displayId, customerName: b.customer.name, method: b.payment.method }
     const out: Transaction[] = []
     if (m.paid > 0) {
-      out.push({ ...base, id: `${b.id}-pay`, kind: 'payment', amount: m.total, commission: b.status === 'completed' ? commissionOn(m.total, pct) : 0, status: 'success', at: b.payment.paidAt ?? b.slotStart })
+      out.push({ ...base, id: `${b.id}-pay`, kind: 'payment', amount: m.paid, commission: b.status === 'completed' ? commissionOn(m.paid, pct) : 0, status: 'success', at: b.payment.paidAt ?? b.slotStart, note: m.paid < m.total ? `Part paid — ${rs(m.total - m.paid)} still due` : undefined })
     } else if (b.payment.status === 'failed' || b.status === 'failed') {
       out.push({ ...base, id: `${b.id}-pay`, kind: 'payment', amount: m.total, commission: 0, status: 'failed', at: b.createdAt, note: 'Payment failed at checkout' })
     } else if (b.status === 'pending_payment') {
@@ -72,7 +72,15 @@ export function useTransactions(): Query<Transaction[]> {
  * platform. Keyed by technician id.
  */
 export function cashHeld(db: MockDb): Record<string, Paise> {
-  const settled = new Set(db.payouts.filter((p) => p.status === 'paid').flatMap((p) => p.jobIds))
+  // A paid week settles its own jobs, and every earlier week that was carried
+  // into it: their cash was netted off through carriedIn.
+  const lastPaid = new Map<string, number>()
+  for (const p of db.payouts) if (p.status === 'paid') lastPaid.set(p.partnerId, Math.max(lastPaid.get(p.partnerId) ?? 0, p.periodStart))
+  const settled = new Set(
+    db.payouts
+      .filter((p) => p.status === 'paid' || (p.status === 'carried_forward' && p.periodStart < (lastPaid.get(p.partnerId) ?? -1)))
+      .flatMap((p) => p.jobIds)
+  )
   const out: Record<string, Paise> = {}
   for (const b of db.bookings) {
     if (!b.technicianId || !payable(b) || settled.has(b.id)) continue

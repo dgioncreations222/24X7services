@@ -262,7 +262,8 @@ export interface AdminBooking {
   timeline: BookingEvent[]
   extras: BookingExtra[]
   price: { service: Paise; discount: Paise; coupon?: string }
-  payment: { status: PaymentStatus; method?: 'upi' | 'card' | 'cash' | 'wallet'; paidAt?: number }
+  /** `paidAmount`: what has come in so far, when the status is `partially_paid`. */
+  payment: { status: PaymentStatus; method?: 'upi' | 'card' | 'cash' | 'wallet'; paidAt?: number; paidAmount?: Paise }
   cancellation?: { at: number; by: 'customer' | 'support' | 'system'; reason: string }
   refunds: { amount: Paise; reason: string; at: number; by: string }[]
   /** Who was offered the job and said no (or let it time out). */

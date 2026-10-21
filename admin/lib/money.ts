@@ -17,7 +17,9 @@ export function bill(b: AdminBooking) {
   const extras = b.extras.filter((e) => e.status === 'approved').reduce((s, e) => s + e.amount, 0)
   const total = Math.max(0, b.price.service + extras - b.price.discount)
   const refunded = b.refunds.reduce((s, r) => s + r.amount, 0)
-  const paid = b.payment.status === 'paid' || b.payment.status === 'partially_refunded' || b.payment.status === 'refunded' ? total : 0
+  const s = b.payment.status
+  // Paid in full (whatever was refunded after), or only the part that came in.
+  const paid = s === 'paid' || s === 'partially_refunded' || s === 'refunded' ? total : s === 'partially_paid' ? Math.min(total, b.payment.paidAmount ?? 0) : 0
   return { service: b.price.service, extras, discount: b.price.discount, total, paid, refunded, refundable: Math.max(0, paid - refunded) }
 }
 

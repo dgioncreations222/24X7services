@@ -3,14 +3,13 @@
 import Link from 'next/link'
 import { Fragment, useState } from 'react'
 import { BadgeCheck, ChevronDown, Download, Landmark, Wallet } from 'lucide-react'
-import { FormError, SortTh, useAction } from '@/components/catalog/parts'
+import { FormError, SortTh, rupees, useAction } from '@/components/catalog/parts'
 import { useTable } from '@/components/catalog/useTable'
 import { Async, Avatar, Button, Card, Chip, Empty, Field, Modal, Page, PageHeader, Pager, SearchInput, Tabs, TableWrap, inputClass, td, th, tr } from '@/components/ui'
 import { approvePayouts, markPayoutPaid, useAdminSession, useCan, usePartners, usePayouts, type Partner, type PartnerPayout } from '@/lib/data'
 import { cn } from '@/lib/cn'
 import { downloadCsv } from '@/lib/format'
 
-const rupees = (p: number) => '₹' + Math.round(p / 100).toLocaleString('en-IN')
 const day = (t: number) => new Date(t).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 const STATUS = {
   pending: { label: 'Waiting for approval', tone: 'warning' },
