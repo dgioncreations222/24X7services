@@ -8,6 +8,7 @@
  */
 import { mockRequest } from '../mock/api'
 import { read, write, type MockDb } from '../mock/db'
+import { audit } from './audit'
 import { useResource, type Query } from './query'
 import type { Category, Question, RateCardItem, Service, ServiceArea } from './types'
 
@@ -93,10 +94,14 @@ function move(key: Ordered, id: string, dir: -1 | 1) {
   )
 }
 
+const KIND = { categories: 'category', services: 'service', rateCard: 'rate card item' } as const
+
 function setActive(key: 'categories' | 'services' | 'rateCard', id: string, active: boolean) {
-  return mockRequest(() =>
+  return mockRequest(() => {
+    const row = (read()[key] as (Row & { name: string })[]).find((r) => r.id === id)
     write((db) => ({ ...db, [key]: (db[key] as (Row & { active: boolean })[]).map((r) => (r.id === id ? { ...r, active } : r)) }))
-  )
+    audit('catalog', `${active ? 'Showed' : 'Hid'} ${KIND[key]}`, { target: row?.name ?? id })
+  })
 }
 
 const clean = (list: string[]) => list.map((s) => s.trim()).filter(Boolean)
@@ -142,6 +147,8 @@ export function saveService(input: ServiceInput) {
     const order = existing && existing.categoryId === input.categoryId ? existing.order : db.services.filter((s) => s.categoryId === input.categoryId).length
     const service: Service = { ...fields, id: existing?.id ?? newId(db.services, `${input.categoryId}-${name}`), order, active: existing?.active ?? true }
     write((d) => ({ ...d, services: existing ? d.services.map((s) => (s.id === service.id ? service : s)) : [...d.services, service] }))
+    if (!existing) audit('catalog', 'Added service', { target: name, new: `₹${service.price / 100}` })
+    else if (existing.price !== service.price) audit('catalog', 'Changed service price', { target: name, old: `₹${existing.price / 100}`, new: `₹${service.price / 100}` })
     return service
   })
 }
@@ -208,6 +215,8 @@ export function saveRateCardItem(input: RateCardInput) {
       updatedAt: Date.now(),
     }
     write((d) => ({ ...d, rateCard: existing ? d.rateCard.map((r) => (r.id === item.id ? item : r)) : [...d.rateCard, item] }))
+    if (!existing) audit('catalog', 'Added rate card item', { target: name, new: `₹${item.price / 100}` })
+    else if (existing.price !== item.price) audit('catalog', 'Changed rate card price', { target: name, old: `₹${existing.price / 100}`, new: `₹${item.price / 100}` })
     return item
   })
 }

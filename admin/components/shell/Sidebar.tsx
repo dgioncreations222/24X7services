@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { signOut } from '@/lib/data'
+import { signOut, useCan } from '@/lib/data'
 import { useStore } from '@/lib/store'
 import { Logo } from '../Logo'
 import { COLLAPSE_KEY, NAV, isActive, moduleFor, useBadges } from './nav'
@@ -14,6 +14,7 @@ import { COLLAPSE_KEY, NAV, isActive, moduleFor, useBadges } from './nav'
 export function SidebarBody() {
   const pathname = usePathname()
   const store = useStore()
+  const can = useCan()
   const badges = useBadges()
   const online = store.technicians.filter((t) => t.presence !== 'offline' && t.kyc === 'verified').length
   const verified = store.technicians.filter((t) => t.kyc === 'verified').length
@@ -33,7 +34,7 @@ export function SidebarBody() {
       /* per-viewer convenience only */
     }
   }
-  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => store.can(moduleFor(i.href) ?? 'dashboard')) })).filter((g) => g.items.length)
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => can(moduleFor(i.href) ?? 'dashboard')) })).filter((g) => g.items.length)
   return (
     <>
       <div className="flex h-16 shrink-0 items-center border-b border-line px-5">

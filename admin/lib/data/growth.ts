@@ -8,6 +8,7 @@
 import { mockRequest } from '../mock/api'
 import { read, write } from '../mock/db'
 import { useResource, type Query } from './query'
+import { audit } from './audit'
 import type { AdminReview, Coupon, HomeBanner, PlusPlan } from './types'
 
 export class GrowthError extends Error {
@@ -57,12 +58,16 @@ export function saveCoupon(input: CouponInput, isNew: boolean) {
     if (input.usageLimit !== undefined && input.usageLimit < 1) fail('Total uses must be at least 1, or left empty.')
     const coupon: Coupon = { ...input, code, title: input.title.trim(), used: existing?.used ?? 0 }
     write((d) => ({ ...d, coupons: existing ? d.coupons.map((c) => (c.code === code ? coupon : c)) : [coupon, ...d.coupons] }))
+    audit('promotions', existing ? 'Edited coupon' : 'Created coupon', { target: code })
     return coupon
   })
 }
 
 export function setCouponActive(code: string, active: boolean) {
-  return mockRequest(() => write((d) => ({ ...d, coupons: d.coupons.map((c) => (c.code === code ? { ...c, active } : c)) })))
+  return mockRequest(() => {
+    write((d) => ({ ...d, coupons: d.coupons.map((c) => (c.code === code ? { ...c, active } : c)) }))
+    audit('promotions', active ? 'Turned on coupon' : 'Paused coupon', { target: code })
+  })
 }
 
 /* ------------------------------------------------------------ Plus plans */
@@ -162,6 +167,7 @@ export function hideReview(id: string, reason: string) {
   return mockRequest(() => {
     if (reason.trim().length < 10) fail('Say why it is hidden — for the next admin. At least 10 characters.')
     setReview(id, () => ({ status: 'hidden', hiddenReason: reason.trim() }))
+    audit('reviews', 'Hid review', { target: id, new: reason.trim() })
   })
 }
 

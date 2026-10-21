@@ -7,9 +7,9 @@
  * technician/mobile does it; what is local is marked TODO with where it
  * belongs once the lead merges it.
  */
-import type { AdminRole } from '../types'
+import type { AdminRole, Module, Perm } from '../types'
 
-export type { AdminRole }
+export type { AdminRole, Module, Perm }
 
 /* -------------------------------------------------------------- Sign-in */
 
@@ -20,6 +20,9 @@ export interface AdminAccount {
   email: string
   role: AdminRole
   status: 'active' | 'invited' | 'disabled'
+  phone?: string
+  lastActiveAt?: number
+  createdAt?: number
 }
 
 /**
@@ -338,4 +341,60 @@ export interface AdminReview {
   hiddenReason?: string
   /** The business's public reply. */
   reply?: string
+}
+
+/* ---------------------------------------------------------------- System */
+
+/** Which permissions each role has in each module. TODO(shared): becomes custom claims. */
+export type RoleMatrix = Record<AdminRole, Partial<Record<Module, Perm[]>>>
+
+/** One accountable change: who, where, what it was, what it became. Never edited. */
+export interface AuditEntry {
+  id: string
+  at: number
+  admin: string
+  role: AdminRole | 'System'
+  module: Module
+  action: string
+  target?: string
+  old?: string
+  new?: string
+}
+
+export type TicketStatus = 'open' | 'in_progress' | 'resolved'
+export type TicketPriority = 'urgent' | 'high' | 'normal' | 'low'
+
+/** A support conversation with a customer or a technician. */
+export interface SupportTicket {
+  id: string
+  side: 'customer' | 'technician'
+  personId: string
+  personName: string
+  subject: string
+  category: string
+  priority: TicketPriority
+  status: TicketStatus
+  createdAt: number
+  bookingId?: string
+  /** Admin name. */
+  assignee?: string
+  messages: { from: 'user' | 'agent' | 'system'; text: string; at: number; by?: string }[]
+}
+
+/** How the business runs, set by a Super Admin. */
+export interface BusinessSettings {
+  /** The platform's cut of every job. */
+  commissionPct: number
+  gstPct: number
+  emergencySurcharge: Paise
+  /** Cancelling this many hours or more before the slot is free. */
+  freeCancelHours: number
+  cancellationFee: Paise
+  /** How long a technician has to answer an offer. */
+  offerTimeoutSec: number
+  /** Offer jobs automatically, nearest free technician first. */
+  autoAssign: boolean
+  /** Minutes within which an emergency must have a technician on the way. */
+  emergencySlaMin: number
+  supportPhone: string
 }

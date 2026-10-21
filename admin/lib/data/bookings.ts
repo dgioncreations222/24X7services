@@ -9,6 +9,7 @@ import { useSyncExternalStore } from 'react'
 import { mockRequest } from '../mock/api'
 import { read, subscribe, write } from '../mock/db'
 import { currentAdmin } from './auth'
+import { audit } from './audit'
 import { useResource, type Query } from './query'
 import type { AdminBooking, BookingStatus, GeoPoint, Partner, Paise } from './types'
 
@@ -144,6 +145,7 @@ export function assignTechnician(bookingId: string, partnerId: string) {
       dispatch: { ...x.dispatch, noTechFound: false },
       timeline: [...x.timeline, { status: 'assigned', at: Date.now(), by: who(), note: `${reassigning ? 'Reassigned' : 'Assigned'} to ${p.name}` }],
     }))
+    audit('dispatch', reassigning ? 'Reassigned booking' : 'Assigned booking', { target: b.displayId, new: p.name })
     return p
   })
 }
@@ -162,6 +164,7 @@ export function cancelBooking(bookingId: string, reason: string) {
       cancellation: { at: now, by: 'support', reason: r },
       timeline: [...x.timeline, { status: 'cancelled', at: now, by: who(), note: r }],
     }))
+    audit('bookings', 'Cancelled booking', { target: b.displayId, old: b.status, new: r })
   })
 }
 
@@ -188,5 +191,6 @@ export function refundBooking(bookingId: string, amount: Paise, reason: string) 
       refunds: [...x.refunds, { amount: Math.round(amount), reason: r, at: now, by: who() }],
       timeline: x.status === 'cancelled' && full ? [...x.timeline, { status: 'refunded', at: now, by: who(), note: r }] : x.timeline,
     }))
+    audit('payments', 'Refunded', { target: b.displayId, new: `₹${Math.round(amount / 100).toLocaleString('en-IN')} — ${r}` })
   })
 }
