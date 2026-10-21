@@ -16,6 +16,7 @@ export function MenuButton({ className, inverted }: { className?: string; invert
     <Tappable
       accessibilityLabel="Open menu"
       onPress={() => setOpen(true)}
+      hitSlop={4}
       className={cn(
         'size-10 shrink-0 items-center justify-center rounded-full',
         inverted ? 'bg-white/10 active:bg-white/15' : 'active:bg-canvas',
