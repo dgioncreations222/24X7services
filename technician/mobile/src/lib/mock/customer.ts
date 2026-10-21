@@ -7,7 +7,7 @@
  * Firebase replaces this with the real customer app writing to the booking.
  */
 import { lateRequest } from '../seed'
-import { addNotification, read, toPartnerJob, write } from './db'
+import { addNotification, displayIdOf, read, toPartnerJob, write } from './db'
 import type { PartnerJob } from '../data/types'
 
 export const CUSTOMER_DECIDES_MS = 5_000
@@ -64,7 +64,7 @@ export function queueNextOffer() {
     if (!base) return
     counter += 1
     const id = `${base.id}-${counter}`
-    const offer: PartnerJob = { ...base, id, displayId: `${base.displayId}${counter}`, slotStart: Date.now() + 90 * 60_000 }
+    const offer: PartnerJob = { ...base, id, displayId: displayIdOf(Number(base.id.replace(/\D/g, '')) + counter), slotStart: Date.now() + 90 * 60_000 }
     write((db) => ({ ...db, jobs: [offer, ...db.jobs] }))
     addNotification({
       kind: offer.priority === 'emergency' ? 'emergency' : 'request',

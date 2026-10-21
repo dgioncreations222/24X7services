@@ -13,6 +13,7 @@ export {
   markOnTheWay,
   rejectJob,
   startJob,
+  canAddPhoto,
   uploadPhoto,
   useJob,
   useJobs,

@@ -28,7 +28,7 @@ export function homeFor(s: Session): Href {
 
 /** Null when `path` is fine for this session, else where to go instead. */
 export function redirectFor(s: Session, path: string): Href | null {
-  if (path === '/' || path.startsWith('/dev')) return null
+  if (path === '/' || (__DEV__ && path.startsWith('/dev'))) return null
   // The old sign-in screen stays in the repo; its route leads to the new one.
   if (path.startsWith('/login')) return homeFor(s)
   const allowed: Record<Session['status'], (p: string) => boolean> = {

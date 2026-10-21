@@ -38,6 +38,9 @@ export interface MockDb {
 const paise = (rupees: number) => Math.round(rupees * 100)
 const ms = (iso?: string) => (iso ? new Date(iso).getTime() : undefined)
 
+/** What the customer sees on their booking: #AP and five digits, as shared's bookingSchema expects. */
+export const displayIdOf = (n: number | string) => `#AP${String(n).replace(/\D/g, '').padStart(5, '0').slice(-5)}`
+
 const STATUS: Record<Job['status'], PartnerJobStatus | null> = {
   request: 'offered',
   assigned: 'assigned',
@@ -68,7 +71,7 @@ export function toPartnerJob(j: Job): PartnerJob | null {
   ).flatMap(([s, at]) => (at ? [{ status: s as PartnerJobStatus, at: ms(at)! }] : []))
   return {
     id: j.id,
-    displayId: `#${j.id.replace(/\D/g, '')}`,
+    displayId: displayIdOf(j.id),
     status,
     priority: j.priority === 'emergency' ? 'emergency' : 'normal',
     service: {

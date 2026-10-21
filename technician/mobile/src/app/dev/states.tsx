@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { View } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { Redirect, useLocalSearchParams } from 'expo-router'
 import { BriefcaseBusiness } from 'lucide-react-native'
 import { Async } from '@/components/ui/Async'
 import { Button, Card, EmptyState, Icon, Page, ScreenHeader, Segmented, Text } from '@/components/ui'
@@ -15,6 +15,12 @@ import { getMockKycOutcome, resetMockAuth, setMockKycOutcome } from '@/lib/mock/
  * and `?list=offers|upcoming|completed|empty` set it up from the URL.
  */
 export default function StatesScreen() {
+  // Dev builds only: a release build has no business flipping the mock.
+  if (!__DEV__) return <Redirect href="/" />
+  return <States />
+}
+
+function States() {
   const params = useLocalSearchParams<{ mode?: FailureMode; list?: JobsView | 'empty' }>()
   const [view, setView] = useState<JobsView>(params.list && params.list !== 'empty' ? params.list : 'upcoming')
   const [failure, setFailure] = useState<FailureMode>(() => {
