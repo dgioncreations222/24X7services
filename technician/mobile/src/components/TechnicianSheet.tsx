@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn'
 import { useStore } from '@/lib/store'
 import { ApplianceGlyph } from './glyphs'
 import { Avatar, Icon, Sheet, Tappable, Text } from './ui'
+import { COLORS } from '@/lib/theme'
 
 /** The technician at a glance, opened from the menu header. */
 export function TechnicianSheet({ open, onClose, onProfile }: { open: boolean; onClose: () => void; onProfile?: () => void }) {
@@ -38,7 +39,7 @@ export function TechnicianSheet({ open, onClose, onProfile }: { open: boolean; o
         <View className="flex-1 items-center py-2.5">
           <View className="flex-row items-center justify-center gap-1">
             <Text className="num text-base font-extrabold">{tech.rating.toFixed(2)}</Text>
-            <Icon as={Star} className="size-3.5 text-warning" fill="#c9730f" />
+            <Icon as={Star} className="size-3.5 text-warning" fill={COLORS.warning} />
           </View>
           <Text className="text-[11px] font-semibold text-muted">{tech.ratingCount.toLocaleString('en-IN')} ratings</Text>
         </View>

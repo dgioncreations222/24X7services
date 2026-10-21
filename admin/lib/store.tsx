@@ -44,7 +44,17 @@ import type {
 // v3: the 'ibm' brand became 'ifb'; older saves hold prices and logos keyed to it.
 const KEY = 'admin.state.v3'
 
-export const ADMIN = { name: 'Aditi Rao', role: 'Super Admin' as AdminRole, email: 'aditi.rao@customerservice.example' }
+/**
+ * The admin using the console — who the older pages greet and the audit log
+ * names. AppShell points it at the signed-in admin (lib/data's session).
+ */
+export const ADMIN: { name: string; role: AdminRole; email: string } = { name: 'Aditi Rao', role: 'Super Admin', email: 'aditi.rao@customerservice.example' }
+
+export function actAs(admin: { name: string; role: AdminRole; email: string }) {
+  ADMIN.name = admin.name
+  ADMIN.role = admin.role
+  ADMIN.email = admin.email
+}
 
 interface Persisted extends Seed, Control {
   signedIn: boolean

@@ -1,0 +1,77 @@
+/**
+ * The mock backend's data, kept in memory: a reload starts it afresh from the
+ * seed. Each admin phase adds its collections here: admin accounts for
+ * sign-in (PR 7), the catalog (PR 8), technicians and KYC (PR 9), bookings (PR 10), customers (PR 12), coupons, plans, banners and reviews (PR 13), tickets, audit, roles and settings (PR 14), payouts (PR 11).
+ *
+ * `read` returns the current snapshot; `write` replaces it and tells every
+ * subscriber, which is how every screen reading a record sees it change.
+ */
+import { controlSeed } from '../control'
+import { seed } from '../seed'
+import type { AdminAccount, AdminBooking, AdminCustomer, AdminReview, AuditEntry, BusinessSettings, Coupon, HomeBanner, PartnerPayout, PlusPlan, RoleMatrix, SupportTicket, Category, KycDocument, Partner, Question, RateCardItem, Service, ServiceArea } from '../data/types'
+import { seedCatalog } from './catalogSeed'
+import { seedBookings } from './bookingSeed'
+import { seedCustomers } from './customerSeed'
+import { seedGrowth } from './growthSeed'
+import { seedSystem } from './systemSeed'
+import { seedPartners } from './partnerSeed'
+import { seedPayouts } from './payoutSeed'
+
+export interface MockDb {
+  admins: AdminAccount[]
+  categories: Category[]
+  services: Service[]
+  questions: Question[]
+  rateCard: RateCardItem[]
+  areas: ServiceArea[]
+  partners: Partner[]
+  kycDocs: KycDocument[]
+  bookings: AdminBooking[]
+  customers: AdminCustomer[]
+  coupons: Coupon[]
+  plans: PlusPlan[]
+  banners: HomeBanner[]
+  reviews: AdminReview[]
+  tickets: SupportTicket[]
+  audit: AuditEntry[]
+  roles: RoleMatrix
+  settings: BusinessSettings
+  payouts: PartnerPayout[]
+}
+
+function fresh(): MockDb {
+  const { adminExtras, ...system } = seedSystem()
+  const admins = controlSeed(seed()).admins.map(
+    (a): AdminAccount => ({ id: a.id, name: a.name, email: a.email, role: a.role, status: a.status, ...adminExtras[a.id] })
+  )
+  const catalog = seedCatalog()
+  const people = seedPartners()
+  const active = people.partners.filter((p) => p.status === 'active').map((p) => p.id)
+  const { bookings } = seedBookings(catalog, active)
+  return { admins, ...catalog, ...people, bookings, ...seedCustomers(), ...seedGrowth(), ...system, ...seedPayouts(bookings, people.partners, system.settings.commissionPct) }
+}
+
+let db: MockDb | null = null
+const listeners = new Set<() => void>()
+
+/** Built on first read, so a server render never seeds it. */
+export function read(): MockDb {
+  db ??= fresh()
+  return db
+}
+
+/** Replace the snapshot (never mutate it) and notify subscribers. */
+export function write(next: (current: MockDb) => MockDb) {
+  db = next(read())
+  listeners.forEach((l) => l())
+}
+
+export function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+/** Back to the seed — for tests. */
+export function resetMockDb() {
+  write(() => fresh())
+}

@@ -29,13 +29,16 @@ import {
 } from 'lucide-react-native'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
+import { signOut, useSession, useUnreadCount } from '@/lib/data'
+import { isBare, redirectFor } from '@/lib/gate'
 import { useStore } from '@/lib/store'
 import { Avatar, Blink, Icon, Tappable, Text } from './ui'
 import { AvailabilityToast } from './Availability'
-import { IncomingRequest } from './IncomingRequest'
+import { OfferPopup } from './job/OfferPopup'
 import { Logo } from './Logo'
 import { MenuContext } from './menu'
 import { TechnicianSheet } from './TechnicianSheet'
+import { COLORS } from '@/lib/theme'
 
 const SIDE: readonly { href: Href & string; label: string; icon: LucideIcon }[] = [
   { href: '/home', label: 'Dashboard', icon: House },
@@ -51,19 +54,32 @@ const SIDE: readonly { href: Href & string; label: string; icon: LucideIcon }[] 
 /**
  * What the web's AppShell does around every screen, minus the bottom nav
  * (that is the tab bar now): holds the app on a splash until the saved state
- * is read, sends a signed-out technician to sign-in, owns the menu drawer,
- * and keeps the incoming-request takeover and the availability toast above
- * every screen.
+ * is read, keeps each session to the screens it may see (lib/gate: sign-in,
+ * onboarding, or the work app), owns the menu drawer, and keeps the
+ * incoming-request takeover and the availability toast above every screen.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const store = useStore()
-  const bare = pathname === '/' || pathname.startsWith('/login')
+  const session = useSession()
+  const bare = isBare(pathname) || session.status !== 'active'
   const [menuOpen, setMenuOpen] = useState(false)
+  const redirect = store.ready ? redirectFor(session, pathname) : null
 
   useEffect(() => {
-    if (store.ready && !store.signedIn && !bare) router.replace('/login')
-  }, [store.ready, store.signedIn, bare])
+    if (redirect) router.replace(redirect)
+  }, [redirect])
+
+  // The old Logout buttons (Settings, Profile) sign out of the old store.
+  // Carry that through to the real session, and keep the old store signed in
+  // so it never sends anyone to its retired login screen.
+  const { ready, signedIn, signIn } = store
+  useEffect(() => {
+    if (ready && !signedIn) {
+      void signOut()
+      signIn()
+    }
+  }, [ready, signedIn, signIn])
 
   if (!store.ready) return <Splash />
 
@@ -71,10 +87,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <MenuContext.Provider value={setMenuOpen}>
       <View className="flex-1 bg-canvas">
         {children}
-        {!bare && store.signedIn && (
+        {!bare && (
           <>
             <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} />
-            <IncomingRequest />
+            <OfferPopup />
             <AvailabilityToast />
           </>
         )}
@@ -118,7 +134,7 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
   const pathname = usePathname()
   const store = useStore()
   const emergencies = store.jobs.filter((j) => j.status === 'request' && j.priority === 'emergency').length
-  const unread = store.notices.filter((n) => !n.read).length
+  const unread = useUnreadCount()
   const [details, setDetails] = useState(false)
   const t = useT()
   return (
@@ -143,7 +159,7 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
           </Text>
           <Text className="num text-xs font-semibold text-muted">{store.tech.id}</Text>
           <View className="mt-0.5 flex-row items-center gap-1">
-            <Icon as={Star} className="size-3 text-warning" fill="#c9730f" />
+            <Icon as={Star} className="size-3 text-warning" fill={COLORS.warning} />
             <Text className="text-[11px] font-bold text-muted">
               {store.tech.rating.toFixed(2)} • {store.tech.experienceYears} yrs exp.
             </Text>

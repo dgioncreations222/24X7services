@@ -20,7 +20,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div aria-live="polite" className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2">
         {items.map((t) => (
           <div key={t.id} className="animate-slide-up flex items-center gap-2.5 rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-white shadow-float">
-            <CheckCircle2 className="size-4 shrink-0 text-[#5fd3a0]" aria-hidden />
+            <CheckCircle2 className="size-4 shrink-0 text-live-bright" aria-hidden />
             {t.text}
           </div>
         ))}

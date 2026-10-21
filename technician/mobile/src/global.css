@@ -41,6 +41,34 @@
   --color-info-soft: #e6f5f8;
   --color-violet: #6d3fd1;
   --color-violet-soft: #f1ecfd;
+  --color-white: #ffffff;
+
+  /* On the navy brand panels (Home header, the request card): brighter hues
+     that keep their contrast on the dark background. */
+  --color-brand-bright: #3b5ce0;
+  --color-brand-night: #152a7a;
+  --color-live: #22c55e;
+  --color-live-bright: #4ade80;
+  --color-live-soft: #86efac;
+  --color-star: #fbbf24;
+  --color-star-deep: #f59e0b;
+  --color-star-soft: #fcd34d;
+  --color-caution-soft: #fcd28d;
+  --color-danger-deep: #b3261e;
+
+  /* Surfaces that are not a card: the signature pad's paper and QR ink. */
+  --color-paper: #fbfcfe;
+  --color-qr-ink: #0b1220;
+
+  /* The drawn service map. */
+  --color-map-land: #e9edf2;
+  --color-map-ground: #eef1f5;
+  --color-map-grid: #dde2ea;
+  --color-map-park: #d7ead9;
+  --color-map-water: #c7dcf1;
+  --color-map-road-edge: #d3d9e3;
+  --color-map-highway: #fbe7b5;
+  --color-map-label: #9aa3b2;
 
   /* Manrope, one family per weight: Android cannot pick a weight out of a
      family on its own, so each weight utility names its file (below). */

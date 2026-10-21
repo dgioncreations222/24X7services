@@ -12,6 +12,7 @@ import { useBack } from '@/lib/nav'
 import { stepHref } from '@/lib/routes'
 import { useStore } from '@/lib/store'
 import type { Job } from '@/lib/types'
+import { COLORS } from '@/lib/theme'
 
 export default function Diagnosis() {
   const job = useJobParam()
@@ -97,7 +98,7 @@ function DiagnosisForm({ job }: { job: Job }) {
                 editable={!readOnly}
                 className={inputClass}
                 placeholder="e.g. Drain pump impeller jammed with debris"
-                placeholderTextColor="#8a93a3"
+                placeholderTextColor={COLORS.faint}
               />
             </Field>
 
@@ -122,7 +123,7 @@ function DiagnosisForm({ job }: { job: Job }) {
                 textAlignVertical="top"
                 className={cn(inputClass, 'min-h-[88px]')}
                 placeholder="What you will do to fix it"
-                placeholderTextColor="#8a93a3"
+                placeholderTextColor={COLORS.faint}
               />
             </Field>
           </Card>
@@ -178,7 +179,7 @@ function DiagnosisForm({ job }: { job: Job }) {
                 textAlignVertical="top"
                 className={cn(inputClass, 'min-h-[88px]')}
                 placeholder="Readings, advice given to the customer, anything the next technician should know"
-                placeholderTextColor="#8a93a3"
+                placeholderTextColor={COLORS.faint}
               />
             </Field>
           </Card>

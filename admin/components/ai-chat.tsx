@@ -229,7 +229,7 @@ function ChatPreview({ cfg }: { cfg: AiChatConfig }) {
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-extrabold">{cfg.name || 'Assistant'}</p>
               <p className="flex items-center gap-1.5 text-[11px] font-semibold text-white/70">
-                <span className={cfg.enabled ? 'size-1.5 rounded-full bg-[#5fd3a0]' : 'size-1.5 rounded-full bg-white/40'} />
+                <span className={cfg.enabled ? 'size-1.5 rounded-full bg-live-bright' : 'size-1.5 rounded-full bg-white/40'} />
                 {cfg.enabled ? 'Online · replies instantly' : 'Chat is turned off'}
               </p>
             </div>

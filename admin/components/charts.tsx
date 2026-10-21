@@ -10,7 +10,7 @@ import { compact } from '@/lib/format'
  * order (validated for colour-blind separation), never cycled. Values and
  * labels stay in text colours; the mark beside them carries identity.
  */
-export const SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4'] as const
+export const SERIES = ['var(--color-chart-1)', 'var(--color-chart-2)', 'var(--color-chart-3)', 'var(--color-chart-4)', 'var(--color-chart-5)'] as const
 
 /** A round step so the four gridlines land on readable numbers. */
 function niceStep(raw: number) {

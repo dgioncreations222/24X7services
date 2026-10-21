@@ -57,7 +57,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web --port 3325",
     "export:web": "expo export --platform web --output-dir dist-web",
-    "typecheck": "uniwind generate-artifacts --css ./src/global.css --dts ./src/uniwind-types.d.ts && tsc --noEmit",
+    "typecheck": "uniwind generate-artifacts --css ./src/global.css --dts ./src/uniwind-types.d.ts && tsc --noEmit && node scripts/check-theme.mjs",
     "lint": "expo lint",
     "doctor": "npx expo-doctor",
     "postinstall": "uniwind generate-artifacts --css ./src/global.css --dts ./src/uniwind-types.d.ts"

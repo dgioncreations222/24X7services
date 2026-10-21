@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380" font-family="Segoe UI, Arial, sans-serif">
+<rect width="600" height="380" rx="24" fill="#fff4e5"/><rect x="0" y="0" width="600" height="70" rx="24" fill="#c9730f"/><rect x="0" y="46" width="600" height="24" fill="#c9730f"/>
+<text x="32" y="46" font-size="26" font-weight="700" fill="#ffffff">PAN card</text>
+<rect x="40" y="110" width="130" height="160" rx="12" fill="#ffffff" stroke="#cfd5df"/><circle cx="105" cy="170" r="30" fill="#cfd5df"/><rect x="65" y="210" width="80" height="40" rx="20" fill="#cfd5df"/>
+<text x="200" y="150" font-size="20" fill="#374151">Name: — demo —</text><text x="200" y="184" font-size="20" fill="#374151">Father: — demo —</text><text x="200" y="218" font-size="20" fill="#374151">ABCDE1234F</text>
+<text x="300" y="345" font-size="30" font-weight="800" fill="#c9730f" opacity="0.35" text-anchor="middle">SAMPLE · NOT A REAL DOCUMENT</text>
+</svg>

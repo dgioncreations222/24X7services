@@ -141,7 +141,7 @@ function Takeover({ job, onDone }: { job: Job; onDone: () => void }) {
           accessibilityLabel="New Service Request"
           className="w-full overflow-hidden rounded-t-3xl bg-card shadow-float"
         >
-          <View className={cn('relative px-5 pb-5 pt-5', emergency ? 'bg-[#b3261e]' : 'bg-brand-ink')}>
+          <View className={cn('relative px-5 pb-5 pt-5', emergency ? 'bg-danger-deep' : 'bg-brand-ink')}>
             <Tappable
               onPress={dismiss}
               accessibilityLabel="Decide later"

@@ -1,33 +1,39 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { Logo } from '@/components/Logo'
-import { BRAND } from '@/lib/brand'
 import { Button, Field, inputClass } from '@/components/ui'
-import { ADMIN, useStore } from '@/lib/store'
+import { BRAND } from '@/lib/brand'
+import { signInWithEmail, signInWithGoogle, useAdminSession } from '@/lib/data'
 
 /**
- * Staff sign-in. The demo has no identity backend, so the form is prefilled
- * and any password signs in — the console's real gate belongs to whichever
- * auth provider the network adopts.
+ * Staff sign-in: Google or work email + password, admins only. A partner or
+ * customer account is told plainly that the console is not for them.
  */
 export default function Login() {
-  const store = useStore()
   const router = useRouter()
-  const [email, setEmail] = useState(ADMIN.email)
-  const [password, setPassword] = useState('demo-admin')
+  const session = useAdminSession()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<'email' | 'google' | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setBusy(true)
-    setTimeout(() => {
-      store.signIn()
-      router.replace('/dashboard')
-    }, 500)
+  useEffect(() => {
+    if (session.status === 'signed_in') router.replace('/dashboard')
+  }, [session.status, router])
+
+  async function run(kind: 'email' | 'google', action: () => Promise<unknown>) {
+    setBusy(kind)
+    setError(null)
+    try {
+      await action()
+    } catch (e) {
+      setError(e instanceof Error && e.name === 'AuthError' ? e.message : 'Couldn’t reach the server. Check your connection and try again.')
+      setBusy(null)
+    }
   }
 
   return (
@@ -38,20 +44,8 @@ export default function Login() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">Operations console</p>
           <h1 className="mt-4 text-4xl font-extrabold leading-[1.1] tracking-tight">One desk for every booking, technician and rupee.</h1>
           <p className="mt-4 text-base font-medium leading-relaxed text-white/65">
-            Dispatch emergencies, approve technicians, settle payouts and answer customers — across Samsung, LG, Bosch and IFB service in Hyderabad.
+            Manage the catalog, approve technicians, dispatch jobs and settle payouts — for the whole {BRAND.name} network.
           </p>
-          <dl className="mt-10 grid grid-cols-3 gap-6 border-t border-white/10 pt-6">
-            {[
-              ['Live', 'Emergency desk'],
-              ['20', 'Service areas'],
-              ['5', 'Appliance lines'],
-            ].map(([v, l]) => (
-              <div key={l}>
-                <dt className="num text-2xl font-extrabold">{v}</dt>
-                <dd className="mt-1 text-xs font-semibold text-white/55">{l}</dd>
-              </div>
-            ))}
-          </dl>
         </div>
         <p className="text-xs font-medium text-white/40">Authorised staff only. Every action is logged.</p>
         <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 size-96 rounded-full border border-white/5" />
@@ -59,13 +53,31 @@ export default function Login() {
       </section>
 
       <section className="flex items-center justify-center bg-canvas px-4 py-12 sm:px-8">
-        <form onSubmit={submit} className="w-full max-w-sm">
+        <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
             <Logo />
           </div>
           <h2 className="text-2xl font-extrabold tracking-tight">Sign in</h2>
-          <p className="mt-1 text-sm font-medium text-muted">Use your {BRAND.name} staff account.</p>
-          <div className="mt-8 space-y-4">
+          <p className="mt-1 text-sm font-medium text-muted">Use your {BRAND.name} admin account.</p>
+
+          <Button variant="secondary" className="mt-8 h-11 w-full" disabled={busy !== null} onClick={() => void run('google', signInWithGoogle)}>
+            <span aria-hidden className="grid size-5 place-items-center rounded-full border border-line-strong text-[11px] font-extrabold text-brand">
+              G
+            </span>
+            {busy === 'google' ? 'Signing in…' : 'Continue with Google'}
+          </Button>
+
+          <div className="my-6 flex items-center gap-3 text-xs font-bold text-faint" aria-hidden>
+            <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              void run('email', () => signInWithEmail(email, password))
+            }}
+            className="space-y-4"
+          >
             <Field label="Work email">
               <input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} className={`${inputClass} h-11`} />
             </Field>
@@ -74,6 +86,7 @@ export default function Login() {
                 <input
                   type={show ? 'text' : 'password'}
                   required
+                  minLength={6}
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -89,15 +102,24 @@ export default function Login() {
                 </button>
               </div>
             </Field>
-          </div>
-          <Button type="submit" disabled={busy} className="mt-6 h-11 w-full">
-            <LockKeyhole /> {busy ? 'Signing in…' : 'Sign in to console'}
-          </Button>
+            {error && (
+              <p role="alert" className="rounded-lg border border-danger/25 bg-danger-soft px-3 py-2 text-sm font-semibold text-danger">
+                {error}
+              </p>
+            )}
+            <Button type="submit" disabled={busy !== null} className="h-11 w-full">
+              <LockKeyhole /> {busy === 'email' ? 'Signing in…' : 'Sign in to console'}
+            </Button>
+          </form>
+
           <p className="mt-6 flex items-start gap-2 rounded-lg border border-line bg-card p-3 text-xs font-medium leading-relaxed text-muted">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-            Demo console — the account is prefilled and the data is a seeded month of the Hyderabad network, saved on this device.
+            <span>
+              Demo: any seeded admin with any 6+ character password, e.g. <span className="font-bold text-ink-2">aditi.rao@customerservice.example</span> (Super Admin) or{' '}
+              <span className="font-bold text-ink-2">vivek.menon@customerservice.example</span> (Operations). Google signs in as Aditi.
+            </span>
           </p>
-        </form>
+        </div>
       </section>
     </div>
   )
