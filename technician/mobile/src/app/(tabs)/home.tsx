@@ -5,6 +5,7 @@ import { CalendarCheck } from 'lucide-react-native'
 import { HomeHeader } from '@/components/home/HomeHeader'
 import { JobCard } from '@/components/job/JobCard'
 import { NEXT_STEP } from '@/components/job/nextStep'
+import { OfferTimeLeft } from '@/components/job/OfferTimeLeft'
 import { Async } from '@/components/ui/Async'
 import { Button, Card, EmptyState, Icon, Page, SectionTitle, SkeletonCard } from '@/components/ui'
 import { useJobs } from '@/lib/data'
@@ -53,7 +54,10 @@ export default function HomeScreen() {
             <SectionTitle count={offers.data.length}>{t('New requests')}</SectionTitle>
             <View className="gap-3">
               {offers.data.map((j) => (
-                <JobCard key={j.id} job={j} />
+                <View key={j.id} className="gap-1.5">
+                  <OfferTimeLeft id={j.id} />
+                  <JobCard job={j} />
+                </View>
               ))}
             </View>
           </View>

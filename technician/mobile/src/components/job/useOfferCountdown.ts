@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { rejectJob } from '@/lib/data'
 
 /** How long a technician has to answer a new request. */
@@ -32,12 +32,21 @@ export function useOfferCountdown(id: string | undefined): number {
     return () => clearInterval(timer)
   }, [id])
 
+  // A pending retry, cleared if the screen showing this offer goes away.
+  const retry = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (retry.current) clearTimeout(retry.current)
+  }, [])
+
   useEffect(() => {
     if (id && left === 0 && !expired.has(id)) {
       expired.add(id)
-      // If the network drops the answer, let a later tick try again. `now`
-      // keeps ticking while left stays at 0, so this effect does run again.
-      rejectJob(id).catch(() => setTimeout(() => expired.delete(id), RETRY_MS))
+      rejectJob(id).catch((e: unknown) => {
+        // Only a dropped network is worth another try: `now` keeps ticking
+        // while left stays at 0, so this effect runs again once the id is
+        // free. Anything else (already answered, gone) is final.
+        if (e instanceof Error && e.name === 'NetworkError') retry.current = setTimeout(() => expired.delete(id), RETRY_MS)
+      })
     }
   }, [id, left, now])
 
