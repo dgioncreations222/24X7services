@@ -8,6 +8,12 @@
       ],
       "@/assets/*": [
         "./assets/*"
+      ],
+      "@app/shared": [
+        "../../customerapp/packages/shared/src/index.ts"
+      ],
+      "zod": [
+        "./node_modules/zod"
       ]
     }
   },

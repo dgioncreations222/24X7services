@@ -1,0 +1,55 @@
+/** The technician's own side: earnings, payouts, reviews and profile. */
+import { mockRequest } from '../mock/api'
+import { COMMISSION_RATE, write, type MockDb } from '../mock/db'
+import { useResource, type Query } from './query'
+import type { EarningLine, EarningsSummary, PartnerProfile, PartnerReview, Payout } from './types'
+
+const DAY = 86_400_000
+
+function periodStart(period: EarningsSummary['period'], now: number): number {
+  const d = new Date(now)
+  d.setHours(0, 0, 0, 0)
+  if (period === 'week') d.setDate(d.getDate() - ((d.getDay() + 6) % 7)) // Monday
+  if (period === 'month') d.setDate(1)
+  return d.getTime()
+}
+
+function summarise(db: MockDb, period: EarningsSummary['period']): EarningsSummary {
+  const from = periodStart(period, Date.now())
+  const lines: EarningLine[] = db.jobs
+    .filter((j) => j.status === 'completed')
+    .map((j) => {
+      const at = j.timeline.find((t) => t.status === 'completed')?.at ?? j.slotStart
+      const gross = j.payment.amount
+      const commission = Math.round(gross * COMMISSION_RATE)
+      return { jobId: j.id, displayId: j.displayId, serviceName: j.service.name, at, gross, commission, net: gross - commission }
+    })
+    .filter((l) => l.at >= from && l.at < from + 31 * DAY)
+    .sort((a, b) => b.at - a.at)
+  const sum = (k: 'gross' | 'commission' | 'net') => lines.reduce((s, l) => s + l[k], 0)
+  return { period, jobs: lines.length, gross: sum('gross'), commission: sum('commission'), net: sum('net'), lines }
+}
+
+/** Today / this week (from Monday) / this month, with every job's cut. */
+export function useEarnings(period: EarningsSummary['period']): Query<EarningsSummary> {
+  return useResource((db) => summarise(db, period))
+}
+
+/** Weekly payouts, newest first. */
+export function usePayouts(): Query<Payout[]> {
+  return useResource((db) => [...db.payouts].sort((a, b) => b.periodEnd - a.periodEnd))
+}
+
+/** Reviews customers left in their app, newest first. */
+export function useReviews(): Query<PartnerReview[]> {
+  return useResource((db) => [...db.reviews].sort((a, b) => b.createdAt - a.createdAt))
+}
+
+export function useProfile(): Query<PartnerProfile> {
+  return useResource((db) => db.profile)
+}
+
+/** The Home toggle: online gets new requests, offline does not. */
+export function setOnline(online: boolean) {
+  return mockRequest(() => write((db) => ({ ...db, profile: { ...db.profile, online } })))
+}
