@@ -29,6 +29,8 @@ import {
 } from 'lucide-react-native'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
+import { signOut, useSession } from '@/lib/data'
+import { isBare, redirectFor } from '@/lib/gate'
 import { useStore } from '@/lib/store'
 import { Avatar, Blink, Icon, Tappable, Text } from './ui'
 import { AvailabilityToast } from './Availability'
@@ -52,19 +54,32 @@ const SIDE: readonly { href: Href & string; label: string; icon: LucideIcon }[] 
 /**
  * What the web's AppShell does around every screen, minus the bottom nav
  * (that is the tab bar now): holds the app on a splash until the saved state
- * is read, sends a signed-out technician to sign-in, owns the menu drawer,
- * and keeps the incoming-request takeover and the availability toast above
- * every screen.
+ * is read, keeps each session to the screens it may see (lib/gate: sign-in,
+ * onboarding, or the work app), owns the menu drawer, and keeps the
+ * incoming-request takeover and the availability toast above every screen.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const store = useStore()
-  const bare = pathname === '/' || pathname.startsWith('/login')
+  const session = useSession()
+  const bare = isBare(pathname) || session.status !== 'active'
   const [menuOpen, setMenuOpen] = useState(false)
+  const redirect = store.ready ? redirectFor(session, pathname) : null
 
   useEffect(() => {
-    if (store.ready && !store.signedIn && !bare) router.replace('/login')
-  }, [store.ready, store.signedIn, bare])
+    if (redirect) router.replace(redirect)
+  }, [redirect])
+
+  // The old Logout buttons (Settings, Profile) sign out of the old store.
+  // Carry that through to the real session, and keep the old store signed in
+  // so it never sends anyone to its retired login screen.
+  const { ready, signedIn, signIn } = store
+  useEffect(() => {
+    if (ready && !signedIn) {
+      void signOut()
+      signIn()
+    }
+  }, [ready, signedIn, signIn])
 
   if (!store.ready) return <Splash />
 
@@ -72,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <MenuContext.Provider value={setMenuOpen}>
       <View className="flex-1 bg-canvas">
         {children}
-        {!bare && store.signedIn && (
+        {!bare && (
           <>
             <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} />
             <IncomingRequest />

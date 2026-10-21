@@ -1,8 +1,13 @@
 import { Redirect } from 'expo-router'
-import { useStore } from '@/lib/store'
+import { useSession } from '@/lib/data'
+import { homeFor } from '@/lib/gate'
 
-/** The front door: straight to work if signed in, otherwise to sign-in. */
+/**
+ * The splash's way out: the session is restored from the device with no
+ * network wait, so this routes at once — to sign-in, registration, KYC or
+ * the KYC status, or straight to work. (The splash itself is the native one
+ * held by the root layout until fonts and storage are ready.)
+ */
 export default function Index() {
-  const { signedIn } = useStore()
-  return <Redirect href={signedIn ? '/home' : '/login'} />
+  return <Redirect href={homeFor(useSession())} />
 }

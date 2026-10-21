@@ -3,9 +3,10 @@ import { View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { BriefcaseBusiness } from 'lucide-react-native'
 import { Async } from '@/components/ui/Async'
-import { Card, EmptyState, Icon, Page, ScreenHeader, Segmented, Text } from '@/components/ui'
+import { Button, Card, EmptyState, Icon, Page, ScreenHeader, Segmented, Text } from '@/components/ui'
 import { useJobs, type JobsView } from '@/lib/data'
 import { getMockFailure, setMockFailure, type FailureMode } from '@/lib/mock/api'
+import { getMockKycOutcome, resetMockAuth, setMockKycOutcome } from '@/lib/mock/auth'
 
 /**
  * Dev-only: shows a lib/data list in each of its states — loading, empty,
@@ -21,6 +22,7 @@ export default function StatesScreen() {
     return getMockFailure()
   })
   const [forceEmpty, setForceEmpty] = useState(params.list === 'empty')
+  const [kyc, setKyc] = useState(getMockKycOutcome())
 
   return (
     <>
@@ -54,6 +56,21 @@ export default function StatesScreen() {
               { value: 'empty', label: 'Empty' },
             ]}
           />
+          <Text className="text-sm font-bold text-ink-2">KYC review ends in</Text>
+          <Segmented
+            value={kyc}
+            onChange={(o) => {
+              setMockKycOutcome(o)
+              setKyc(o)
+            }}
+            options={[
+              { value: 'approve', label: 'Approve' },
+              { value: 'reject', label: 'Reject' },
+            ]}
+          />
+          <Button variant="secondary" onPress={resetMockAuth}>
+            Sign out and forget new accounts
+          </Button>
         </Card>
         {/* Remounting on each change starts a fresh load, so the skeleton shows every time. */}
         <JobsList key={`${view}-${forceEmpty}-${failure}`} view={view} forceEmpty={forceEmpty} />
