@@ -1,6 +1,7 @@
 // https://docs.expo.dev/guides/using-eslint/
 const { defineConfig } = require('eslint/config')
 const expoConfig = require('eslint-config-expo/flat')
+const globals = require('globals')
 
 module.exports = defineConfig([
   expoConfig,
@@ -14,6 +15,11 @@ module.exports = defineConfig([
       // than edited, per the plan's no-delete / don't-touch rule.
       'src/components/SignaturePad.tsx',
     ],
+  },
+  {
+    // Dev scripts run on Node (screenshots, deploy, theme check), not in the app.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: globals.node },
   },
   {
     files: ['**/*.ts', '**/*.tsx'],
