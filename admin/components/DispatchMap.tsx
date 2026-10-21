@@ -73,28 +73,28 @@ export function DispatchMap({
   const hp = hover ? (hover.kind === 'booking' ? project(hover.b.lat, hover.b.lng) : project(hover.t.lat, hover.t.lng)) : null
 
   return (
-    <div className="relative overflow-hidden rounded-b-card bg-[#f6f8fb]">
+    <div className="relative overflow-hidden rounded-b-card bg-map-ground">
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label="Map of technicians and open bookings across Hyderabad">
         <defs>
           <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-            <path d="M50 0H0V50" fill="none" stroke="#e6eaf0" strokeWidth="1" />
+            <path d="M50 0H0V50" fill="none" stroke="var(--color-map-grid)" strokeWidth="1" />
           </pattern>
         </defs>
         <rect width={W} height={H} fill="url(#grid)" />
         {/* Hussain Sagar, as the landmark everyone orients by. */}
         {(() => {
           const p = project(17.4239, 78.4738)
-          return <ellipse cx={p.x} cy={p.y} rx="34" ry="22" fill="#dbe8f5" />
+          return <ellipse cx={p.x} cy={p.y} rx="34" ry="22" fill="var(--color-map-water)" />
         })()}
         {/* Outer Ring Road, loosely. */}
-        <ellipse cx={W * 0.5} cy={H * 0.52} rx={W * 0.43} ry={H * 0.42} fill="none" stroke="#dde2ea" strokeWidth="6" strokeDasharray="2 10" strokeLinecap="round" />
+        <ellipse cx={W * 0.5} cy={H * 0.52} rx={W * 0.43} ry={H * 0.42} fill="none" stroke="var(--color-map-road)" strokeWidth="6" strokeDasharray="2 10" strokeLinecap="round" />
 
         {AREAS.map((a) => {
           const p = project(a.lat, a.lng)
           return (
             <g key={a.area}>
-              <circle cx={p.x} cy={p.y} r="54" fill="#eef1f6" opacity="0.7" />
-              <text x={p.x} y={p.y + 4} textAnchor="middle" className="fill-[#9aa3b2] text-[15px] font-bold uppercase tracking-wider" style={{ letterSpacing: '0.06em' }}>
+              <circle cx={p.x} cy={p.y} r="54" fill="var(--color-map-zone)" opacity="0.7" />
+              <text x={p.x} y={p.y + 4} textAnchor="middle" className="fill-map-label text-[15px] font-bold uppercase tracking-wider" style={{ letterSpacing: '0.06em' }}>
                 {a.area}
               </text>
             </g>
@@ -109,11 +109,11 @@ export function DispatchMap({
 
         {techs.map((t) => {
           const p = project(t.lat, t.lng)
-          const fill = t.presence === 'on_job' ? 'var(--color-violet)' : t.presence === 'online' ? 'var(--color-success)' : '#9aa3b2'
+          const fill = t.presence === 'on_job' ? 'var(--color-violet)' : t.presence === 'online' ? 'var(--color-success)' : 'var(--color-map-label)'
           return (
             <g key={t.id} onMouseEnter={() => setHover({ kind: 'tech', t })} onMouseLeave={() => setHover(null)} className="cursor-default">
               <circle cx={p.x} cy={p.y} r="16" fill="transparent" />
-              <circle cx={p.x} cy={p.y} r="8.5" fill={fill} stroke="#fff" strokeWidth="3" />
+              <circle cx={p.x} cy={p.y} r="8.5" fill={fill} stroke="var(--color-white)" strokeWidth="3" />
             </g>
           )
         })}
@@ -140,8 +140,8 @@ export function DispatchMap({
                     <animate attributeName="opacity" values="0.45;0" dur="1.6s" repeatCount="indefinite" />
                   </circle>
                 )}
-                <path d="M0 0 C-11 -14 -12 -20 -12 -24 A12 12 0 1 1 12 -24 C12 -20 11 -14 0 0Z" fill={c} stroke="#fff" strokeWidth="2.5" />
-                <circle cy="-24" r="4.5" fill="#fff" />
+                <path d="M0 0 C-11 -14 -12 -20 -12 -24 A12 12 0 1 1 12 -24 C12 -20 11 -14 0 0Z" fill={c} stroke="var(--color-white)" strokeWidth="2.5" />
+                <circle cy="-24" r="4.5" fill="var(--color-white)" />
               </g>
             )
           })}

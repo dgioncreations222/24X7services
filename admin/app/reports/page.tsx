@@ -240,7 +240,7 @@ export default function Reports() {
                 <td className={td}>
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 w-20 overflow-hidden rounded-full bg-canvas">
-                      <div className="h-full rounded-full bg-[#2a78d6]" style={{ width: `${t.onTimeRate}%` }} />
+                      <div className="h-full rounded-full bg-chart-1" style={{ width: `${t.onTimeRate}%` }} />
                     </div>
                     <span className="num text-xs font-bold">{t.onTimeRate}%</span>
                   </div>

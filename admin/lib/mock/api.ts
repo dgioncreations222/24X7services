@@ -1,0 +1,47 @@
+/**
+ * Pretend network for lib/data while there is no backend. Every read and
+ * write goes through `mockRequest`, which waits 300–800 ms and can be told
+ * to fail — so loading skeletons, error states and retries can be seen and
+ * tested on a desk with good Wi-Fi.
+ *
+ * Firebase replaces this file; nothing outside lib/ imports it.
+ */
+
+export type FailureMode = 'off' | 'once' | 'always'
+
+const config = { minDelay: 300, maxDelay: 800, failure: 'off' as FailureMode }
+
+/** The error a failed mock request throws — the shape a network error will have. */
+export class NetworkError extends Error {
+  constructor(message = 'Network request failed') {
+    super(message)
+    this.name = 'NetworkError'
+  }
+}
+
+/** Make the next request fail (`once`), every request fail (`always`), or none. */
+export function setMockFailure(mode: FailureMode) {
+  config.failure = mode
+}
+
+export function getMockFailure(): FailureMode {
+  return config.failure
+}
+
+/** Change the simulated latency, e.g. 0 to make tests instant. */
+export function setMockDelay(minMs: number, maxMs = minMs) {
+  config.minDelay = minMs
+  config.maxDelay = Math.max(minMs, maxMs)
+}
+
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+
+/** Run `work` after a network-like delay, or throw NetworkError if failing. */
+export async function mockRequest<T>(work: () => T): Promise<T> {
+  await wait(config.minDelay + Math.random() * (config.maxDelay - config.minDelay))
+  if (config.failure !== 'off') {
+    if (config.failure === 'once') config.failure = 'off'
+    throw new NetworkError()
+  }
+  return work()
+}

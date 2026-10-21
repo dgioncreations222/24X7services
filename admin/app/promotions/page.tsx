@@ -124,7 +124,7 @@ function Compose() {
           <textarea value={body} maxLength={160} rows={3} onChange={(e) => setBody(e.target.value)} placeholder="What should people know?" className={inputClass} />
         </Field>
 
-        <div className="rounded-2xl bg-gradient-to-b from-[#1b2550] to-[#0f1d57] p-3" aria-label="Preview">
+        <div className="rounded-2xl bg-gradient-to-b from-brand-night to-brand-ink p-3" aria-label="Preview">
           <p className="num mb-2 text-center text-[11px] font-semibold text-white/60">
             {new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
           </p>

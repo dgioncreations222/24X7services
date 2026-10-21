@@ -571,7 +571,7 @@ function RolesTab({ canEdit }: { canEdit: boolean }) {
                               disabled={locked}
                               onChange={() => toggle(m, p)}
                               aria-label={`${PERM_LABEL[p]} ${MODULE_LABEL[m]}`}
-                              className="size-4 cursor-pointer accent-[#2547d0] disabled:cursor-not-allowed"
+                              className="size-4 cursor-pointer accent-brand disabled:cursor-not-allowed"
                             />
                           ) : (
                             <span className="text-faint" aria-label="Not available">
