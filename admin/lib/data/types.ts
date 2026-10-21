@@ -398,3 +398,41 @@ export interface BusinessSettings {
   emergencySlaMin: number
   supportPhone: string
 }
+
+/* --------------------------------------------------------------- Payouts */
+
+/** TODO(partner.ts): the shared Payout proposal — one week's money for one technician. */
+export interface PartnerPayout {
+  id: string
+  partnerId: string
+  periodStart: number
+  periodEnd: number
+  gross: Paise
+  commission: Paise
+  /** Stored, so a later commission change cannot rewrite a paid payout. */
+  net: Paise
+  jobIds: string[]
+  status: 'pending' | 'approved' | 'paid'
+  approvedBy?: string
+  approvedAt?: number
+  paidAt?: number
+  /** Bank reference once paid. */
+  reference?: string
+}
+
+/** One money movement on a booking, worked out from the booking. */
+export interface Transaction {
+  id: string
+  bookingId: string
+  displayId: string
+  customerName: string
+  kind: 'payment' | 'refund'
+  method?: 'upi' | 'card' | 'cash' | 'wallet'
+  /** Positive for a payment, negative for a refund. */
+  amount: Paise
+  /** The platform's share of a payment; 0 on refunds. */
+  commission: Paise
+  status: 'success' | 'pending' | 'failed'
+  at: number
+  note?: string
+}

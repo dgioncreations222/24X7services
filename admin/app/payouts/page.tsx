@@ -1,298 +1,241 @@
 'use client'
 
 import Link from 'next/link'
-import type { Route } from 'next'
-import { useMemo, useState } from 'react'
-import { Banknote, CheckCheck, Clock3, Download, Send, Wallet } from 'lucide-react'
-import { useToast } from '@/components/toast'
-import { Avatar, Button, Card, CardHeader, Chip, Empty, Page, PageHeader, StatCard, TableWrap, Tabs, td, th, tr } from '@/components/ui'
-import { inr } from '@/lib/catalog'
+import { Fragment, useState } from 'react'
+import { BadgeCheck, ChevronDown, Download, Landmark, Wallet } from 'lucide-react'
+import { FormError, SortTh, useAction } from '@/components/catalog/parts'
+import { useTable } from '@/components/catalog/useTable'
+import { Async, Avatar, Button, Card, Chip, Empty, Field, Modal, Page, PageHeader, Pager, SearchInput, Tabs, TableWrap, inputClass, td, th, tr } from '@/components/ui'
+import { approvePayouts, markPayoutPaid, useCan, usePartners, usePayouts, type Partner, type PartnerPayout } from '@/lib/data'
 import { cn } from '@/lib/cn'
-import { downloadCsv, longDate, withinDays } from '@/lib/format'
-import { useStore } from '@/lib/store'
-import type { Payout } from '@/lib/types'
+import { downloadCsv } from '@/lib/format'
 
-type Filter = Payout['status']
+const rupees = (p: number) => '₹' + Math.round(p / 100).toLocaleString('en-IN')
+const day = (t: number) => new Date(t).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+const STATUS = { pending: { label: 'Waiting for approval', tone: 'warning' }, approved: { label: 'Approved', tone: 'info' }, paid: { label: 'Paid', tone: 'success' } } as const
 
-const STATUS: Record<Filter, { label: string; tone: 'warning' | 'brand' | 'success' }> = {
-  pending: { label: 'Pending', tone: 'warning' },
-  processing: { label: 'Processing', tone: 'brand' },
-  paid: { label: 'Paid', tone: 'success' },
-}
-
-const net = (p: Payout) => p.gross - p.commission
-
-/** Technician-side money: weekly settlements out, cash deposits in. */
-export default function Payouts() {
-  const store = useStore()
-  const toast = useToast()
-  const [filter, setFilter] = useState<Filter>('pending')
-  const [selected, setSelected] = useState<string[]>([])
-
-  const m = useMemo(() => {
-    const sum = (l: Payout[]) => l.reduce((s, p) => s + net(p), 0)
-    const pending = store.payouts.filter((p) => p.status === 'pending')
-    const processing = store.payouts.filter((p) => p.status === 'processing')
-    const paid = store.payouts.filter((p) => p.status === 'paid' && withinDays(p.at, 30))
-    const cash = store.technicians.filter((t) => t.cashInHand > 0).sort((a, z) => z.cashInHand - a.cashInHand)
-    return {
-      pending: sum(pending),
-      pendingCount: pending.length,
-      processing: sum(processing),
-      processingCount: processing.length,
-      paid: sum(paid),
-      paidCount: paid.length,
-      cash,
-      cashTotal: cash.reduce((s, t) => s + t.cashInHand, 0),
-    }
-  }, [store.payouts, store.technicians])
-
-  const rows = store.payouts.filter((p) => p.status === filter).sort((a, z) => net(z) - net(a))
-  const releasable = rows.filter((p) => p.status !== 'paid')
-  const chosen = selected.filter((id) => releasable.some((p) => p.id === id))
-  const allOn = releasable.length > 0 && chosen.length === releasable.length
-
-  const release = (ids: string[]) => {
-    const total = store.payouts.filter((p) => ids.includes(p.id)).reduce((s, p) => s + net(p), 0)
-    store.payOut(ids)
-    setSelected([])
-    toast(`${ids.length} payout${ids.length === 1 ? '' : 's'} released · ${inr(total)}`)
-  }
-
-  const exportCsv = () =>
-    downloadCsv('payouts', [
-      ['Payout', 'Technician', 'Technician ID', 'Period', 'Jobs', 'Gross', 'Commission', 'Net', 'Status', 'Updated'],
-      ...rows.map((p) => {
-        const t = store.technician(p.technicianId)
-        return [p.id, t?.name ?? '', p.technicianId, p.period, p.jobs, p.gross, p.commission, net(p), STATUS[p.status].label, longDate(p.at)]
-      }),
-    ])
-
+/** What each technician earned each week after commission: approve, then mark paid when the transfer goes out. */
+export default function PayoutsPage() {
+  const payouts = usePayouts()
+  const partners = usePartners()
   return (
     <Page>
-      <PageHeader
-        side="technician"
-        title="Payouts"
-        sub={`Weekly technician settlements after ${store.settings.commissionPct}% platform commission`}
-        actions={
-          <Button variant="secondary" onClick={exportCsv}>
-            <Download /> Export CSV
-          </Button>
-        }
-      />
+      <PageHeader side="technician" title="Payouts" sub="One payout per technician per week: their completed, paid jobs minus commission. Suspended technicians’ payouts stay on hold." />
+      <Card className="overflow-hidden">
+        <Async query={payouts} empty={<Empty icon={<Wallet />} title="No payouts yet" />}>
+          {(rows) => <PayoutTable rows={rows} partners={partners.data ?? []} />}
+        </Async>
+      </Card>
+    </Page>
+  )
+}
 
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
-        <StatCard label="Due this week" value={inr(m.pending)} icon={<Wallet />} toneName="warning" hint={<span>{m.pendingCount} technicians</span>} />
-        <StatCard label="Processing" value={inr(m.processing)} icon={<Clock3 />} hint={<span>{m.processingCount} transfers</span>} />
-        <StatCard label="Paid · 30 days" value={inr(m.paid)} icon={<CheckCheck />} toneName="success" hint={<span>{m.paidCount} payouts</span>} />
-        <StatCard label="Cash held by technicians" value={inr(m.cashTotal)} icon={<Banknote />} toneName="danger" hint={<span>{m.cash.length} to deposit</span>} />
-      </section>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-3">
-        <Card className="min-w-0 xl:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
-            <h2 className="text-[15px] font-extrabold tracking-tight">Settlements</h2>
-            {filter !== 'paid' && (
-              <Button size="sm" disabled={!chosen.length} onClick={() => release(chosen)}>
-                <Send /> Release selected{chosen.length ? ` (${chosen.length})` : ''}
-              </Button>
-            )}
+function PayoutTable({ rows, partners }: { rows: PartnerPayout[]; partners: Partner[] }) {
+  const can = useCan()
+  const canApprove = can('payouts', 'approve')
+  const [picked, setPicked] = useState<string[]>([])
+  const [open, setOpen] = useState<string | null>(null)
+  const [paying, setPaying] = useState<PartnerPayout | null>(null)
+  const { run, busy, error } = useAction()
+  const who = (id: string) => partners.find((p) => p.id === id)
+  const t = useTable({
+    rows,
+    search: (p) => [p.id, who(p.partnerId)?.name, p.reference],
+    filters: { pending: (p: PartnerPayout) => p.status === 'pending', approved: (p: PartnerPayout) => p.status === 'approved', paid: (p: PartnerPayout) => p.status === 'paid', all: () => true },
+    sorts: { week: (p: PartnerPayout) => -p.periodStart, net: (p: PartnerPayout) => -p.net },
+    initialSort: 'week',
+  })
+  const pendingVisible = t.visible.filter((p) => p.status === 'pending')
+  const allPicked = pendingVisible.length > 0 && pendingVisible.every((p) => picked.includes(p.id))
+  const pickedTotal = rows.filter((p) => picked.includes(p.id)).reduce((s, p) => s + p.net, 0)
+  const sum = (s: PartnerPayout['status']) => rows.filter((p) => p.status === s).reduce((x, p) => x + p.net, 0)
+  return (
+    <>
+      <div className="grid grid-cols-3 divide-x divide-line border-b border-line">
+        {(['pending', 'approved', 'paid'] as const).map((s) => (
+          <div key={s} className="p-4">
+            <p className="text-xs font-semibold text-muted">{STATUS[s].label}</p>
+            <p className="num text-lg font-extrabold">{rupees(sum(s))}</p>
           </div>
-          <Tabs
-            className="mt-2 px-3"
-            value={filter}
-            onChange={(v) => {
-              setFilter(v)
-              setSelected([])
-            }}
-            options={(['pending', 'processing', 'paid'] as const).map((s) => ({
-              value: s,
-              label: STATUS[s].label,
-              count: store.payouts.filter((p) => p.status === s).length,
-            }))}
-          />
-          {rows.length === 0 ? (
-            <Empty icon={<Wallet />} title="Nothing here" body="No payouts in this state." />
-          ) : (
-            <>
-            {/* Phone: one card per payout — the table would scroll sideways. */}
-            <div className="sm:hidden">
-              {filter !== 'paid' && releasable.length > 0 && (
-                <label className="flex items-center gap-2.5 border-b border-line px-4 py-2.5 text-xs font-bold text-ink-2">
+        ))}
+      </div>
+      <div className="flex flex-col gap-3 border-b border-line p-4">
+        <Tabs
+          value={t.filter}
+          onChange={(f) => {
+            t.setFilter(f)
+            setPicked([])
+          }}
+          options={[
+            { value: 'pending', label: 'To approve', count: rows.filter((p) => p.status === 'pending').length, alert: true },
+            { value: 'approved', label: 'To pay', count: rows.filter((p) => p.status === 'approved').length },
+            { value: 'paid', label: 'Paid', count: rows.filter((p) => p.status === 'paid').length },
+            { value: 'all', label: 'All', count: rows.length },
+          ]}
+          className="border-b-0"
+        />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <SearchInput value={t.q} onChange={t.setQ} placeholder="Technician, payout ID or bank reference" className="flex-1" />
+          {can('payouts', 'export') && (
+            <Button
+              variant="secondary"
+              onClick={() =>
+                downloadCsv('payouts', [
+                  ['Payout', 'Technician', 'Week from', 'Week to', 'Jobs', 'Gross (₹)', 'Commission (₹)', 'Net (₹)', 'Status', 'Approved by', 'Reference'],
+                  ...rows.map((p) => [p.id, who(p.partnerId)?.name ?? p.partnerId, day(p.periodStart), day(p.periodEnd), p.jobIds.length, p.gross / 100, p.commission / 100, p.net / 100, p.status, p.approvedBy ?? '', p.reference ?? '']),
+                ])
+              }
+            >
+              <Download /> CSV
+            </Button>
+          )}
+          {canApprove && picked.length > 0 && (
+            <Button variant="success" disabled={busy} onClick={() => void run(() => approvePayouts(picked), `${picked.length} payout${picked.length === 1 ? '' : 's'} approved · ${rupees(pickedTotal)}`, () => setPicked([]))}>
+              <BadgeCheck /> Approve {picked.length} · {rupees(pickedTotal)}
+            </Button>
+          )}
+        </div>
+        <FormError error={error} />
+      </div>
+      {t.total === 0 ? (
+        <Empty icon={<Wallet />} title={t.filter === 'pending' ? 'Nothing to approve' : 'Nothing here'} body={t.filter === 'pending' ? 'All caught up.' : 'Try another tab or search.'} />
+      ) : (
+        <TableWrap>
+          <thead>
+            <tr>
+              {canApprove && (
+                <th className={cn(th, 'w-10')}>
                   <input
                     type="checkbox"
-                    checked={allOn}
-                    onChange={() => setSelected(allOn ? [] : releasable.map((p) => p.id))}
+                    aria-label="Pick every payout to approve on this page"
                     className="size-4 accent-brand"
+                    disabled={!pendingVisible.length}
+                    checked={allPicked}
+                    onChange={(e) => setPicked(e.target.checked ? [...new Set([...picked, ...pendingVisible.map((p) => p.id)])] : picked.filter((id) => !pendingVisible.some((p) => p.id === id)))}
                   />
-                  Select all
-                </label>
+                </th>
               )}
-              <ul className="divide-y divide-line">
-                {rows.map((p) => {
-                  const t = store.technician(p.technicianId)
-                  const on = chosen.includes(p.id)
-                  return (
-                    <li key={p.id} className={cn('flex items-start gap-3 px-4 py-3', on && 'bg-brand-soft/40')}>
-                      {filter !== 'paid' && (
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${p.id}`}
-                          checked={on}
-                          onChange={() => setSelected((s) => (on ? s.filter((x) => x !== p.id) : [...s, p.id]))}
-                          className="mt-2.5 size-4 shrink-0 accent-brand"
-                        />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <Link href={`/technicians/?id=${p.technicianId}` as Route} className="flex min-w-0 items-center gap-2.5">
-                            <Avatar name={t?.name ?? '?'} size={32} side="technician" />
-                            <span className="min-w-0">
-                              <span className="block truncate text-sm font-bold">{t?.name}</span>
-                              <span className="block truncate text-xs font-medium text-muted">{p.period}</span>
-                            </span>
-                          </Link>
-                          <Chip tone={STATUS[p.status].tone} className="shrink-0">
-                            {STATUS[p.status].label}
-                          </Chip>
-                        </div>
-                        <div className="mt-2 grid grid-cols-4 gap-2 rounded-lg bg-canvas px-3 py-2 text-xs">
-                          <span>
-                            <span className="block text-[10.5px] font-bold uppercase tracking-wider text-faint">Jobs</span>
-                            <span className="num font-bold">{p.jobs}</span>
-                          </span>
-                          <span>
-                            <span className="block text-[10.5px] font-bold uppercase tracking-wider text-faint">Gross</span>
-                            <span className="num">{inr(p.gross)}</span>
-                          </span>
-                          <span>
-                            <span className="block text-[10.5px] font-bold uppercase tracking-wider text-faint">Comm.</span>
-                            <span className="num text-muted">−{inr(p.commission)}</span>
-                          </span>
-                          <span className="text-right">
-                            <span className="block text-[10.5px] font-bold uppercase tracking-wider text-faint">Net</span>
-                            <span className="num font-extrabold">{inr(net(p))}</span>
-                          </span>
-                        </div>
-                        {filter !== 'paid' && (
-                          <Button size="xs" className="mt-2" onClick={() => release([p.id])}>
-                            Release
-                          </Button>
-                        )}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-            <div className="hidden sm:block">
-<TableWrap>
-              <thead>
-                <tr>
-                  {filter !== 'paid' && (
-                    <th className={cn(th, 'w-10')}>
-                      <input
-                        type="checkbox"
-                        aria-label="Select all"
-                        checked={allOn}
-                        onChange={() => setSelected(allOn ? [] : releasable.map((p) => p.id))}
-                        className="size-4 accent-brand"
-                      />
-                    </th>
-                  )}
-                  <th className={th}>Technician</th>
-                  <th className={th}>Period</th>
-                  <th className={`${th} text-right`}>Jobs</th>
-                  <th className={`${th} text-right`}>Gross</th>
-                  <th className={`${th} text-right`}>Commission</th>
-                  <th className={`${th} text-right`}>Net</th>
-                  <th className={th}>Status</th>
-                  {filter !== 'paid' && <th className={`${th} text-right`}>Action</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((p) => {
-                  const t = store.technician(p.technicianId)
-                  const on = chosen.includes(p.id)
-                  return (
-                    <tr key={p.id} className={cn(tr, on && 'bg-brand-soft/40')}>
-                      {filter !== 'paid' && (
-                        <td className={td}>
+              <th className={th}>Technician</th>
+              <SortTh by="week" label="Week" sort={t.sort} onSort={t.sortBy} />
+              <th className={cn(th, 'text-right')}>Gross</th>
+              <th className={cn(th, 'text-right')}>Commission</th>
+              <SortTh by="net" label="Payout" sort={t.sort} onSort={t.sortBy} className="text-right" />
+              <th className={th}>Status</th>
+              <th className={cn(th, 'text-right')} />
+            </tr>
+          </thead>
+          <tbody>
+            {t.visible.map((p) => {
+              const tech = who(p.partnerId)
+              const held = tech?.status === 'suspended' && p.status === 'pending'
+              const expanded = open === p.id
+              return (
+                <Fragment key={p.id}>
+                  <tr className={tr}>
+                    {canApprove && (
+                      <td className={td}>
+                        {p.status === 'pending' && (
                           <input
                             type="checkbox"
-                            aria-label={`Select ${p.id}`}
-                            checked={on}
-                            onChange={() => setSelected((s) => (on ? s.filter((x) => x !== p.id) : [...s, p.id]))}
-                            className="size-4 accent-brand"
+                            aria-label={`Pick ${tech?.name ?? p.partnerId}’s payout`}
+                            className="size-4 accent-brand disabled:opacity-40"
+                            disabled={held}
+                            checked={picked.includes(p.id)}
+                            onChange={(e) => setPicked(e.target.checked ? [...picked, p.id] : picked.filter((x) => x !== p.id))}
                           />
-                        </td>
-                      )}
-                      <td className={td}>
-                        <Link href={`/technicians/?id=${p.technicianId}` as Route} className="flex items-center gap-2.5">
-                          <Avatar name={t?.name ?? '?'} size={30} side="technician" />
-                          <span>
-                            <span className="block font-bold hover:text-brand">{t?.name}</span>
-                            <span className="block text-xs font-medium text-muted">{p.technicianId}</span>
-                          </span>
-                        </Link>
+                        )}
                       </td>
-                      <td className={`${td} whitespace-nowrap font-semibold text-ink-2`}>{p.period}</td>
-                      <td className={`${td} num text-right font-bold`}>{p.jobs}</td>
-                      <td className={`${td} num text-right`}>{inr(p.gross)}</td>
-                      <td className={`${td} num text-right text-muted`}>−{inr(p.commission)}</td>
-                      <td className={`${td} num text-right font-extrabold`}>{inr(net(p))}</td>
-                      <td className={td}>
-                        <Chip tone={STATUS[p.status].tone}>{STATUS[p.status].label}</Chip>
-                      </td>
-                      {filter !== 'paid' && (
-                        <td className={`${td} text-right`}>
-                          <Button size="xs" onClick={() => release([p.id])}>
-                            Release
-                          </Button>
-                        </td>
+                    )}
+                    <td className={td}>
+                      <Link href={`/technicians?id=${p.partnerId}`} className="flex items-center gap-3 hover:text-brand">
+                        <Avatar name={tech?.name ?? '?'} size={32} side="technician" />
+                        <span>
+                          <span className="block font-bold">{tech?.name ?? p.partnerId}</span>
+                          <span className="num block text-xs text-muted">{p.id}</span>
+                        </span>
+                      </Link>
+                    </td>
+                    <td className={cn(td, 'text-[13px]')}>
+                      {day(p.periodStart)} – {day(p.periodEnd)}
+                      <span className="block text-xs text-muted">{p.jobIds.length} jobs</span>
+                    </td>
+                    <td className={cn(td, 'num text-right text-[13px]')}>{rupees(p.gross)}</td>
+                    <td className={cn(td, 'num text-right text-[13px] text-muted')}>− {rupees(p.commission)}</td>
+                    <td className={cn(td, 'num text-right font-extrabold')}>{rupees(p.net)}</td>
+                    <td className={td}>
+                      {held ? <Chip tone="danger">On hold · suspended</Chip> : <Chip tone={STATUS[p.status].tone}>{STATUS[p.status].label}</Chip>}
+                      {p.reference && <span className="num mt-1 block text-[11px] text-muted">{p.reference}</span>}
+                    </td>
+                    <td className={cn(td, 'whitespace-nowrap text-right')}>
+                      {canApprove && p.status === 'pending' && !held && (
+                        <Button size="sm" variant="success" disabled={busy} onClick={() => void run(() => approvePayouts([p.id]), `${rupees(p.net)} approved for ${tech?.name}`)}>
+                          Approve
+                        </Button>
                       )}
+                      {canApprove && p.status === 'approved' && (
+                        <Button size="sm" onClick={() => setPaying(p)}>
+                          <Landmark /> Mark paid
+                        </Button>
+                      )}
+                      <Button size="sm" variant="subtle" aria-expanded={expanded} aria-label="Show jobs" onClick={() => setOpen(expanded ? null : p.id)}>
+                        <ChevronDown className={cn('transition-transform', expanded && 'rotate-180')} />
+                      </Button>
+                    </td>
+                  </tr>
+                  {expanded && (
+                    <tr>
+                      <td colSpan={canApprove ? 8 : 7} className="border-b border-line bg-canvas/50 px-5 py-3">
+                        <p className="mb-2 text-xs font-bold text-muted">
+                          Jobs in this payout{p.approvedBy ? ` · approved by ${p.approvedBy}` : ''}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.jobIds.map((id) => (
+                            <Link key={id} href={`/bookings?id=${id}`} className="num rounded-md border border-line bg-card px-2 py-1 text-xs font-semibold hover:border-brand hover:text-brand">
+                              {id}
+                            </Link>
+                          ))}
+                        </div>
+                      </td>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </TableWrap>
-            </div>
-            </>
-          )}
-          <p className="px-5 py-3 text-xs font-semibold text-muted">
-            {rows.length} payouts · net {inr(rows.reduce((s, p) => s + net(p), 0))}
-          </p>
-        </Card>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </TableWrap>
+      )}
+      <Pager page={t.page} pages={t.pages} total={t.total} onPage={t.setPage} />
+      {paying && <PaidModal payout={paying} name={who(paying.partnerId)?.name ?? paying.partnerId} onClose={() => setPaying(null)} />}
+    </>
+  )
+}
 
-        <Card className="self-start">
-          <CardHeader title="Cash to deposit" sub="Collected on site, not yet deposited at a hub" />
-          {m.cash.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm font-semibold text-muted">No cash outstanding.</p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {m.cash.map((t) => (
-                <li key={t.id} className="flex items-center gap-3 px-5 py-3">
-                  <Avatar name={t.name} size={32} side="technician" />
-                  <Link href={`/technicians/?id=${t.id}` as Route} className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold hover:text-brand">{t.name}</span>
-                    <span className={cn('num block text-xs font-bold', t.cashInHand > 5000 ? 'text-danger' : 'text-muted')}>{inr(t.cashInHand)} in hand</span>
-                  </Link>
-                  <Button
-                    size="xs"
-                    variant="secondary"
-                    onClick={() => {
-                      store.settleCash(t.id)
-                      toast(`Deposit of ${inr(t.cashInHand)} recorded for ${t.name}`)
-                    }}
-                  >
-                    Record deposit
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+function PaidModal({ payout, name, onClose }: { payout: PartnerPayout; name: string; onClose: () => void }) {
+  const [ref, setRef] = useState('')
+  const { run, busy, error } = useAction()
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Mark ${rupees(payout.net)} paid to ${name}?`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={busy} onClick={() => void run(() => markPayoutPaid(payout.id, ref), `Payout to ${name} marked paid`, onClose)}>
+            Mark paid
+          </Button>
+        </>
+      }
+    >
+      <p className="mb-4 text-sm text-muted">Do this after the bank transfer has gone out. The technician sees it as Paid in their app.</p>
+      <Field label="Bank reference (UTR)">
+        <input value={ref} onChange={(e) => setRef(e.target.value.toUpperCase())} placeholder="e.g. HDFCN52024102012345" className={cn(inputClass, 'num h-10 uppercase')} autoFocus />
+      </Field>
+      <div className="mt-3">
+        <FormError error={error} />
       </div>
-    </Page>
+    </Modal>
   )
 }

@@ -1,331 +1,159 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Banknote, Download, IndianRupee, RotateCcw, Wallet } from 'lucide-react'
-import { BookingDrawer } from '@/components/BookingDrawer'
-import { BarChart, Donut } from '@/components/charts'
-import { useToast } from '@/components/toast'
-import {
-  Button,
-  Avatar,
-  Card,
-  CardHeader,
-  Chip,
-  Empty,
-  Modal,
-  Page,
-  PageHeader,
-  Pager,
-  SearchInput,
-  StatCard,
-  TableWrap,
-  Tabs,
-  td,
-  th,
-  tr,
-} from '@/components/ui'
-import { APPLIANCE_LABEL, BRAND_LABEL, inr } from '@/lib/catalog'
-import { compact, dateTime, downloadCsv, isToday, matches, withinDays } from '@/lib/format'
-import { useStore } from '@/lib/store'
-import type { Booking, PayMethod } from '@/lib/types'
+import Link from 'next/link'
+import { useState } from 'react'
+import { CreditCard, Download, IndianRupee, Percent, ReceiptIndianRupee, Wallet } from 'lucide-react'
+import { SortTh } from '@/components/catalog/parts'
+import { useTable } from '@/components/catalog/useTable'
+import { when } from '@/components/support/labels'
+import { Async, Button, Card, Chip, Empty, Page, PageHeader, Pager, SearchInput, Segmented, Select, StatCard, Tabs, TableWrap, td, th, tr } from '@/components/ui'
+import { useCan, useTransactions, type Transaction } from '@/lib/data'
+import { cn } from '@/lib/cn'
+import { downloadCsv } from '@/lib/format'
 
-const METHOD_LABEL: Record<PayMethod, string> = { upi: 'UPI', card: 'Card', cash: 'Cash', wallet: 'Wallet' }
-type Filter = 'all' | 'paid' | 'unpaid' | 'refunded'
-const PAGE = 15
+const DAY = 86_400_000
+const rupees = (p: number) => `${p < 0 ? '− ' : ''}₹${Math.round(Math.abs(p) / 100).toLocaleString('en-IN')}`
+const METHOD = { upi: 'UPI', card: 'Card', cash: 'Cash', wallet: 'Wallet' } as const
+type Range = '7' | '30' | '90' | 'all'
 
-const txnId = (b: Booking) => `TXN-${b.id.replace('BK-', '')}`
-
-function payState(b: Booking): { label: string; tone: 'success' | 'warning' | 'neutral' } {
-  if (b.status === 'refunded') return { label: 'Refunded', tone: 'neutral' }
-  if (b.paid) return { label: 'Paid', tone: 'success' }
-  return { label: b.method === 'cash' ? 'Collect on site' : 'Unpaid', tone: 'warning' }
-}
-
-/** Customer-side money: what came in, how it came in, and what went back out. */
-export default function Payments() {
-  const store = useStore()
-  const toast = useToast()
-  const [filter, setFilter] = useState<Filter>('all')
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(0)
-  const [open, setOpen] = useState<string | null>(null)
-  const [refunding, setRefunding] = useState<Booking | null>(null)
-
-  const all = useMemo(
-    () => store.bookings.filter((b) => b.method !== null && b.status !== 'pending_payment').sort((a, z) => z.scheduledAt.localeCompare(a.scheduledAt)),
-    [store.bookings]
-  )
-
-  const m = useMemo(() => {
-    const paid = all.filter((b) => b.paid && b.status !== 'refunded')
-    const days = Array.from({ length: 30 }, (_, i) => {
-      const d = new Date()
-      d.setHours(0, 0, 0, 0)
-      d.setDate(d.getDate() - (29 - i))
-      const key = d.toDateString()
-      const list = paid.filter((b) => new Date(b.scheduledAt).toDateString() === key)
-      return {
-        label: i === 29 ? 'Today' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-        value: list.reduce((s, b) => s + b.amount, 0),
-        detail: `${list.length} payments`,
-      }
-    })
-    const last30 = paid.filter((b) => withinDays(b.scheduledAt, 30))
-    const methods = (['upi', 'card', 'cash', 'wallet'] as const).map((k) => ({
-      label: METHOD_LABEL[k],
-      value: last30.filter((b) => b.method === k).reduce((s, b) => s + b.amount, 0),
-    }))
-    const refunds = all.filter((b) => b.status === 'refunded' && withinDays(b.scheduledAt, 30))
-    const pending = all.filter((b) => !b.paid && b.status !== 'cancelled' && b.status !== 'refunded')
-    return {
-      today: paid.filter((b) => isToday(b.scheduledAt)).reduce((s, b) => s + b.amount, 0),
-      todayCount: paid.filter((b) => isToday(b.scheduledAt)).length,
-      month: last30.reduce((s, b) => s + b.amount, 0),
-      monthCount: last30.length,
-      pending: pending.reduce((s, b) => s + b.amount, 0),
-      pendingCount: pending.length,
-      refunds: refunds.reduce((s, b) => s + b.amount, 0),
-      refundCount: refunds.length,
-      days,
-      methods,
-    }
-  }, [all])
-
-  const counts = {
-    all: all.length,
-    paid: all.filter((b) => b.paid && b.status !== 'refunded').length,
-    unpaid: all.filter((b) => !b.paid && b.status !== 'refunded').length,
-    refunded: all.filter((b) => b.status === 'refunded').length,
-  }
-
-  const rows = all.filter((b) => {
-    if (filter === 'paid' && !(b.paid && b.status !== 'refunded')) return false
-    if (filter === 'unpaid' && (b.paid || b.status === 'refunded')) return false
-    if (filter === 'refunded' && b.status !== 'refunded') return false
-    const c = store.customer(b.customerId)
-    return matches([b.id, txnId(b), c?.name, c?.phone.replace(/\s/g, ''), b.coupon, b.method ? METHOD_LABEL[b.method] : ''], q)
-  })
-  const pages = Math.ceil(rows.length / PAGE)
-  const shown = rows.slice(page * PAGE, page * PAGE + PAGE)
-
-  const exportCsv = () =>
-    downloadCsv('payments', [
-      ['Transaction', 'Booking', 'Customer', 'Appliance', 'Method', 'Amount', 'Discount', 'Coupon', 'Status', 'Date'],
-      ...rows.map((b) => [
-        txnId(b),
-        b.id,
-        store.customer(b.customerId)?.name ?? '',
-        `${BRAND_LABEL[b.brand]} ${APPLIANCE_LABEL[b.appliance]}`,
-        b.method ? METHOD_LABEL[b.method] : '',
-        b.amount,
-        b.discount,
-        b.coupon ?? '',
-        payState(b).label,
-        new Date(b.scheduledAt).toLocaleString('en-IN'),
-      ]),
-    ])
-
+/** Every payment and refund on bookings, and what the platform kept. */
+export default function PaymentsPage() {
+  const txns = useTransactions()
+  const [range, setRange] = useState<Range>('30')
+  const [now] = useState(() => Date.now())
   return (
     <Page>
-      <PageHeader
-        side="customer"
-        title="Payments"
-        sub="Customer payments, collections on site and refunds"
-        actions={
-          <Button variant="secondary" onClick={exportCsv}>
-            <Download /> Export CSV
-          </Button>
-        }
+      <PageHeader title="Payments" sub="Payments customers made in the app, refunds sent back, and the commission on each job." />
+      <Segmented
+        className="mb-5"
+        value={range}
+        onChange={setRange}
+        options={[
+          { value: '7', label: '7 days' },
+          { value: '30', label: '30 days' },
+          { value: '90', label: '90 days' },
+          { value: 'all', label: 'All time' },
+        ]}
       />
-
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
-        <StatCard label="Collected today" value={inr(m.today)} icon={<IndianRupee />} toneName="success" hint={<span>{m.todayCount} payments</span>} />
-        <StatCard label="Collected · 30 days" value={`₹${compact(m.month)}`} icon={<Wallet />} hint={<span>{m.monthCount} payments</span>} />
-        <StatCard label="Pending / collect on site" value={inr(m.pending)} icon={<Banknote />} toneName="warning" hint={<span>{m.pendingCount} bookings</span>} />
-        <StatCard label="Refunds · 30 days" value={inr(m.refunds)} icon={<RotateCcw />} toneName="danger" hint={<span>{m.refundCount} refunds</span>} />
-      </section>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
-          <CardHeader title="Daily collections · 30 days" sub="Paid bookings by service date" />
-          <div className="px-4 pb-4 pt-5 sm:px-5">
-            <BarChart data={m.days} format={inr} labelEvery={5} name="Daily collections, last 30 days" />
-          </div>
-        </Card>
-        <Card>
-          <CardHeader title="Payment methods" sub="Share of collections · 30 days" />
-          <div className="p-5">
-            <Donut slices={m.methods} center={`₹${compact(m.month)}`} centerLabel="Collected" format={inr} />
-          </div>
-        </Card>
-      </div>
-
-      <Card className="mt-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
-          <h2 className="text-[15px] font-extrabold tracking-tight">Transactions</h2>
-          <SearchInput
-            value={q}
-            onChange={(v) => {
-              setQ(v)
-              setPage(0)
-            }}
-            placeholder="Search transaction, booking, customer, coupon"
-            className="w-full sm:w-80"
-          />
-        </div>
-        <Tabs
-          className="mt-2 px-3"
-          value={filter}
-          onChange={(v) => {
-            setFilter(v)
-            setPage(0)
-          }}
-          options={[
-            { value: 'all', label: 'All', count: counts.all },
-            { value: 'paid', label: 'Paid', count: counts.paid },
-            { value: 'unpaid', label: 'Unpaid', count: counts.unpaid },
-            { value: 'refunded', label: 'Refunded', count: counts.refunded },
-          ]}
-        />
-        {shown.length === 0 ? (
-          <Empty icon={<Wallet />} title="No transactions" body="Nothing matches this filter." />
-        ) : (
-          <>
-          {/* Phone: one card per transaction — the table would scroll sideways. */}
-          <ul className="divide-y divide-line sm:hidden">
-            {shown.map((b) => {
-              const st = payState(b)
-              const c = store.customer(b.customerId)
-              const refundable = b.paid && (b.status === 'completed' || b.status === 'cancelled')
-              return (
-                <li key={b.id} className="px-4 py-3">
-                  <div className="flex items-start gap-3">
-                    {c && <Avatar name={c.name} size={36} side="customer" />}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-bold">{c?.name}</span>
-                          <span className="num block truncate text-xs font-medium text-muted">{txnId(b)}</span>
-                        </span>
-                        <span className="shrink-0 text-right">
-                          <span className="num block text-sm font-extrabold">{inr(b.amount)}</span>
-                          <Chip tone={st.tone} className="mt-1">{st.label}</Chip>
-                        </span>
-                      </div>
-                      <button type="button" onClick={() => setOpen(b.id)} className="mt-2 block w-full rounded-lg bg-canvas px-3 py-2 text-left text-xs">
-                        <span className="flex justify-between gap-2">
-                          <span className="truncate font-bold text-brand">
-                            {b.id} · {BRAND_LABEL[b.brand]} {APPLIANCE_LABEL[b.appliance]}
-                          </span>
-                          <span className="shrink-0 font-semibold text-ink-2">{b.method ? METHOD_LABEL[b.method] : '—'}</span>
-                        </span>
-                        <span className="mt-0.5 flex justify-between gap-2 font-medium text-muted">
-                          <span>{dateTime(b.scheduledAt)}</span>
-                          <span className="truncate">{b.coupon ? `${b.coupon} · −${inr(b.discount)}` : ''}</span>
-                        </span>
-                      </button>
-                      {refundable && (
-                        <Button size="xs" variant="secondary" className="mt-2" onClick={() => setRefunding(b)}>
-                          <RotateCcw /> Refund
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-          <div className="hidden sm:block">
-<TableWrap>
-            <thead>
-              <tr>
-                <th className={th}>Transaction</th>
-                <th className={th}>Booking</th>
-                <th className={th}>Customer</th>
-                <th className={th}>Method</th>
-                <th className={`${th} text-right`}>Amount</th>
-                <th className={th}>Discount</th>
-                <th className={th}>Status</th>
-                <th className={th}>Date</th>
-                <th className={`${th} text-right`}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((b) => {
-                const st = payState(b)
-                const c = store.customer(b.customerId)
-                const refundable = b.paid && (b.status === 'completed' || b.status === 'cancelled')
-                return (
-                  <tr key={b.id} className={tr}>
-                    <td className={`${td} num font-semibold text-muted`}>{txnId(b)}</td>
-                    <td className={td}>
-                      <button type="button" onClick={() => setOpen(b.id)} className="font-bold text-brand hover:underline">
-                        {b.id}
-                      </button>
-                      <span className="block text-xs font-medium text-muted">
-                        {BRAND_LABEL[b.brand]} {APPLIANCE_LABEL[b.appliance]}
-                      </span>
-                    </td>
-                    <td className={`${td} font-semibold`}>{c?.name}</td>
-                    <td className={td}>{b.method ? METHOD_LABEL[b.method] : '—'}</td>
-                    <td className={`${td} num text-right font-extrabold`}>{inr(b.amount)}</td>
-                    <td className={`${td} text-xs font-semibold text-muted`}>{b.coupon ? `${b.coupon} · −${inr(b.discount)}` : '—'}</td>
-                    <td className={td}>
-                      <Chip tone={st.tone}>{st.label}</Chip>
-                    </td>
-                    <td className={`${td} whitespace-nowrap text-xs font-semibold text-muted`}>{dateTime(b.scheduledAt)}</td>
-                    <td className={`${td} text-right`}>
-                      {refundable ? (
-                        <Button size="xs" variant="secondary" onClick={() => setRefunding(b)}>
-                          <RotateCcw /> Refund
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-faint">—</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </TableWrap>
-          </div>
-          </>
-        )}
-        <Pager page={page} pages={pages} total={rows.length} onPage={setPage} />
-      </Card>
-
-      <BookingDrawer id={open} onClose={() => setOpen(null)} />
-
-      <Modal
-        open={!!refunding}
-        onClose={() => setRefunding(null)}
-        title="Issue refund?"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setRefunding(null)}>
-              Keep payment
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                if (!refunding) return
-                store.refund(refunding.id)
-                toast(`Refund of ${inr(refunding.amount)} issued for ${refunding.id}`)
-                setRefunding(null)
-              }}
-            >
-              Refund {refunding && inr(refunding.amount)}
-            </Button>
-          </>
-        }
-      >
-        {refunding && (
-          <p className="text-sm font-medium text-muted">
-            {inr(refunding.amount)} goes back to {store.customer(refunding.customerId)?.name} by{' '}
-            {refunding.method ? METHOD_LABEL[refunding.method] : 'the original method'} and {refunding.id} is marked refunded. This cannot be undone.
-          </p>
-        )}
-      </Modal>
+      <Async query={txns} empty={<Empty icon={<CreditCard />} title="No payments yet" />}>
+        {(all) => {
+          const rows = range === 'all' ? all : all.filter((t) => t.at >= now - Number(range) * DAY)
+          const ok = rows.filter((t) => t.status === 'success')
+          const collected = ok.filter((t) => t.kind === 'payment').reduce((s, t) => s + t.amount, 0)
+          const refunded = -ok.filter((t) => t.kind === 'refund').reduce((s, t) => s + t.amount, 0)
+          const commission = ok.reduce((s, t) => s + t.commission, 0)
+          return (
+            <>
+              <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <StatCard label="Collected" value={rupees(collected)} icon={<IndianRupee />} toneName="success" hint={`${ok.filter((t) => t.kind === 'payment').length} payments`} />
+                <StatCard label="Refunded" value={rupees(refunded)} icon={<ReceiptIndianRupee />} toneName="warning" hint={`${ok.filter((t) => t.kind === 'refund').length} refunds`} />
+                <StatCard label="Net received" value={rupees(collected - refunded)} icon={<Wallet />} toneName="brand" />
+                <StatCard label="Commission" value={rupees(commission)} icon={<Percent />} toneName="violet" hint="Platform’s share of payments" />
+              </div>
+              <Card className="overflow-hidden">
+                <TxnTable rows={rows} />
+              </Card>
+            </>
+          )
+        }}
+      </Async>
     </Page>
+  )
+}
+
+function TxnTable({ rows: all }: { rows: Transaction[] }) {
+  const can = useCan()
+  const [method, setMethod] = useState('all')
+  const rows = method === 'all' ? all : all.filter((t) => t.method === method)
+  const t = useTable({
+    rows,
+    search: (x) => [x.displayId, x.bookingId, x.customerName, x.note],
+    filters: {
+      all: () => true,
+      payments: (x: Transaction) => x.kind === 'payment' && x.status === 'success',
+      refunds: (x: Transaction) => x.kind === 'refund',
+      pending: (x: Transaction) => x.status === 'pending',
+      failed: (x: Transaction) => x.status === 'failed',
+    },
+    sorts: { at: (x: Transaction) => -x.at, amount: (x: Transaction) => -Math.abs(x.amount) },
+    initialSort: 'at',
+    pageSize: 20,
+  })
+  const n = (f: (x: Transaction) => boolean) => rows.filter(f).length
+  return (
+    <>
+      <div className="flex flex-col gap-3 border-b border-line p-4">
+        <Tabs
+          value={t.filter}
+          onChange={t.setFilter}
+          options={[
+            { value: 'all', label: 'All', count: rows.length },
+            { value: 'payments', label: 'Payments', count: n((x) => x.kind === 'payment' && x.status === 'success') },
+            { value: 'refunds', label: 'Refunds', count: n((x) => x.kind === 'refund') },
+            { value: 'pending', label: 'Awaiting payment', count: n((x) => x.status === 'pending') },
+            { value: 'failed', label: 'Failed', count: n((x) => x.status === 'failed'), alert: true },
+          ]}
+          className="border-b-0"
+        />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <SearchInput value={t.q} onChange={t.setQ} placeholder="Booking or customer" className="flex-1" />
+          <Select label="Method" value={method} onChange={setMethod} options={[{ value: 'all', label: 'Any method' }, ...Object.entries(METHOD).map(([v, l]) => ({ value: v, label: l }))]} />
+          {can('payments', 'export') && (
+            <Button
+              variant="secondary"
+              onClick={() =>
+                downloadCsv('payments', [
+                  ['When', 'Booking', 'Customer', 'Type', 'Method', 'Amount (₹)', 'Commission (₹)', 'Status', 'Note'],
+                  ...rows.map((x) => [new Date(x.at).toISOString(), x.displayId, x.customerName, x.kind, x.method ?? '', x.amount / 100, x.commission / 100, x.status, x.note ?? '']),
+                ])
+              }
+            >
+              <Download /> CSV
+            </Button>
+          )}
+        </div>
+      </div>
+      {t.total === 0 ? (
+        <Empty icon={<CreditCard />} title="Nothing here" body="Try another tab, method or range." />
+      ) : (
+        <TableWrap>
+          <thead>
+            <tr>
+              <SortTh by="at" label="When" sort={t.sort} onSort={t.sortBy} />
+              <th className={th}>Booking</th>
+              <th className={th}>Type</th>
+              <SortTh by="amount" label="Amount" sort={t.sort} onSort={t.sortBy} />
+              <th className={th}>Commission</th>
+              <th className={th}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {t.visible.map((x) => (
+              <tr key={x.id} className={tr}>
+                <td className={cn(td, 'text-[13px]')}>{when(x.at)}</td>
+                <td className={td}>
+                  <Link href={`/bookings?id=${x.bookingId}`} className="num block font-bold hover:text-brand">
+                    {x.displayId}
+                  </Link>
+                  <span className="block text-xs text-muted">{x.customerName}</span>
+                </td>
+                <td className={cn(td, 'text-[13px]')}>
+                  <span className="block font-semibold">{x.kind === 'payment' ? 'Payment' : 'Refund'}</span>
+                  <span className="block max-w-xs truncate text-xs text-muted">{x.method ? METHOD[x.method] : ''}{x.note ? `${x.method ? ' · ' : ''}${x.note}` : ''}</span>
+                </td>
+                <td className={cn(td, 'num font-bold', x.amount < 0 && 'text-warning')}>{rupees(x.amount)}</td>
+                <td className={cn(td, 'num text-[13px] text-muted')}>{x.commission ? rupees(x.commission) : '—'}</td>
+                <td className={td}>
+                  <Chip tone={x.status === 'success' ? (x.kind === 'refund' ? 'info' : 'success') : x.status === 'pending' ? 'warning' : 'danger'}>
+                    {x.status === 'success' ? (x.kind === 'refund' ? 'Refunded' : 'Paid') : x.status === 'pending' ? 'Waiting' : 'Failed'}
+                  </Chip>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </TableWrap>
+      )}
+      <Pager page={t.page} pages={t.pages} total={t.total} onPage={t.setPage} />
+    </>
   )
 }
