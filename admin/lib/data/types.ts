@@ -246,3 +246,22 @@ export interface AdminBooking {
   /** Who was offered the job and said no (or let it time out). */
   dispatch: { declinedBy: string[]; noTechFound: boolean }
 }
+
+/* ------------------------------------------------------------- Customers */
+
+/** TODO(shared/user.ts): the customer as the console sees them. */
+export interface AdminCustomer {
+  id: string
+  name: string
+  phone: string
+  email: string
+  area: string
+  addresses: { label: string; line: string }[]
+  joinedAt: number
+  status: 'active' | 'blocked'
+  /** Why they were blocked — kept for the next admin, not shown to the customer. */
+  blockReason?: string
+  walletCredit: Paise
+  referralCode: string
+  referrals: number
+}

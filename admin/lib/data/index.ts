@@ -66,3 +66,5 @@ export {
   useUrgentDispatchCount,
   type Candidate,
 } from './bookings'
+export { CustomerError, blockCustomer, unblockCustomer, useCustomer, useCustomerBookings, useCustomers, type CustomerRow } from './customers'
+export { useDashboard, type DashboardData } from './dashboard'
