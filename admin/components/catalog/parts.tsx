@@ -105,7 +105,7 @@ export function HideButton({ active, onToggle, disabled }: { active: boolean; on
 }
 
 /**
- * Runs one catalog action at a time: a receipt toast when it works, the
+ * Runs one admin action at a time: a receipt toast when it works, the
  * reason when the form needs fixing, and a plain network message otherwise.
  */
 export function useAction() {
@@ -121,9 +121,11 @@ export function useAction() {
       then?.()
       return true
     } catch (e) {
-      const msg = e instanceof Error && e.name === 'CatalogError' ? e.message : 'Couldn’t save. Check your connection and try again.'
+      // Anything but the network is a sentence for the form (CatalogError, PartnerError…).
+      const formError = e instanceof Error && e.name !== 'NetworkError'
+      const msg = formError ? e.message : 'Couldn’t save. Check your connection and try again.'
       setError(msg)
-      if (!(e instanceof Error && e.name === 'CatalogError')) toast(msg)
+      if (!formError) toast(msg)
       return false
     } finally {
       setBusy(false)

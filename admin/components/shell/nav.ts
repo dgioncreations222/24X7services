@@ -21,6 +21,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
+import { useKycQueueCount } from '@/lib/data'
 import { useStore } from '@/lib/store'
 import type { Side } from '../ui'
 
@@ -90,14 +91,16 @@ export const TITLES: Record<string, string> = Object.fromEntries(NAV.flatMap((g)
 /** Counts that sit beside menu items: things waiting on a person. */
 export function useBadges() {
   const s = useStore()
+  // Technicians moved to lib/data in PR 9; the other counts follow as their pages move.
+  const kyc = useKycQueueCount()
   return useMemo(
     () => ({
       emergency: s.bookings.filter((b) => b.priority === 'emergency' && b.status === 'confirmed').length,
       unassigned: s.bookings.filter((b) => b.status === 'confirmed').length,
-      kyc: s.technicians.filter((t) => t.kyc === 'pending').length,
+      kyc,
       tickets: s.tickets.filter((t) => t.status === 'open').length,
       payouts: s.payouts.filter((p) => p.status === 'pending').length,
     }),
-    [s.bookings, s.technicians, s.tickets, s.payouts]
+    [s.bookings, kyc, s.tickets, s.payouts]
   )
 }

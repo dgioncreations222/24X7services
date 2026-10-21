@@ -107,3 +107,66 @@ export interface ServiceArea {
   area: string
   active: boolean
 }
+
+/* ----------------------------------------------------------- Technicians */
+
+/**
+ * TODO(partner.ts): the shared proposal's PartnerStatus.
+ * applied → kyc_pending → approved | rejected → active ⇄ suspended.
+ */
+export type PartnerStatus = 'applied' | 'kyc_pending' | 'approved' | 'rejected' | 'active' | 'suspended'
+
+/** TODO(partner.ts): PayoutDestination. Only the last four digits of an account are kept. */
+export type PayoutDestination = { kind: 'bank'; accountName: string; accountLast4: string; ifsc: string } | { kind: 'upi'; upiId: string }
+
+/** TODO(partner.ts): Partner, plus what the console shows about how they work. */
+export interface Partner {
+  id: string
+  name: string
+  phone: string
+  email: string
+  city: string
+  /** Their base area within the city. */
+  area: string
+  /** Category ids (catalog) they are approved for. */
+  skills: string[]
+  experienceYears: number
+  status: PartnerStatus
+  online: boolean
+  /** On a job right now (only while online). */
+  onJob: boolean
+  rating: number
+  ratingCount: number
+  completedJobs: number
+  /** Percent of offers accepted, last 30 days. */
+  acceptanceRate: number
+  /** Percent of visits started on time, last 30 days. */
+  onTimeRate: number
+  /** Percent of accepted jobs they cancelled, last 30 days. */
+  cancelRate: number
+  jobs30: number
+  /** What they earned after commission, last 30 days. */
+  earnings30: Paise
+  payout?: PayoutDestination
+  /** Why they were rejected or suspended — shown to the technician. */
+  statusReason?: string
+  createdAt: number
+  /** When KYC was last sent for review. */
+  submittedAt?: number
+}
+
+export type KycDocType = 'aadhaar' | 'pan' | 'photo' | 'bank'
+
+/** TODO(partner.ts): KycDocument. */
+export interface KycDocument {
+  id: string
+  partnerId: string
+  type: KycDocType
+  fileUrl: string
+  status: 'pending' | 'approved' | 'rejected'
+  rejectReason?: string
+  /** Admin name. */
+  reviewedBy?: string
+  uploadedAt: number
+  reviewedAt?: number
+}

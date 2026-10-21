@@ -36,3 +36,17 @@ export {
   type ServiceInput,
 } from './catalog'
 export { useCan } from './permissions'
+export {
+  KYC_DOC_TYPES,
+  PartnerError,
+  approvePartner,
+  reactivatePartner,
+  rejectPartner,
+  reviewDoc,
+  setPartnerSkills,
+  suspendPartner,
+  useKycDocs,
+  useKycQueueCount,
+  usePartner,
+  usePartners,
+} from './technicians'
