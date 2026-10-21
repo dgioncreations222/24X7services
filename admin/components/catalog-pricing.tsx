@@ -277,7 +277,7 @@ function Preview({ catalog }: { catalog: Catalog }) {
 
 /* -------------------------------------------------------------- Emergency */
 
-/** The 24×7 emergency desk's price rules and promise. */
+/** The emergency desk's price rules and promise. */
 export function EmergencyTab() {
   const store = useStore()
   const toast = useToast()

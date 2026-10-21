@@ -133,7 +133,7 @@ export default function Reports() {
         <Card>
           <CardHeader
             title="Bookings by brand"
-            sub="Samsung, LG, Bosch and IBM"
+            sub="Samsung, LG, Bosch and IFB"
             action={<ExportButton onClick={() => downloadCsv(`bookings-by-brand-${tag}`, [['Brand', 'Bookings', 'Revenue'], ...r.byBrand.map((x) => [x.label, x.value, x.rev])])} />}
           />
           <div className="p-5">

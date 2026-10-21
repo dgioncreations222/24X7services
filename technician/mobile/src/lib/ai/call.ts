@@ -78,7 +78,7 @@ export function planCall(job: Job, purpose: CallPurpose, scenario: CallScenario,
   const ai = (text: string): CallLine => ({ speaker: 'ai', text })
   const cu = (text: string): CallLine => ({ speaker: 'customer', text })
 
-  const intro = ai(`Hello, this is the automated service assistant from 24X7, calling about your ${applianceLower} service. Am I speaking with ${job.customer.name}?`)
+  const intro = ai(`Hello, this is the automated service assistant from Customer Service, calling about your ${applianceLower} service. Am I speaking with ${job.customer.name}?`)
   const lines: CallLine[] = [intro, cu(`Yes, this is ${first}.`)]
 
   const escalate = (reason: string, customerLine: string): CallPlan => {

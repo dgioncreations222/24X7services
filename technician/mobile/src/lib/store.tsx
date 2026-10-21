@@ -18,7 +18,8 @@ import type { Bill, Confirmation, Diagnosis, FlowStep, Job, Notice, Notification
 
 // v2: the demo now starts signed in. A v1 save from when it started signed
 // out would otherwise drop everyone on the login screen.
-const KEY = 'technician.state.v2'
+// v3: the 'ibm' brand became 'ifb'; older saves hold jobs keyed to the old id.
+const KEY = 'technician.state.v3'
 
 interface Persisted {
   signedIn: boolean
@@ -128,6 +129,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Read storage after mount, so a first launch shows the splash rather than
     // a flash of seed data that is then swapped out.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState(load())
     loaded.current = true
     setReady(true)

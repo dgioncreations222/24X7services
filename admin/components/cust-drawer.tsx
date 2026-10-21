@@ -336,7 +336,7 @@ export function CustomerDrawer({ c, bookings, spend, onClose }: { c?: Customer; 
           </>
         }
       >
-        <p className="mb-3 text-sm font-medium text-muted">Credit lands in the customer’s 24X7 Wallet and applies to their next booking.</p>
+        <p className="mb-3 text-sm font-medium text-muted">Credit lands in the customer’s Customer Service Wallet and applies to their next booking.</p>
         <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Amount">
           {[100, 200, 500].map((v) => (
             <button

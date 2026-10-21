@@ -7,6 +7,7 @@ import { Logo } from '@/components/Logo'
 import { QrCode, upiLink } from '@/components/UpiQr'
 import { ActionDock, Button, Card, Icon, Inherit, Label, Page, ScreenHeader, SectionTitle, Tappable, Text, inputClass } from '@/components/ui'
 import { APPLIANCE_LABEL, BRAND_LABEL, LABOUR_RATE, inr } from '@/lib/catalog'
+import { BRAND } from '@/lib/brand'
 import { cn } from '@/lib/cn'
 import { shortDate, time } from '@/lib/format'
 import { stepHref } from '@/lib/routes'
@@ -172,7 +173,7 @@ function BillForm({ job }: { job: Job }) {
           {bill.method === 'online' && !bill.paid && (
             <Card className="mt-3 flex-row items-center gap-4 p-4">
               <QrCode
-                text={upiLink({ upi: store.settings.upi, name: store.tech.name, amount: total, note: `24X7 ${job.id}` })}
+                text={upiLink({ upi: store.settings.upi, name: store.tech.name, amount: total, note: `${BRAND.name} ${job.id}` })}
                 className="size-32 shrink-0 border border-line p-1"
               />
               <View className="min-w-0 flex-1">

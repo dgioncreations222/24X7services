@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Eye, KeyRound, Lock, MoreHorizontal, RotateCcw, ShieldCheck, Trash2, UserPlus, UserRoundCheck, UserRoundX, Users } from 'lucide-react'
+import { Eye, Lock, MoreHorizontal, RotateCcw, Trash2, UserPlus, UserRoundCheck, UserRoundX, Users } from 'lucide-react'
 import { useToast } from '@/components/toast'
 import {
   Avatar,
@@ -127,21 +127,10 @@ function UsersTab({ canEdit }: { canEdit: boolean }) {
 
   return (
     <>
-      <section className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4" aria-label="Team at a glance">
+      <section className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:gap-4" aria-label="Team at a glance">
         <StatCard label="Total admins" value={store.admins.length} icon={<Users />} />
         <StatCard label="Active" value={count('active')} icon={<UserRoundCheck />} toneName="success" />
         <StatCard label="Invites pending" value={count('invited')} icon={<UserPlus />} toneName="warning" />
-        <StatCard
-          label="Two-factor on"
-          value={
-            <>
-              {store.admins.filter((a) => a.twoFactor).length}
-              <span className="text-base font-bold text-faint">/{store.admins.length}</span>
-            </>
-          }
-          icon={<KeyRound />}
-          toneName="info"
-        />
       </section>
 
       <Card>
@@ -176,11 +165,6 @@ function UsersTab({ canEdit }: { canEdit: boolean }) {
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     <Chip tone={ROLE_TONE[a.role]}>{a.role}</Chip>
                     <Chip tone={STATUS_TONE[a.status]}>{STATUS_LABEL[a.status]}</Chip>
-                    {a.twoFactor && (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-success">
-                        <ShieldCheck className="size-3.5" aria-hidden /> 2FA
-                      </span>
-                    )}
                   </div>
                   <p className="mt-1.5 text-xs font-medium text-muted">
                     <span className="num">{a.phone}</span> · {a.status === 'invited' ? `Invited ${ago(a.createdAt)}` : `Active ${ago(a.lastActive)}`}
@@ -198,7 +182,6 @@ function UsersTab({ canEdit }: { canEdit: boolean }) {
               <th className={th}>Contact</th>
               <th className={th}>Role</th>
               <th className={th}>Status</th>
-              <th className={th}>2FA</th>
               <th className={th}>Last active</th>
               <th className={cn(th, 'text-right')}>Actions</th>
             </tr>
@@ -206,7 +189,7 @@ function UsersTab({ canEdit }: { canEdit: boolean }) {
           <tbody>
             {list.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-12 text-center text-sm font-semibold text-muted">
+                <td colSpan={6} className="px-5 py-12 text-center text-sm font-semibold text-muted">
                   No admins match these filters.
                 </td>
               </tr>
@@ -236,15 +219,6 @@ function UsersTab({ canEdit }: { canEdit: boolean }) {
                   </td>
                   <td className={td}>
                     <Chip tone={STATUS_TONE[a.status]}>{STATUS_LABEL[a.status]}</Chip>
-                  </td>
-                  <td className={td}>
-                    {a.twoFactor ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-success">
-                        <ShieldCheck className="size-3.5" aria-hidden /> On
-                      </span>
-                    ) : (
-                      <span className="text-xs font-semibold text-faint">Off</span>
-                    )}
                   </td>
                   <td className={cn(td, 'text-xs font-semibold text-muted')}>{a.status === 'invited' ? `Invited ${ago(a.createdAt)}` : ago(a.lastActive)}</td>
                   <td className={cn(td, 'text-right')}>
@@ -350,7 +324,8 @@ function AdminForm({ onClose, user }: { onClose: () => void; user?: AdminUser })
   const [email, setEmail] = useState(user?.email ?? '')
   const [phone, setPhone] = useState(user?.phone ?? '+91 ')
   const [role, setRole] = useState<AdminRole>(user?.role ?? 'Operations Admin')
-  const [twoFactor, setTwoFactor] = useState(user?.twoFactor ?? true)
+  // Kept on the record for the backend; there is no OTP sign-in to switch on.
+  const twoFactor = user?.twoFactor ?? false
   const me = user?.email === ADMIN.email
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   const taken = !user && store.admins.some((a) => a.email.toLowerCase() === email.trim().toLowerCase())
@@ -400,7 +375,7 @@ function AdminForm({ onClose, user }: { onClose: () => void; user?: AdminUser })
           <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="e.g. Neha Kapoor" />
         </Field>
         <Field label="Work email" hint={taken ? <span className="text-danger">This email already has access.</span> : undefined}>
-          <input type="email" value={email} disabled={!!user} onChange={(e) => setEmail(e.target.value)} placeholder="name@24x7services.in" className={cn(inputClass, user && 'bg-canvas text-muted')} />
+          <input type="email" value={email} disabled={!!user} onChange={(e) => setEmail(e.target.value)} placeholder="name@customerservice.example" className={cn(inputClass, user && 'bg-canvas text-muted')} />
         </Field>
         <Field label="Phone">
           <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} />
@@ -408,13 +383,6 @@ function AdminForm({ onClose, user }: { onClose: () => void; user?: AdminUser })
         <Field label="Role" hint={me ? 'You can’t change your own role.' : ROLE_NOTE[role]}>
           <Select full label="Role" value={role} disabled={me} onChange={setRole} options={ADMIN_ROLES.map((r) => ({ value: r, label: r }))} />
         </Field>
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2.5">
-          <span>
-            <span className="block text-sm font-bold">Require two-factor sign-in</span>
-            <span className="block text-xs text-muted">OTP on every new device</span>
-          </span>
-          <Toggle checked={twoFactor} onChange={setTwoFactor} label="Require two-factor" />
-        </div>
       </div>
     </Modal>
   )

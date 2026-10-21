@@ -84,7 +84,7 @@ export default function SettingsPage() {
             </ul>
             <p className="flex items-start gap-2 border-t border-line bg-danger-soft/50 px-5 py-3 text-xs font-semibold text-ink-2">
               <Siren className="mt-0.5 size-3.5 shrink-0 text-danger" aria-hidden />
-              The emergency desk runs 24×7 — emergencies reach technicians outside their working hours if they opted in.
+              The emergency desk runs round the clock — emergencies reach technicians outside their working hours if they opted in.
             </p>
           </Card>
 

@@ -5,7 +5,6 @@ import Animated, { Easing, ReduceMotion, cancelAnimation, useAnimatedStyle, useS
 import { StatusBar } from 'expo-status-bar'
 import { useIsFocused, type Href } from 'expo-router'
 import { Bell, ChevronRight, MessageCircle, Navigation, Phone, PowerOff, Search, SearchX, Siren, Star, X } from 'lucide-react-native'
-import { AiMark, CallMark } from '@/components/ai/AiMark'
 import { useAvailability } from '@/components/Availability'
 import { ApplianceGlyph } from '@/components/glyphs'
 import { JobCard } from '@/components/JobCard'
@@ -139,7 +138,7 @@ export default function HomeScreen() {
               <Icon as={Star} className="size-3.5 text-[#fbbf24]" fill="#fbbf24" />
             </View>
           </Tappable>
-          <Tappable href="/history" className="flex-1 border-l border-white/10 pl-3">
+          <Tappable href="/jobs?chip=completed" className="flex-1 border-l border-white/10 pl-3">
             <Text className="text-[11px] font-semibold text-white/55">Completed</Text>
             <Text className="num mt-0.5 text-[19px] font-extrabold leading-tight tracking-tight text-white">
               {stats.done}
@@ -186,7 +185,7 @@ export default function HomeScreen() {
                   ['Pending', stats.pending, 'bg-warning', '/jobs'],
                   ['Accepted', stats.accepted, 'bg-brand', '/jobs'],
                   ['In progress', stats.progress, 'bg-violet', '/jobs'],
-                  ['Completed', stats.done, 'bg-success', '/history'],
+                  ['Completed', stats.done, 'bg-success', '/jobs?chip=completed'],
                   ["Today's earnings", inr(stats.earnings), 'bg-success', '/earnings'],
                 ] as const
               ).map(([label, value, bar, href]) => (
@@ -221,8 +220,6 @@ export default function HomeScreen() {
               </View>
             )}
 
-            <AiAssistCard job={current} />
-
             {emergencyWaiting && <EmergencyAlert job={emergencyWaiting} count={emergencies.length} />}
             {current && <CurrentJob job={current} />}
             {(upcoming || recent) && (
@@ -238,7 +235,7 @@ export default function HomeScreen() {
                 <SectionTitle
                   count={requests.length}
                   action={
-                    <Tappable href="/emergency" className="flex-row items-center gap-1">
+                    <Tappable href="/jobs?chip=emergency" className="flex-row items-center gap-1">
                       <Icon as={Siren} className="size-4 text-danger" />
                       <Text className="text-xs font-bold text-danger">Emergency desk</Text>
                     </Tappable>
@@ -391,45 +388,6 @@ function SearchResults({ jobs, query }: { jobs: Job[]; query: string }) {
         <Empty icon={<Icon as={SearchX} className="size-5" />} title="No jobs found" body="Try a customer name, area, job ID, brand or appliance." />
       )}
     </View>
-  )
-}
-
-/**
- * The way into AI Assist from the dashboard. With a job in hand both buttons
- * open straight on it, so the technician never retypes the appliance.
- */
-function AiAssistCard({ job }: { job?: Job }) {
-  return (
-    <Card className="gap-3 p-4">
-      <Tappable href="/ai" className="min-w-0 flex-row items-center gap-3">
-        <AiMark size={44} />
-        <View className="min-w-0 flex-1">
-          <View className="flex-row items-center gap-1">
-            <Text className="text-[15px] font-extrabold">AI Assistant</Text>
-            <Icon as={ChevronRight} className="size-4 text-faint" />
-          </View>
-          <Text numberOfLines={1} className="text-xs font-medium text-muted">
-            {job ? `Ready for ${applianceTitle(job.brand, job.appliance)} · ${job.issue}` : 'Diagnose faults, find parts, run customer calls'}
-          </Text>
-        </View>
-      </Tappable>
-      <View className="flex-row gap-2">
-        <Tappable
-          href={(job ? `/ai/chat?id=${job.id}` : '/ai/chat') as Href}
-          className="h-11 flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-brand-ink px-4 active:bg-brand active:opacity-100"
-        >
-          <AiMark size={18} className="bg-transparent" />
-          <Text className="text-sm font-extrabold text-white">Ask AI</Text>
-        </Tappable>
-        <Tappable
-          href={(job ? `/ai/call?id=${job.id}` : '/ai') as Href}
-          className="h-11 flex-1 flex-row items-center justify-center gap-2 rounded-xl border-2 border-line-strong px-4 active:border-ink-2 active:opacity-100"
-        >
-          <CallMark size={18} className="bg-transparent text-success" />
-          <Text className="text-sm font-extrabold">AI Call</Text>
-        </Tappable>
-      </View>
-    </Card>
   )
 }
 

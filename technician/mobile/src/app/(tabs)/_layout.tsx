@@ -1,20 +1,18 @@
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs'
-import { BriefcaseBusiness, House, Sparkles, UserRound, Wallet, type LucideIcon } from 'lucide-react-native'
+import { BriefcaseBusiness, House, UserRound, Wallet, type LucideIcon } from 'lucide-react-native'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
 import { Icon, InTabs, Tappable, Text } from '@/components/ui'
 
 /**
- * The five places a technician goes — the same five, in the same order, as
- * the web app's bottom nav. Everything else is pushed over them.
+ * The four places a technician goes. Everything else is pushed over them.
  */
 
 const TABS: Record<string, { label: string; icon: LucideIcon }> = {
   home: { label: 'Home', icon: House },
   jobs: { label: 'Jobs', icon: BriefcaseBusiness },
-  ai: { label: 'AI Assist', icon: Sparkles },
   earnings: { label: 'Earnings', icon: Wallet },
   profile: { label: 'Profile', icon: UserRound },
 }
@@ -56,7 +54,8 @@ export default function TabsLayout() {
       <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false }} backBehavior="history">
         <Tabs.Screen name="home" />
         <Tabs.Screen name="jobs" />
-        <Tabs.Screen name="ai" />
+        {/* AI Assist (ai.tsx) is kept in the repo but no longer a tab. */}
+        <Tabs.Screen name="ai" options={{ href: null }} />
         <Tabs.Screen name="earnings" />
         <Tabs.Screen name="profile" />
       </Tabs>

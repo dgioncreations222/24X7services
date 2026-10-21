@@ -35,7 +35,7 @@ export function variantOf(job: Job): CardVariant {
 
 const BADGE: Record<CardVariant, { label: string; box: string; text: string }> = {
   request: { label: 'New request', box: 'bg-brand', text: 'text-white' },
-  emergency: { label: '24×7 Emergency', box: 'bg-danger', text: 'text-white' },
+  emergency: { label: 'Emergency', box: 'bg-danger', text: 'text-white' },
   accepted: { label: 'Accepted', box: 'bg-brand-soft', text: 'text-brand' },
   on_the_way: { label: 'On the way', box: 'bg-info-soft', text: 'text-info' },
   in_progress: { label: 'In progress', box: 'bg-violet-soft', text: 'text-violet' },
@@ -91,7 +91,7 @@ export function JobCard({ job }: { job: Job }) {
           </Tag>
           {variant === 'request' && job.priority === 'high' && (
             <Tag box="bg-warning" text="text-white">
-              Urgent • 24×7
+              Urgent
             </Tag>
           )}
           {variant === 'request' && job.priority === 'normal' && (

@@ -15,7 +15,7 @@ import { ApplianceGlyph } from './glyphs'
 import { useToast } from './toast'
 import { Avatar, Button, Chip, Detail, Drawer, Field, inputClass, Modal, PriorityTag, Rating, SectionLabel, SideTag, StatusChip, Select } from './ui'
 
-const METHOD: Record<string, string> = { upi: 'UPI', card: 'Card', cash: 'Cash on service', wallet: '24X7 Wallet' }
+const METHOD: Record<string, string> = { upi: 'UPI', card: 'Card', cash: 'Cash on service', wallet: 'Customer Service Wallet' }
 
 /** A booking end to end: who, what, when, who is on it, the money, and every step so far. */
 export function BookingDrawer({ id, onClose }: { id: string | null; onClose: () => void }) {

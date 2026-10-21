@@ -16,6 +16,7 @@ import { router } from 'expo-router'
 import { Eye, EyeOff, Fingerprint, Headset, KeyRound, Lock, ShieldCheck, Smartphone } from 'lucide-react-native'
 import { Logo } from '@/components/Logo'
 import { Button, Field, Icon, Segmented, Sheet, Tappable, Text, Toggle, inputClass } from '@/components/ui'
+import { BRAND } from '@/lib/brand'
 import { cn } from '@/lib/cn'
 import { DEMO_OTP, TECHNICIAN } from '@/lib/seed'
 import { useStore } from '@/lib/store'
@@ -60,7 +61,7 @@ export default function LoginScreen() {
                 Every job, from request to sign-off, in one place.
               </Text>
               <Text className="mt-3 max-w-sm text-sm font-medium text-white/65">
-                Samsung, LG, Bosch and IBM washing machines, refrigerators, ovens, ACs and geysers — dispatched around the clock.
+                Samsung, LG, Bosch and IFB washing machines, refrigerators, ovens, ACs and geysers — dispatched around the clock.
               </Text>
             </View>
           </View>
@@ -71,7 +72,7 @@ export default function LoginScreen() {
               <Text accessibilityRole="header" className="text-2xl font-extrabold tracking-tight">
                 Sign in
               </Text>
-              <Text className="mt-1 text-sm font-medium text-muted">Verified 24X7 technicians only.</Text>
+              <Text className="mt-1 text-sm font-medium text-muted">Verified {BRAND.name} technicians only.</Text>
 
               <Segmented
                 className="mt-6"

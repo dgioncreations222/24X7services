@@ -37,7 +37,7 @@ export const STATUS_FILTERS = [
   { key: 'in_progress', label: 'In Progress', match: ['arrived', 'diagnosis', 'repair', 'repaired', 'confirmation'] },
   { key: 'completed', label: 'Completed', match: ['closed'] },
   { key: 'cancelled', label: 'Cancelled', match: ['cancelled', 'rejected'] },
-] as const satisfies ReadonlyArray<{ key: string; label: string; match: readonly JobStatus[] }>
+] as const satisfies readonly { key: string; label: string; match: readonly JobStatus[] }[]
 
 export type StatusFilter = (typeof STATUS_FILTERS)[number]['key']
 

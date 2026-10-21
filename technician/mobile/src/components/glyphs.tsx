@@ -5,8 +5,7 @@ import { BRAND_LABEL } from '@/lib/catalog'
 import { useResolveClassNames } from 'uniwind'
 import { cn } from '@/lib/cn'
 import { hiddenFromA11y, toPx, useColor } from './base/Icon'
-import { useInherited } from './base/Text'
-import { Text } from './base/Text'
+import { Text, useInherited } from './base/Text'
 
 /**
  * Drawn for this app rather than borrowed: no icon set has an oven or a

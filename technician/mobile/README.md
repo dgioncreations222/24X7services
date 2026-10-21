@@ -1,4 +1,4 @@
-# 24X7 Technician Partner — native app
+# Customer Service Partner — native app
 
 Expo SDK 57 + Expo Router + Uniwind (Tailwind on React Native). A port of the
 Next.js technician app one folder up, with the same seeded demo kept on the

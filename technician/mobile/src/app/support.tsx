@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Linking, TextInput, View } from 'react-native'
 import { Check, ChevronDown, CircleCheck, Flag, Headset, MessageCircle, Phone, Siren } from 'lucide-react-native'
 import { Button, Card, Field, FilterChip, Icon, Page, ScreenHeader, SectionTitle, Sheet, Tappable, Text, inputClass } from '@/components/ui'
+import { BRAND } from '@/lib/brand'
 import { cn } from '@/lib/cn'
 import { useStore } from '@/lib/store'
 
@@ -34,7 +35,7 @@ export default function SupportScreen() {
 
   return (
     <>
-      <ScreenHeader back="/profile" title="Help & Support" subtitle="Partner desk · open 24×7" />
+      <ScreenHeader back="/profile" title="Help & Support" subtitle="Partner desk · open round the clock" />
       <Page className="gap-5">
         <Tappable
           accessibilityRole="link"
@@ -96,7 +97,7 @@ export default function SupportScreen() {
 
         <View className="flex-row items-center justify-center gap-2">
           <Icon as={Headset} className="size-4 text-faint" />
-          <Text className="shrink text-xs font-semibold text-faint">Partner desk 040 6824 1000 · partners@24x7services.in</Text>
+          <Text className="shrink text-xs font-semibold text-faint">Partner desk 040 6824 1000 · partners@{BRAND.domain}</Text>
         </View>
       </Page>
 

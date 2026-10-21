@@ -75,6 +75,7 @@ export function IncomingRequest() {
   useEffect(() => {
     if (session.primed || !jobs.length) return
     session.primed = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     see(jobs.filter((j) => j.status === 'request').sort(byUrgency).slice(1).map((j) => j.id))
   }, [jobs])
 

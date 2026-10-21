@@ -27,7 +27,7 @@ const theme = {
 
 /**
  * The root: fonts, the on-device store, and the shell that sits around every
- * screen. The five tabs live in (tabs); everything else is pushed over them.
+ * screen. The four tabs live in (tabs); everything else is pushed over them.
  */
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
