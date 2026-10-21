@@ -1,10 +1,10 @@
 'use client'
 
+import { rupees } from '@/lib/money'
 import { Activity, BriefcaseBusiness, Clock3, IndianRupee, UserRoundCheck } from 'lucide-react'
 import { StatCard } from '@/components/ui'
 import type { DashboardData } from '@/lib/data'
 
-const rupees = (p: number) => '₹' + Math.round(p / 100).toLocaleString('en-IN')
 const change = (now: number, before: number) => (before ? ((now - before) / before) * 100 : 0)
 
 /** Today in five numbers, each a link to the page behind it. */

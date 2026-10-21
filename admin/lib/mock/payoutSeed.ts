@@ -1,7 +1,7 @@
 /**
  * Weekly payouts for the mock, built from the seeded bookings the way the
  * weekly payout job will build them: every completed, paid job goes into its
- * technician's payout for the week (Monday to Sunday) it was done, with
+ * technician's payout for the week (Monday to Sunday) it was paid in full, with
  * refunds and the cash they collected taken off, and a negative week carried
  * into the next. Last week waits for approval, the week before is half
  * approved, older weeks are paid. A suspended or inactive technician's
@@ -9,7 +9,7 @@
  *
  * TODO(backend): a scheduled Cloud Function runs settleWeek every Monday.
  */
-import { payable, settleWeek } from '../money'
+import { payable, payoutAt, settleWeek } from '../money'
 import type { AdminBooking, Partner, PartnerPayout } from '../data/types'
 
 const DAY = 86_400_000
@@ -38,7 +38,8 @@ export function seedPayouts(bookings: AdminBooking[], partners: Partner[], commi
       for (let w = 4; w >= 1; w--) {
         const start = thisWeek - w * 7 * DAY
         const end = start + 7 * DAY
-        const jobs = bookings.filter((b) => b.technicianId === p.id && payable(b) && b.slotStart >= start && b.slotStart < end)
+        // By the day the job was paid in full, so a late payment lands in an open week.
+        const jobs = bookings.filter((b) => b.technicianId === p.id && payable(b) && payoutAt(b) >= start && payoutAt(b) < end)
         if (!jobs.length && !carry) continue
         const week = settleWeek(jobs, commissionPct, carry)
         const away = p.status !== 'active'

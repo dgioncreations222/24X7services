@@ -7,7 +7,7 @@
  * bank transfer goes out. The sums themselves live in lib/money.
  */
 import { useSyncExternalStore } from 'react'
-import { bill, commissionOn, jobMoney, payable, rupees as rs } from '../money'
+import { bill, cashCollected, commissionOn, rupees as rs } from '../money'
 import { mockRequest } from '../mock/api'
 import { read, subscribe, write, type MockDb } from '../mock/db'
 import { audit } from './audit'
@@ -74,8 +74,9 @@ export function cashHeld(db: MockDb): Record<string, Paise> {
   const settled = settledJobs(db.payouts)
   const out: Record<string, Paise> = {}
   for (const b of db.bookings) {
-    if (!b.technicianId || !payable(b) || settled.has(b.id)) continue
-    const cash = jobMoney(b, db.settings.commissionPct).cash
+    if (!b.technicianId || settled.has(b.id)) continue
+    // Part-paid cash counts: it is in their hand even before the job is payable.
+    const cash = cashCollected(b)
     if (cash) out[b.technicianId] = (out[b.technicianId] ?? 0) + cash
   }
   return out
@@ -95,7 +96,13 @@ export function settledJobs(payouts: PartnerPayout[]): Set<string> {
     let carried: PartnerPayout[] = []
     for (const w of [...weeks].sort((a, b) => a.periodStart - b.periodStart)) {
       if (w.status === 'carried_forward') {
-        carried.push(w)
+        // A week that came out exactly even carries nothing forward: it settles
+        // itself and the carried weeks before it. One that came out negative
+        // waits for the week it was carried into.
+        if (w.net === 0) {
+          for (const x of [...carried, w]) for (const id of x.jobIds) settled.add(id)
+          carried = []
+        } else carried.push(w)
         continue
       }
       if (w.status === 'paid') for (const x of [...carried, w]) for (const id of x.jobIds) settled.add(id)

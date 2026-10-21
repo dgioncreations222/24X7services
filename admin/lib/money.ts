@@ -13,7 +13,10 @@
 import type { AdminBooking, Paise } from './data/types'
 
 /** ₹1,234 from paise — whole rupees, Indian grouping, "− " in front of a negative. */
-export const rupees = (paise: number) => `${paise < 0 ? '− ' : ''}₹${Math.round(Math.abs(paise) / 100).toLocaleString('en-IN')}`
+export function rupees(paise: number) {
+  const r = Math.round(paise / 100)
+  return `${r < 0 ? '− ' : ''}₹${Math.abs(r).toLocaleString('en-IN')}`
+}
 
 /** What the bill comes to, from the booking alone. */
 export function bill(b: AdminBooking) {
@@ -58,6 +61,16 @@ export const payable = (b: AdminBooking) => {
   const m = bill(b)
   return b.status === 'completed' && m.paid > 0 && m.paid >= m.total
 }
+
+/**
+ * The moment a job's money is complete — when it was paid in full — which
+ * decides its payout week. A job part-paid in one week and finished later
+ * goes into the later week, never a week that has already closed.
+ */
+export const payoutAt = (b: AdminBooking) => b.payment.paidAt ?? b.slotStart
+
+/** Cash the technician collected on a completed job, part-paid or not — it is in their hand. */
+export const cashCollected = (b: AdminBooking) => (b.status === 'completed' && b.payment.method === 'cash' ? bill(b).paid : 0)
 
 /**
  * One technician's week: the jobs, the sums, and what is left to pay after

@@ -1,10 +1,10 @@
 'use client'
 
+import { rupees } from '@/lib/money'
 import { Rating, SectionLabel } from '@/components/ui'
 import type { Partner } from '@/lib/data'
 import { cn } from '@/lib/cn'
 
-const rupees = (paise: number) => '₹' + Math.round(paise / 100).toLocaleString('en-IN')
 
 /** How well they work: ratings, volume, and the three rates dispatch watches. */
 export function PerformancePanel({ partner: p }: { partner: Partner }) {
