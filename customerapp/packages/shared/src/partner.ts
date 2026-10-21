@@ -13,8 +13,14 @@ import { phoneSchema } from './user'
  * `rejected` goes back to `kyc_pending` when the documents are uploaded
  * again; `approved` becomes `active` on the technician's first sign-in after
  * approval, so "approved but never opened the app" is visible to ops.
+ *
+ * Technicians are added by an admin at the partner desk (no self sign-up),
+ * so a new partner starts at `kyc_pending` with their documents uploaded.
+ * `inactive`: let go by the network. Not a ban — an admin can reactivate the
+ * same account — but while inactive, their phone, email, PAN, bank account
+ * and UPI cannot be used to add anyone new.
  */
-export const partnerStatusSchema = z.enum(['applied', 'kyc_pending', 'approved', 'rejected', 'active', 'suspended'])
+export const partnerStatusSchema = z.enum(['applied', 'kyc_pending', 'approved', 'rejected', 'active', 'suspended', 'inactive'])
 export type PartnerStatus = z.infer<typeof partnerStatusSchema>
 
 /** Where payouts go — a bank account or a UPI id, never both. */
@@ -52,8 +58,16 @@ export const partnerSchema = z.object({
   ratingCount: z.number().int().min(0),
   completedJobs: z.number().int().min(0),
   payout: payoutDestinationSchema.optional(),
-  /** Shown to the technician when status is `rejected` or `suspended`. */
+  /** Shown to the technician when status is `rejected`, `suspended` or `inactive`. */
   statusReason: z.string().max(300).optional(),
+  /** Aadhaar's last four digits only — the full number is never stored. */
+  aadhaarLast4: z.string().regex(/^\d{4}$/).optional(),
+  pan: z
+    .string()
+    .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, 'PAN looks like ABCDE1234F')
+    .optional(),
+  /** The admin who added them; a different admin approves them. */
+  addedBy: z.object({ id: z.string().min(1), name: z.string().min(1) }).optional(),
   createdAt: z.number().int().min(0),
   updatedAt: z.number().int().min(0),
 })
@@ -96,9 +110,15 @@ export type KycDocument = z.infer<typeof kycDocumentSchema>
 // ---------------------------------------------------------------------------
 
 /**
- * One week's money for one technician: what their jobs earned, the
- * platform's commission, and what is paid out. `net` is stored rather than
- * worked out so a later commission change cannot rewrite a paid payout.
+ * One week's money for one technician. Commission is the platform's percent
+ * of the whole bill (parts and extras included) at each booking's own rate,
+ * after refunds. Cash the technician collected is theirs already, so it
+ * comes off; a week that ends at zero or below carries into the next.
+ *
+ *   net = gross − refunds − commission − cashHeld + carriedIn
+ *
+ * Stored rather than worked out, so a later commission change cannot
+ * rewrite a payout.
  */
 export const payoutSchema = z.object({
   id: z.string().min(1),
@@ -106,13 +126,23 @@ export const payoutSchema = z.object({
   periodStart: z.number().int().min(0),
   periodEnd: z.number().int().min(0),
   gross: paiseSchema,
+  refunds: paiseSchema,
   commission: paiseSchema,
-  net: paiseSchema,
+  cashHeld: paiseSchema,
+  /** Last week's balance; negative when they owed the platform. */
+  carriedIn: z.number().int(),
+  net: z.number().int(),
   jobIds: z.array(z.string().min(1)),
-  status: z.enum(['pending', 'approved', 'paid']),
+  /** on_hold while the technician is suspended or inactive; carried_forward when net <= 0. */
+  status: z.enum(['pending', 'on_hold', 'approved', 'paid', 'carried_forward']),
   /** Admin uid who approved it. */
   approvedBy: z.string().min(1).optional(),
+  approvedAt: z.number().int().min(0).optional(),
+  /** Admin uid who marked it paid — never the approver (Super Admin excepted). */
+  paidBy: z.string().min(1).optional(),
   paidAt: z.number().int().min(0).optional(),
+  /** Bank reference (UTR); unique across payouts. */
+  reference: z.string().min(6).max(22).optional(),
 })
 export type Payout = z.infer<typeof payoutSchema>
 

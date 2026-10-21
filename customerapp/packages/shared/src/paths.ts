@@ -17,8 +17,19 @@ export const COL = {
   searchIndex: 'searchIndex',
   config: 'config',
   users: 'users',
+  /** One per technician (the shared Partner shape), keyed by uid. */
   technicians: 'technicians',
   technicianPublic: 'technicianPublic',
+  /** A technician's KYC documents; the files are in Storage. */
+  kycDocuments: 'kycDocuments',
+  /**
+   * PAN, phone, email, bank and UPI keys -> technician, written and read only
+   * by functions, so one person cannot be added twice (or back while inactive).
+   */
+  technicianIdentity: 'technicianIdentity',
+  /** Weekly payouts, written by the scheduled payout function. */
+  payouts: 'payouts',
+  rateCard: 'rateCard',
   slots: 'slots',
   bookings: 'bookings',
   tracking: 'tracking',

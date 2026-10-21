@@ -208,6 +208,12 @@ export const bookingSchema = z.object({
 
   price: priceBreakdownSchema,
   payment: paymentInfoSchema,
+  /**
+   * The platform's percent of the whole bill, written when the job completes
+   * and never changed after, so a new rate in settings does not rewrite what
+   * an old job earned or a paid payout.
+   */
+  commissionPct: z.number().min(0).max(100).optional(),
 
   /**
    * What already covered part of this bill before it was quoted.
