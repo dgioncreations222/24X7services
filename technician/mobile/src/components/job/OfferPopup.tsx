@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { router, usePathname } from 'expo-router'
 import { Clock, MapPin } from 'lucide-react-native'
-import { acceptJob, rejectJob, useJobs, useProfile, type PartnerJob } from '@/lib/data'
+import { acceptJob, rejectJob, useDeviceSettings, useJobs, useProfile, type PartnerJob } from '@/lib/data'
+import { chime } from '@/lib/chime'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
 import { rupees } from '@/lib/money'
@@ -19,24 +20,31 @@ import { OFFER_SECONDS, useOfferCountdown } from './useOfferCountdown'
  * A new request takes the bottom of whatever screen is open, the way the
  * UC partner app does: service, area, time, what it pays, a 30-second clock
  * and two big buttons. Only while online, and not over the request's own
- * details screen.
+ * details screen. Settings → Alerts decides which kinds pop up; the rest
+ * wait on Home.
  */
 export function OfferPopup() {
   const pathname = usePathname()
   const offers = useJobs('offers')
   const profile = useProfile()
-  const offer = offers.data?.[0]
+  const [settings] = useDeviceSettings()
+  const offer = offers.data?.find((o) => (o.priority === 'emergency' ? settings.notify.emergency : settings.notify.requests))
   if (!offer || !profile.data?.online || pathname.startsWith('/request')) return null
-  return <OfferCard key={offer.id} offer={offer} />
+  return <OfferCard key={offer.id} offer={offer} sound={settings.notify.sound} />
 }
 
-function OfferCard({ offer }: { offer: PartnerJob }) {
+function OfferCard({ offer, sound }: { offer: PartnerJob; sound: boolean }) {
   const t = useT()
   const insets = useSafeAreaInsets()
   const left = useOfferCountdown(offer.id)
   const [busy, setBusy] = useState<'accept' | 'reject' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const urgent = offer.priority === 'emergency'
+
+  // One chime as the card appears, if the technician wants alert sounds.
+  useEffect(() => {
+    if (sound) chime(urgent)
+  }, [sound, urgent])
 
   async function answer(kind: 'accept' | 'reject') {
     setBusy(kind)

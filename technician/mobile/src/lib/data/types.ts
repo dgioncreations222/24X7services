@@ -75,6 +75,12 @@ export interface PartnerJob {
   notes?: string
   /** What the technician takes home for the job, after commission. */
   earning: Paise
+  /**
+   * The platform's cut when the job was booked, in percent of the whole bill
+   * (extras included). Kept on the job so a later change in Settings cannot
+   * rewrite what an old job earned.
+   */
+  commissionPct: number
   /** The customer's bill and whether it is paid — status only, no collection here. */
   payment: { amount: Paise; status: PaymentStatus }
   photos: { before: JobPhoto[]; after: JobPhoto[] }

@@ -20,8 +20,8 @@ type NotifyKey = keyof DeviceSettings['notify']
 
 /** Each switch says in its own row what it does right now. */
 const NOTIFY: readonly { key: NotifyKey; icon: LucideIcon; title: string; on: string; off: string }[] = [
-  { key: 'requests', icon: Bell, title: 'New service requests', on: 'Pop-up for each new job in your shift', off: 'New jobs wait quietly in Jobs' },
-  { key: 'emergency', icon: Siren, title: 'Emergency requests', on: 'Full-screen alert, even off shift', off: 'Emergencies wait quietly in Jobs' },
+  { key: 'requests', icon: Bell, title: 'New service requests', on: 'Pop-up for each new job in your shift', off: 'New requests wait on Home' },
+  { key: 'emergency', icon: Siren, title: 'Emergency requests', on: 'Pop-up for each emergency request', off: 'Emergencies wait on Home' },
   { key: 'schedule', icon: CalendarClock, title: 'Schedule changes & cancellations', on: 'Notified when a job moves or is cancelled', off: 'No schedule notifications' },
   { key: 'payments', icon: IndianRupee, title: 'Payments & ratings', on: 'Notified for every payment and rating', off: 'No payment or rating notifications' },
   { key: 'sound', icon: Volume2, title: 'Alert sound', on: 'A chime plays with every alert', off: 'Alerts arrive silently' },

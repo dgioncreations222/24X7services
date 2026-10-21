@@ -7,7 +7,7 @@
  * Firebase replaces this with the real customer app writing to the booking.
  */
 import { lateRequest } from '../seed'
-import { addNotification, displayIdOf, read, toPartnerJob, write } from './db'
+import { addNotification, displayIdOf, read, split, toPartnerJob, write } from './db'
 import type { PartnerJob } from '../data/types'
 
 export const CUSTOMER_DECIDES_MS = 5_000
@@ -26,11 +26,14 @@ export function customerReviewsExtra(jobId: string, extraId: string) {
       if (!extra || extra.status !== 'pending') return j
       const extras = j.extras.map((e) => (e.id === extraId ? { ...e, status: 'approved' as const } : e))
       const stillWaiting = extras.some((e) => e.status === 'pending')
+      const amount = j.payment.amount + extra.amount
       return {
         ...j,
         extras,
         status: j.status === 'awaiting_approval' && !stillWaiting ? 'in_progress' : j.status,
-        payment: { ...j.payment, amount: j.payment.amount + extra.amount },
+        payment: { ...j.payment, amount },
+        // The technician's share grows with the bill, at the job's own rate.
+        earning: split(amount, j.commissionPct).net,
       }
     })
   }, CUSTOMER_DECIDES_MS)

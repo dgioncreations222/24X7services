@@ -19,6 +19,7 @@ export default function HomeScreen() {
   const t = useT()
   const focused = useIsFocused()
   const ongoing = useJobs('ongoing')
+  const offers = useJobs('offers')
   const upcoming = useJobs('upcoming')
 
   return (
@@ -46,6 +47,17 @@ export default function HomeScreen() {
             )
           }}
         </Async>
+
+        {offers.data?.length ? (
+          <View>
+            <SectionTitle count={offers.data.length}>{t('New requests')}</SectionTitle>
+            <View className="gap-3">
+              {offers.data.map((j) => (
+                <JobCard key={j.id} job={j} />
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         <View>
           <SectionTitle count={upcoming.data?.filter((j) => isToday(j.slotStart)).length}>{t('Today’s jobs')}</SectionTitle>
