@@ -18,6 +18,7 @@ import { jobHref, stepHref } from '@/lib/routes'
 import { IN_PROGRESS, NEXT_ACTION } from '@/lib/status'
 import { useStore, useTick } from '@/lib/store'
 import type { Job } from '@/lib/types'
+import { COLORS } from '@/lib/theme'
 
 export default function HomeScreen() {
   const store = useStore()
@@ -63,7 +64,7 @@ export default function HomeScreen() {
           <MenuButton inverted />
           <Tappable href="/profile" className="relative shrink-0">
             <Avatar name={tech.name} photo={tech.photo} size={42} className="border-2 border-white/15" />
-            <View className={cn('absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-brand-ink', online ? 'bg-[#22c55e]' : 'bg-faint')} />
+            <View className={cn('absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-brand-ink', online ? 'bg-live' : 'bg-faint')} />
           </Tappable>
           <View className="min-w-0 flex-1">
             <Text numberOfLines={1} className="text-[15px] font-extrabold leading-tight text-white">
@@ -91,21 +92,21 @@ export default function HomeScreen() {
         <View
           className={cn(
             'mt-3.5 rounded-xl border',
-            avail.state === 'online' ? 'border-[#22c55e]/25 bg-[#22c55e]/[0.12]' : avail.state === 'offline' ? 'border-white/10 bg-white/[0.06]' : 'border-[#f59e0b]/25 bg-[#f59e0b]/[0.12]'
+            avail.state === 'online' ? 'border-live/25 bg-live/[0.12]' : avail.state === 'offline' ? 'border-white/10 bg-white/[0.06]' : 'border-star-deep/25 bg-star-deep/[0.12]'
           )}
         >
           <View className="flex-row items-center gap-3 px-3 pb-2 pt-2.5">
             {avail.state === 'online' ? (
-              <Blink className="size-2 shrink-0 rounded-full bg-[#4ade80]" />
+              <Blink className="size-2 shrink-0 rounded-full bg-live-bright" />
             ) : (
-              <View className={cn('size-2 shrink-0 rounded-full', avail.state === 'offline' ? 'bg-white/40' : 'bg-[#fbbf24]')} />
+              <View className={cn('size-2 shrink-0 rounded-full', avail.state === 'offline' ? 'bg-white/40' : 'bg-star')} />
             )}
             <View className="min-w-0 flex-1">
               <Text className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/45">Your availability</Text>
               <Inherit
                 className={cn(
                   'text-[13px] font-extrabold leading-tight',
-                  avail.state === 'online' ? 'text-[#86efac]' : avail.state === 'offline' ? 'text-white/70' : 'text-[#fcd34d]'
+                  avail.state === 'online' ? 'text-live-soft' : avail.state === 'offline' ? 'text-white/70' : 'text-star-soft'
                 )}
               >
                 {/* A nested Text starts from the base style, so the colour reaches it through Inherit. */}
@@ -135,7 +136,7 @@ export default function HomeScreen() {
             <Text className="text-[11px] font-semibold text-white/55">Rating</Text>
             <View className="mt-0.5 flex-row items-center gap-1">
               <Text className="num text-[19px] font-extrabold leading-tight tracking-tight text-white">{tech.rating.toFixed(2)}</Text>
-              <Icon as={Star} className="size-3.5 text-[#fbbf24]" fill="#fbbf24" />
+              <Icon as={Star} className="size-3.5 text-star" fill={COLORS.star} />
             </View>
           </Tappable>
           <Tappable href="/jobs?chip=completed" className="flex-1 border-l border-white/10 pl-3">
@@ -156,7 +157,7 @@ export default function HomeScreen() {
             onChangeText={setQuery}
             accessibilityLabel="Search jobs"
             placeholder="Search customer, area, job ID, appliance…"
-            placeholderTextColor="#8a93a3"
+            placeholderTextColor={COLORS.faint}
             returnKeyType="search"
             className="h-12 w-full rounded-xl bg-card pl-11 pr-11 text-[15px] font-medium text-ink shadow-card"
           />

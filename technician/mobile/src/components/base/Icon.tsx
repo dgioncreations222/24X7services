@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react-native'
 import { useResolveClassNames } from 'uniwind'
 import { cn } from '@/lib/cn'
 import { useInherited } from './Text'
+import { COLORS } from '@/lib/theme'
 
 /**
  * A lucide icon, sized and coloured with the same classes the web app uses:
@@ -38,7 +39,7 @@ export function Icon({
   return (
     <Component
       size={size}
-      color={style.color ?? '#111827'}
+      color={style.color ?? COLORS.ink}
       strokeWidth={strokeWidth}
       {...(fill ? { fill } : {})}
       style={{
@@ -55,7 +56,7 @@ export function Icon({
 /** The icon's colour as a string, for the rare prop that wants one. */
 export function useColor(className: string): string {
   const style = useResolveClassNames(className) as { color?: string }
-  return style.color ?? '#111827'
+  return style.color ?? COLORS.ink
 }
 
 /**

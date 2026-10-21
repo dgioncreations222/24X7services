@@ -5,6 +5,7 @@ import { Check, Copy, Info, Package, Pencil, ShieldAlert } from 'lucide-react-na
 import { Icon, Inherit, Tappable, Text } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import type { AiAnswer } from '@/lib/ai/types'
+import { COLORS } from '@/lib/theme'
 
 /** One assistant reply: lead line, structured sections, then the callouts. */
 export function AnswerView({
@@ -139,7 +140,7 @@ function NotesCard({ notes, onSave, saved }: { notes: NonNullable<AiAnswer['note
                 multiline
                 numberOfLines={2}
                 textAlignVertical="top"
-                placeholderTextColor="#8a93a3"
+                placeholderTextColor={COLORS.faint}
                 className="mt-1 min-h-[60px] w-full rounded-lg border border-line-strong bg-card px-2.5 py-2 font-normal text-[13.5px] text-ink"
               />
             ) : (

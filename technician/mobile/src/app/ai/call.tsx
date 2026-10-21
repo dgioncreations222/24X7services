@@ -26,6 +26,7 @@ import { dayLabel, driveProgress, telHref, time } from '@/lib/format'
 import { stepHref } from '@/lib/routes'
 import { useJob, useStore } from '@/lib/store'
 import type { Job } from '@/lib/types'
+import { COLORS } from '@/lib/theme'
 
 const PURPOSES: CallPurpose[] = ['confirm', 'eta', 'details', 'reschedule', 'status', 'followup']
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -449,8 +450,8 @@ function LiveCall({ job, purpose, scenario, onEnded }: { job: Job; purpose: Call
 
 function StatusBadge({ status }: { status: Status }) {
   const tone = {
-    connecting: { box: 'bg-warning/20', text: 'text-[#fcd28d]', dot: 'bg-[#fcd28d]' },
-    connected: { box: 'bg-success/25', text: 'text-[#86efac]', dot: 'bg-[#86efac]' },
+    connecting: { box: 'bg-warning/20', text: 'text-caution-soft', dot: 'bg-caution-soft' },
+    connected: { box: 'bg-success/25', text: 'text-live-soft', dot: 'bg-live-soft' },
     ended: { box: 'bg-white/10', text: 'text-white/60', dot: 'bg-white/60' },
   }[status]
   return (
@@ -496,7 +497,7 @@ function Bar({ height, index, speaker }: { height: number; index: number; speake
   const style = useAnimatedStyle(() => ({ transform: [{ scaleY: s.value }] }))
   return (
     <Animated.View
-      className={cn('w-[3px] rounded-full', speaker === 'customer' ? 'bg-[#86efac]' : speaker === 'ai' ? 'bg-white' : 'bg-white/25')}
+      className={cn('w-[3px] rounded-full', speaker === 'customer' ? 'bg-live-soft' : speaker === 'ai' ? 'bg-white' : 'bg-white/25')}
       style={[{ height: speaker ? height * 40 : 4 }, style]}
     />
   )
@@ -559,7 +560,7 @@ function Summary({ job, record, onChange, onAgain }: { job: Job; record: CallRec
                   multiline
                   numberOfLines={2}
                   textAlignVertical="top"
-                  placeholderTextColor="#8a93a3"
+                  placeholderTextColor={COLORS.faint}
                   className={cn(inputClass, 'py-2 text-sm')}
                 />
               ) : (
@@ -573,7 +574,7 @@ function Summary({ job, record, onChange, onAgain }: { job: Job; record: CallRec
               label="Customer request"
               value={
                 editing ? (
-                  <TextInput value={s.request ?? ''} onChangeText={(v) => set({ request: v })} placeholder="None" placeholderTextColor="#8a93a3" className={cn(inputClass, 'py-2 text-sm')} />
+                  <TextInput value={s.request ?? ''} onChangeText={(v) => set({ request: v })} placeholder="None" placeholderTextColor={COLORS.faint} className={cn(inputClass, 'py-2 text-sm')} />
                 ) : (
                   s.request
                 )
