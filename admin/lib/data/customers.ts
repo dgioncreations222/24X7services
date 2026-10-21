@@ -5,6 +5,7 @@ import { mockRequest } from '../mock/api'
 import { read, write, type MockDb } from '../mock/db'
 import { bill } from './bookings'
 import { audit } from './audit'
+import { assertCan } from './permissions'
 import { useResource, type Query } from './query'
 import type { AdminBooking, AdminCustomer, Paise } from './types'
 
@@ -77,5 +78,28 @@ export function unblockCustomer(id: string) {
     if (!c || c.status !== 'blocked') throw new CustomerError('Only a blocked customer can be unblocked.')
     write((d) => ({ ...d, customers: d.customers.map((x) => (x.id === id ? { ...x, status: 'active', blockReason: undefined } : x)) }))
     audit('customers', 'Unblocked customer', { target: c.name, old: 'Blocked', new: 'Active' })
+  })
+}
+
+/** Goodwill credit one admin can give without a Super Admin, in paise. */
+export const WALLET_CREDIT_LIMIT = 100_000
+
+/**
+ * Goodwill credit into the customer's wallet, used on their next booking —
+ * with a reason for the next admin. Up to ₹1,000 at a time; more needs a
+ * Super Admin.
+ */
+export function addWalletCredit(id: string, amount: Paise, reason: string) {
+  return mockRequest(() => {
+    const me = assertCan('customers', 'edit')
+    const c = read().customers.find((x) => x.id === id)
+    if (!c) throw new CustomerError('This customer no longer exists.')
+    if (c.status === 'blocked') throw new CustomerError('Unblock them before giving credit.')
+    if (!Number.isInteger(amount) || amount <= 0) throw new CustomerError('Pick an amount.')
+    if (amount > WALLET_CREDIT_LIMIT && me.role !== 'Super Admin') throw new CustomerError('Above ₹1,000 needs a Super Admin.')
+    const r = reason.trim()
+    if (r.length < 10) throw new CustomerError('Say why — the next admin reads this. At least 10 characters.')
+    write((d) => ({ ...d, customers: d.customers.map((x) => (x.id === id ? { ...x, walletCredit: x.walletCredit + amount } : x)) }))
+    audit('customers', 'Added wallet credit', { target: c.name, old: `₹${c.walletCredit / 100}`, new: `+₹${amount / 100} — ${r}` })
   })
 }

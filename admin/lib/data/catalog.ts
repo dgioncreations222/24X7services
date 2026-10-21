@@ -121,6 +121,7 @@ export function saveCategory(input: CategoryInput) {
       ? { ...existing, name, description: input.description.trim(), image: input.image }
       : { id: newId(db.categories, name), name, description: input.description.trim(), image: input.image, order: db.categories.length, active: true }
     write((d) => ({ ...d, categories: existing ? d.categories.map((c) => (c.id === category.id ? category : c)) : [...d.categories, category] }))
+    audit('catalog', existing ? 'Edited category' : 'Added category', { target: name, old: existing && existing.name !== name ? existing.name : undefined })
     return category
   })
 }
@@ -180,12 +181,17 @@ export function saveQuestion(input: QuestionInput) {
       order: existing?.order ?? db.questions.filter((q) => q.serviceId === input.serviceId).length,
     }
     write((d) => ({ ...d, questions: existing ? d.questions.map((q) => (q.id === question.id ? question : q)) : [...d.questions, question] }))
+    audit('catalog', existing ? 'Edited question' : 'Added question', { target: `${input.serviceId} · ${label}` })
     return question
   })
 }
 
 export function deleteQuestion(id: string) {
-  return mockRequest(() => write((d) => ({ ...d, questions: d.questions.filter((q) => q.id !== id) })))
+  return mockRequest(() => {
+    const q = read().questions.find((x) => x.id === id)
+    write((d) => ({ ...d, questions: d.questions.filter((x) => x.id !== id) }))
+    audit('catalog', 'Removed question', { target: q ? `${q.serviceId} · ${q.label}` : id })
+  })
 }
 
 export const moveQuestion = (id: string, dir: -1 | 1) => move('questions', id, dir)
@@ -235,10 +241,14 @@ export function addArea(input: Omit<ServiceArea, 'active'>) {
     if (read().areas.some((a) => a.pincode === pincode)) throw new CatalogError('This pincode is already on the list.')
     const area: ServiceArea = { pincode, area: input.area.trim(), city: input.city.trim(), active: true }
     write((d) => ({ ...d, areas: [...d.areas, area] }))
+    audit('catalog', 'Added service area', { target: `${area.pincode} · ${area.area}` })
     return area
   })
 }
 
 export function setAreaActive(pincode: string, active: boolean) {
-  return mockRequest(() => write((d) => ({ ...d, areas: d.areas.map((a) => (a.pincode === pincode ? { ...a, active } : a)) })))
+  return mockRequest(() => {
+    write((d) => ({ ...d, areas: d.areas.map((a) => (a.pincode === pincode ? { ...a, active } : a)) }))
+    audit('catalog', active ? 'Opened service area' : 'Closed service area', { target: pincode })
+  })
 }

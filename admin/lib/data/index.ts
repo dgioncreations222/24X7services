@@ -73,7 +73,7 @@ export {
   useUrgentDispatchCount,
   type Candidate,
 } from './bookings'
-export { CustomerError, blockCustomer, unblockCustomer, useCustomer, useCustomerBookings, useCustomers, type CustomerRow } from './customers'
+export { addWalletCredit, blockCustomer, CustomerError, type CustomerRow, unblockCustomer, useCustomer, useCustomerBookings, useCustomers, WALLET_CREDIT_LIMIT } from './customers'
 export { useDashboard, type DashboardData } from './dashboard'
 export {
   GrowthError,

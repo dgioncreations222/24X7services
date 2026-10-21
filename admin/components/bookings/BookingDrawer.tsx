@@ -147,12 +147,14 @@ function Body({ booking: b, onClose }: { booking: AdminBooking; onClose: () => v
       {modal === 'cancel' && (
         <ReasonModal
           title={`Cancel ${b.displayId}?`}
-          body={`The customer and ${p ? p.name : 'any technician'} are told at once. A refund, if one is due, is a separate step.`}
+          body={`The customer and ${p ? p.name : 'any technician'} are told at once.${bill(b).paid > 0 ? ' It was paid, so the refund opens next.' : ''}`}
           confirm="Cancel booking"
           suggestions={CANCEL_REASONS}
           onSubmit={(r) => cancelBooking(b.id, r)}
           done={`${b.displayId} cancelled`}
           onClose={() => setModal(null)}
+          // A paid booking should not be left cancelled with the money kept: go straight to the refund.
+          onDone={() => setModal(bill(b).paid > 0 && can('payments', 'approve') ? 'refund' : null)}
         />
       )}
     </>

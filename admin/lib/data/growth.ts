@@ -90,13 +90,17 @@ export function savePlan(input: PlanInput) {
       ? { ...existing, ...input, name: input.name.trim() }
       : { ...input, name: input.name.trim(), id: `plus-${Date.now().toString(36)}`, order: read().plans.length, subscribers: 0, active: true }
     write((d) => ({ ...d, plans: existing ? d.plans.map((p) => (p.id === plan.id ? plan : p)) : [...d.plans, plan] }))
+    audit('promotions', existing ? 'Edited Plus plan' : 'Created Plus plan', { target: plan.name, old: existing && existing.price !== plan.price ? `₹${existing.price / 100}` : undefined, new: `₹${plan.price / 100}` })
     return plan
   })
 }
 
 /** Stops new sign-ups; people already on it keep it until it ends. */
 export function setPlanActive(id: string, active: boolean) {
-  return mockRequest(() => write((d) => ({ ...d, plans: d.plans.map((p) => (p.id === id ? { ...p, active } : p)) })))
+  return mockRequest(() => {
+    write((d) => ({ ...d, plans: d.plans.map((p) => (p.id === id ? { ...p, active } : p)) }))
+    audit('promotions', active ? 'Opened Plus plan' : 'Closed Plus plan to new sign-ups', { target: read().plans.find((p) => p.id === id)?.name ?? id })
+  })
 }
 
 /* --------------------------------------------------------------- Banners */
@@ -128,12 +132,16 @@ export function saveBanner(input: BannerInput) {
       active: existing?.active ?? true,
     }
     write((d) => ({ ...d, banners: existing ? d.banners.map((b) => (b.id === banner.id ? banner : b)) : [...d.banners, banner] }))
+    audit('content', existing ? 'Edited banner' : 'Added banner', { target: banner.title })
     return banner
   })
 }
 
 export function setBannerActive(id: string, active: boolean) {
-  return mockRequest(() => write((d) => ({ ...d, banners: d.banners.map((b) => (b.id === id ? { ...b, active } : b)) })))
+  return mockRequest(() => {
+    write((d) => ({ ...d, banners: d.banners.map((b) => (b.id === id ? { ...b, active } : b)) }))
+    audit('content', active ? 'Showed banner' : 'Hid banner', { target: read().banners.find((b) => b.id === id)?.title ?? id })
+  })
 }
 
 /** Up or down among banners in the same slot. */
@@ -172,7 +180,10 @@ export function hideReview(id: string, reason: string) {
 }
 
 export function publishReview(id: string) {
-  return mockRequest(() => setReview(id, () => ({ status: 'published', hiddenReason: undefined })))
+  return mockRequest(() => {
+    setReview(id, () => ({ status: 'published', hiddenReason: undefined }))
+    audit('reviews', 'Published review', { target: id })
+  })
 }
 
 /** A public reply under the review; empty text removes it. */
@@ -182,5 +193,6 @@ export function replyToReview(id: string, text: string) {
     if (t && t.length < 10) fail('A reply of at least 10 characters, or leave it empty to remove it.')
     if (t.length > 500) fail('Keep the reply under 500 characters.')
     setReview(id, () => ({ reply: t || undefined }))
+    audit('reviews', t ? 'Replied to review' : 'Removed review reply', { target: id, new: t || undefined })
   })
 }

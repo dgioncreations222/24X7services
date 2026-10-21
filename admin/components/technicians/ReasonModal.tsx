@@ -17,6 +17,7 @@ export function ReasonModal({
   suggestions,
   onSubmit,
   onClose,
+  onDone,
   done,
 }: {
   title: string
@@ -25,6 +26,8 @@ export function ReasonModal({
   suggestions: string[]
   onSubmit: (reason: string) => Promise<unknown>
   onClose: () => void
+  /** After it worked, instead of onClose — e.g. to open the next step. */
+  onDone?: () => void
   /** The toast; a function gets what onSubmit resolved with. */
   done: string | ((result: unknown) => string)
 }) {
@@ -50,7 +53,8 @@ export function ReasonModal({
                 undefined,
                 () => {
                   toast(typeof done === 'string' ? done : done(result))
-                  onClose()
+                  if (onDone) onDone()
+                  else onClose()
                 }
               )
             }}>
