@@ -28,7 +28,14 @@ export interface DashboardData {
 }
 
 const dayStart = (t: number) => new Date(new Date(t).setHours(0, 0, 0, 0)).getTime()
-const revenue = (list: AdminBooking[]) => list.filter((b) => b.status === 'completed').reduce((s, b) => s + bill(b).total, 0)
+/** What completed jobs brought in, after refunds — the same figure Customers and Reports use. */
+const revenue = (list: AdminBooking[]) =>
+  list
+    .filter((b) => b.status === 'completed')
+    .reduce((s, b) => {
+      const m = bill(b)
+      return s + m.total - m.refunded
+    }, 0)
 
 export function summarise(db: MockDb, now = Date.now()): DashboardData {
   const today0 = dayStart(now)

@@ -35,7 +35,7 @@ export const DEFAULT_ROLES: RoleMatrix = {
     dashboard: r('view'),
     dispatch: r('view', 'assign', 'edit'),
     bookings: r('view', 'create', 'edit', 'assign', 'export'),
-    technicians: r('view', 'edit', 'approve', 'assign'),
+    technicians: r('view', 'create', 'edit', 'approve', 'assign'),
     customers: r('view', 'edit'),
     support: r('view'),
     reports: r('view'),

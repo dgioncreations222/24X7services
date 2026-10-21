@@ -9,6 +9,7 @@ import { useSyncExternalStore } from 'react'
 import { mockRequest } from '../mock/api'
 import { read, subscribe, write } from '../mock/db'
 import { currentAdmin } from './auth'
+import { bill } from '../money'
 import { audit } from './audit'
 import { useResource, type Query } from './query'
 import type { AdminBooking, BookingStatus, GeoPoint, Partner, Paise } from './types'
@@ -46,14 +47,7 @@ export function useUrgentDispatchCount(): number {
   return useSyncExternalStore(subscribe, emergencyOf, () => 0)
 }
 
-/** What the bill comes to, from the booking alone. */
-export function bill(b: AdminBooking) {
-  const extras = b.extras.filter((e) => e.status === 'approved').reduce((s, e) => s + e.amount, 0)
-  const total = Math.max(0, b.price.service + extras - b.price.discount)
-  const refunded = b.refunds.reduce((s, r) => s + r.amount, 0)
-  const paid = b.payment.status === 'paid' || b.payment.status === 'partially_paid' || b.payment.status === 'refunded' ? total : 0
-  return { service: b.price.service, extras, discount: b.price.discount, total, paid, refunded, refundable: Math.max(0, paid - refunded) }
-}
+export { bill } from '../money'
 
 /* -------------------------------------------------------------- Dispatch */
 
@@ -187,7 +181,7 @@ export function refundBooking(bookingId: string, amount: Paise, reason: string) 
     patch(bookingId, (x) => ({
       ...x,
       status: x.status === 'cancelled' && full ? 'refunded' : x.status,
-      payment: { ...x.payment, status: full ? 'refunded' : 'partially_paid' },
+      payment: { ...x.payment, status: full ? 'refunded' : 'partially_refunded' },
       refunds: [...x.refunds, { amount: Math.round(amount), reason: r, at: now, by: who() }],
       timeline: x.status === 'cancelled' && full ? [...x.timeline, { status: 'refunded', at: now, by: who(), note: r }] : x.timeline,
     }))

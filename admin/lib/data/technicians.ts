@@ -92,6 +92,12 @@ function releaseJobs(d: MockDb, partnerId: string, why: string): MockDb {
   }
 }
 
+/** Unapproved payouts wait while the technician is suspended or inactive. */
+function holdPayouts(d: MockDb, partnerId: string, hold: boolean): MockDb {
+  const [from, to] = hold ? (['pending', 'on_hold'] as const) : (['on_hold', 'pending'] as const)
+  return { ...d, payouts: d.payouts.map((p) => (p.partnerId === partnerId && p.status === from ? { ...p, status: to } : p)) }
+}
+
 const openJobsOf = (d: MockDb, partnerId: string) => d.bookings.filter((b) => b.technicianId === partnerId && b.status === 'assigned').length
 
 /** Approve one document, or reject it with what to fix. */
@@ -157,7 +163,7 @@ export function suspendPartner(id: string, why: string) {
     if (p.status !== 'active' && p.status !== 'approved') throw new PartnerError('Only an active technician can be suspended.')
     const r = reason(why, 'they are suspended')
     const released = openJobsOf(read(), id)
-    write((d) => releaseJobs({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'suspended', statusReason: r, online: false, onJob: false } : x)) }, id, `${p.name} suspended`))
+    write((d) => holdPayouts(releaseJobs({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'suspended', statusReason: r, online: false, onJob: false } : x)) }, id, `${p.name} suspended`), id, true))
     audit('technicians', 'Suspended technician', { target: p.name, old: p.status, new: r })
     return released
   })
@@ -174,7 +180,7 @@ export function deactivatePartner(id: string, why: string) {
     if (p.status === 'inactive') throw new PartnerError('Already inactive.')
     const r = reason(why, 'they are made inactive')
     const released = openJobsOf(read(), id)
-    write((d) => releaseJobs({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'inactive', statusReason: r, online: false, onJob: false } : x)) }, id, `${p.name} made inactive`))
+    write((d) => holdPayouts(releaseJobs({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'inactive', statusReason: r, online: false, onJob: false } : x)) }, id, `${p.name} made inactive`), id, true))
     audit('technicians', 'Made technician inactive', { target: p.name, old: p.status, new: r })
     return released
   })
@@ -185,7 +191,7 @@ export function reactivatePartner(id: string) {
   return mockRequest(() => {
     const p = partner(read(), id)
     if (p.status !== 'suspended' && p.status !== 'inactive') throw new PartnerError('Only a suspended or inactive technician can be reactivated.')
-    setPartner(id, { status: 'active', statusReason: undefined })
+    write((d) => holdPayouts({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'active', statusReason: undefined } : x)) }, id, false))
     audit('technicians', 'Reactivated technician', { target: p.name, old: p.status === 'inactive' ? 'Inactive' : 'Suspended', new: 'Active' })
   })
 }

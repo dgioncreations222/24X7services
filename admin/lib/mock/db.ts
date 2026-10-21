@@ -47,7 +47,8 @@ function fresh(): MockDb {
   const catalog = seedCatalog()
   const people = seedPartners()
   const active = people.partners.filter((p) => p.status === 'active').map((p) => p.id)
-  const { bookings } = seedBookings(catalog, active)
+  // Completed jobs carry the commission percent they completed at.
+  const bookings = seedBookings(catalog, active).bookings.map((b) => (b.status === 'completed' ? { ...b, commissionPct: system.settings.commissionPct } : b))
   return { admins, ...catalog, ...people, bookings, ...seedCustomers(), ...seedGrowth(), ...system, ...seedPayouts(bookings, people.partners, system.settings.commissionPct) }
 }
 

@@ -1,9 +1,15 @@
 /**
- * Weekly payouts for the mock, built from the seeded bookings: every
- * completed, paid job goes into its technician's payout for the week
- * (Monday to Sunday) it was done. Last week waits for approval, the week
- * before is half approved, older weeks are paid.
+ * Weekly payouts for the mock, built from the seeded bookings the way the
+ * weekly payout job will build them: every completed, paid job goes into its
+ * technician's payout for the week (Monday to Sunday) it was done, with
+ * refunds and the cash they collected taken off, and a negative week carried
+ * into the next. Last week waits for approval, the week before is half
+ * approved, older weeks are paid. A suspended or inactive technician's
+ * unapproved payout is on hold.
+ *
+ * TODO(backend): a scheduled Cloud Function runs settleWeek every Monday.
  */
+import { payable, settleWeek } from '../money'
 import type { AdminBooking, Partner, PartnerPayout } from '../data/types'
 
 const DAY = 86_400_000
@@ -24,33 +30,39 @@ const monday = (t: number) => {
 export function seedPayouts(bookings: AdminBooking[], partners: Partner[], commissionPct: number, now = Date.now()): { payouts: PartnerPayout[] } {
   const thisWeek = monday(now)
   const payouts: PartnerPayout[] = []
-  for (let w = 1; w <= 4; w++) {
-    const start = thisWeek - w * 7 * DAY
-    const end = start + 7 * DAY
-    partners
-      .filter((p) => p.status === 'active' || p.status === 'suspended')
-      .forEach((p, i) => {
-        const jobs = bookings.filter((b) => b.technicianId === p.id && b.status === 'completed' && b.payment.status !== 'pending' && b.slotStart >= start && b.slotStart < end)
-        if (!jobs.length) return
-        const gross = jobs.reduce((s, b) => s + b.price.service - b.price.discount + b.extras.filter((e) => e.status === 'approved').reduce((x, e) => x + e.amount, 0), 0)
-        const commission = Math.round((gross * commissionPct) / 100)
-        const status: PartnerPayout['status'] = w === 1 ? 'pending' : w === 2 ? (i % 2 ? 'approved' : 'pending') : 'paid'
+  partners
+    .filter((p) => p.status === 'active' || p.status === 'suspended' || p.status === 'inactive')
+    .forEach((p, i) => {
+      let carry = 0
+      // Oldest week first, so each week's balance can carry into the next.
+      for (let w = 4; w >= 1; w--) {
+        const start = thisWeek - w * 7 * DAY
+        const end = start + 7 * DAY
+        const jobs = bookings.filter((b) => b.technicianId === p.id && payable(b) && b.slotStart >= start && b.slotStart < end)
+        if (!jobs.length && !carry) continue
+        const week = settleWeek(jobs, commissionPct, carry)
+        const away = p.status !== 'active'
+        let status: PartnerPayout['status'] = w === 1 ? 'pending' : w === 2 ? (i % 2 ? 'approved' : 'pending') : 'paid'
+        if (week.net <= 0) status = 'carried_forward'
+        else if (away && status !== 'paid') status = 'on_hold'
+        carry = week.net <= 0 ? week.net : 0
+        const approved = status === 'approved' || status === 'paid'
         payouts.push({
           id: `PO-${ymd(start)}-${p.id.slice(-4)}`,
           partnerId: p.id,
           periodStart: start,
           periodEnd: end - 1,
-          gross,
-          commission,
-          net: gross - commission,
-          jobIds: jobs.map((b) => b.id),
+          ...week,
           status,
-          approvedBy: status !== 'pending' ? 'Meghana Iyer' : undefined,
-          approvedAt: status !== 'pending' ? end + DAY : undefined,
+          approvedBy: approved ? 'Meghana Iyer' : undefined,
+          approvedById: approved ? 'ADM-04' : undefined,
+          approvedAt: approved ? end + DAY : undefined,
+          paidBy: status === 'paid' ? 'Aditi Rao' : undefined,
+          paidById: status === 'paid' ? 'ADM-01' : undefined,
           paidAt: status === 'paid' ? end + 2 * DAY : undefined,
           reference: status === 'paid' ? `UTR${String(start).slice(-6)}${p.id.slice(-3)}` : undefined,
         })
-      })
-  }
+      }
+    })
   return { payouts }
 }

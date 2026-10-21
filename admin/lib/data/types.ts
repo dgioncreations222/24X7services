@@ -215,7 +215,8 @@ export type BookingStatus =
   | 'refunded'
   | 'failed'
 
-export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'partially_paid' | 'failed' | 'refunded'
+/** `partially_refunded`: paid in full, then part of it given back. */
+export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'partially_paid' | 'partially_refunded' | 'failed' | 'refunded'
 
 /** The shared BookingExtra: a part or charge added on site, approved by the customer. */
 export interface BookingExtra {
@@ -266,6 +267,11 @@ export interface AdminBooking {
   refunds: { amount: Paise; reason: string; at: number; by: string }[]
   /** Who was offered the job and said no (or let it time out). */
   dispatch: { declinedBy: string[]; noTechFound: boolean }
+  /**
+   * The platform's percent of the whole bill, fixed when the job completed,
+   * so changing it in Settings never rewrites old jobs. Unset until then.
+   */
+  commissionPct?: number
 }
 
 /* ------------------------------------------------------------- Customers */
@@ -425,16 +431,36 @@ export interface PartnerPayout {
   partnerId: string
   periodStart: number
   periodEnd: number
+  /** What customers paid for the week's completed jobs, extras included. */
   gross: Paise
+  /** Given back to customers on those jobs. */
+  refunds: Paise
+  /** The platform's share of (gross − refunds), at each job's own rate. */
   commission: Paise
-  /** Stored, so a later commission change cannot rewrite a paid payout. */
+  /** Cash the technician collected themselves — already in their pocket. */
+  cashHeld: Paise
+  /** Last week's balance: negative when they owed the platform (more cash than share). */
+  carriedIn: Paise
+  /**
+   * Stored, so a later commission change cannot rewrite it:
+   * gross − refunds − commission − cashHeld + carriedIn.
+   * Zero or less means nothing to pay; it moves to next week as carriedIn.
+   */
   net: Paise
   jobIds: string[]
-  status: 'pending' | 'approved' | 'paid'
+  /**
+   * pending → approved → paid. on_hold while the technician is suspended or
+   * inactive; carried_forward when the net is zero or less.
+   */
+  status: 'pending' | 'on_hold' | 'approved' | 'paid' | 'carried_forward'
   approvedBy?: string
+  approvedById?: string
   approvedAt?: number
+  /** Who marked it paid — never the admin who approved it (Super Admin excepted). */
+  paidBy?: string
+  paidById?: string
   paidAt?: number
-  /** Bank reference once paid. */
+  /** Bank reference once paid; unique across payouts. */
   reference?: string
 }
 

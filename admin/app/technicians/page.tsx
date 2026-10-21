@@ -4,13 +4,13 @@ import type { Route } from 'next'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
 import { Download, UserPlus, UserRoundCog } from 'lucide-react'
-import { SortTh } from '@/components/catalog/parts'
+import { SortTh, rupees } from '@/components/catalog/parts'
 import { useTable } from '@/components/catalog/useTable'
 import { AddTechnicianModal } from '@/components/technicians/AddTechnicianModal'
 import { PARTNER_STATUS, presence } from '@/components/technicians/status'
 import { TechnicianDrawer } from '@/components/technicians/TechnicianDrawer'
 import { Async, Avatar, Button, Card, Chip, Empty, Page, PageHeader, Pager, Rating, SearchInput, Select, Tabs, TableWrap, td, th, tr } from '@/components/ui'
-import { useCan, usePartners, useCategories, type Category, type Partner } from '@/lib/data'
+import { useCan, useCashHeld, usePartners, useCategories, type Category, type Partner } from '@/lib/data'
 import { cn } from '@/lib/cn'
 import { ago, downloadCsv } from '@/lib/format'
 
@@ -77,6 +77,8 @@ type Filter = 'active' | 'online' | 'applications' | 'approved' | 'rejected' | '
 function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; categories: Category[]; onOpen: (id: string) => void }) {
   const [category, setCategory] = useState('all')
   const rows = category === 'all' ? all : all.filter((p) => p.skills.includes(category))
+  // Cash they collected on paid jobs that no paid payout has settled yet.
+  const cash = useCashHeld().data ?? {}
   const t = useTable({
     rows,
     search: (p) => [p.id, p.name, p.phone.replace(/\s/g, ''), p.email, p.area],
@@ -95,6 +97,7 @@ function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; cate
       jobs: (p: Partner) => -p.jobs30,
       accept: (p: Partner) => -p.acceptanceRate,
       ontime: (p: Partner) => -p.onTimeRate,
+      cash: (p: Partner) => -(cash[p.id] ?? 0),
       waiting: (p: Partner) => p.submittedAt ?? 0,
     },
     initialSort: 'jobs',
@@ -147,6 +150,7 @@ function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; cate
                   <SortTh by="jobs" label="Jobs · 30 d" sort={t.sort} onSort={t.sortBy} />
                   <SortTh by="accept" label="Accept." sort={t.sort} onSort={t.sortBy} />
                   <SortTh by="ontime" label="On time" sort={t.sort} onSort={t.sortBy} />
+                  <SortTh by="cash" label="Cash held" sort={t.sort} onSort={t.sortBy} />
                 </>
               )}
               <th className={th}>Status</th>
@@ -182,6 +186,7 @@ function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; cate
                       <td className={cn(td, 'num font-semibold')}>{p.jobs30}</td>
                       <td className={cn(td, 'num', p.acceptanceRate < 80 && 'text-warning')}>{p.acceptanceRate}%</td>
                       <td className={cn(td, 'num', p.onTimeRate < 90 && 'text-warning')}>{p.onTimeRate}%</td>
+                      <td className={cn(td, 'num', (cash[p.id] ?? 0) > 500_000 && 'font-bold text-danger')}>{cash[p.id] ? rupees(cash[p.id]!) : '—'}</td>
                     </>
                   )}
                   <td className={td}>

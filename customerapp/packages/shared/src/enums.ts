@@ -147,6 +147,8 @@ export const paymentStatusSchema = z.enum([
   'pending',
   'paid',
   'partially_paid',
+  // Paid in full, then part of it given back (a goodwill or partial refund).
+  'partially_refunded',
   'failed',
   'refunded',
 ])

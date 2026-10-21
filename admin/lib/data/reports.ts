@@ -2,7 +2,7 @@
 
 /** Reports over a date range, by service date: totals, then per day, category, area and technician. */
 import type { MockDb } from '../mock/db'
-import { bill } from './bookings'
+import { bill, jobMoney } from '../money'
 import { useResource, type Query } from './query'
 import type { AdminBooking, Paise } from './types'
 
@@ -35,7 +35,11 @@ function row(key: string, label: string, list: AdminBooking[]): ReportRow {
     bookings: list.length,
     completed: done.length,
     cancelled: list.filter((b) => b.status === 'cancelled' || b.status === 'refunded').length,
-    revenue: done.reduce((s, b) => s + bill(b).total, 0),
+    // After refunds, as on the dashboard.
+    revenue: done.reduce((s, b) => {
+      const m = bill(b)
+      return s + m.total - m.refunded
+    }, 0),
   }
 }
 
@@ -59,7 +63,8 @@ export function buildReport(db: MockDb, from: number, to: number): Report {
       cancelled: all.cancelled,
       cancelRate: all.bookings ? Math.round((all.cancelled / all.bookings) * 100) : 0,
       revenue: all.revenue,
-      commission: Math.round((all.revenue * db.settings.commissionPct) / 100),
+      // Each job at the rate it completed at, after refunds — not today's setting.
+      commission: list.filter((b) => b.status === 'completed').reduce((s, b) => s + jobMoney(b, db.settings.commissionPct).commission, 0),
       refunds,
       avgTicket: all.completed ? Math.round(all.revenue / all.completed) : 0,
     },

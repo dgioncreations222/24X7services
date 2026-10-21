@@ -19,7 +19,8 @@ export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; tone: Tone }
   not_required: { label: 'Nothing to pay', tone: 'neutral' },
   pending: { label: 'Not paid yet', tone: 'warning' },
   paid: { label: 'Paid', tone: 'success' },
-  partially_paid: { label: 'Partly refunded', tone: 'info' },
+  partially_paid: { label: 'Part paid', tone: 'warning' },
+  partially_refunded: { label: 'Partly refunded', tone: 'info' },
   failed: { label: 'Payment failed', tone: 'danger' },
   refunded: { label: 'Refunded', tone: 'neutral' },
 }

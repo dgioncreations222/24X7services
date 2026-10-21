@@ -35,7 +35,7 @@ export {
   type RateCardInput,
   type ServiceInput,
 } from './catalog'
-export { useCan } from './permissions'
+export { PermissionError, assertCan, useCan } from './permissions'
 export {
   KYC_DOC_TYPES,
   PartnerError,
@@ -117,4 +117,4 @@ export {
   useTickets,
 } from './system'
 export { buildReport, useReport, type Report, type ReportRow } from './reports'
-export { MoneyError, approvePayouts, markPayoutPaid, transactions, usePayouts, usePendingPayoutCount, useTransactions } from './money'
+export { MoneyError, approvePayouts, cashHeld, markPayoutPaid, transactions, useCashHeld, usePayouts, usePendingPayoutCount, useTransactions } from './money'
