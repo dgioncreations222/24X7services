@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Check, Maximize2, ShieldCheck, X } from 'lucide-react'
 import { FormError, useAction } from '@/components/catalog/parts'
 import { Async, Button, Chip, Modal, SectionLabel, SkeletonRows } from '@/components/ui'
-import { approvePartner, rejectPartner, reviewDoc, useCan, useKycDocs, type KycDocument, type Partner } from '@/lib/data'
+import { approvePartner, rejectPartner, reviewDoc, useAdminSession, useCan, useKycDocs, type KycDocument, type Partner } from '@/lib/data'
 import { dateTime } from '@/lib/format'
 import { DOC_LABEL, DOC_STATUS } from './status'
 import { ReasonModal } from './ReasonModal'
@@ -20,6 +20,10 @@ export function KycReview({ partner: p }: { partner: Partner }) {
   const docs = useKycDocs(p.id)
   const can = useCan()
   const reviewing = p.status === 'kyc_pending' && can('technicians', 'approve')
+  const session = useAdminSession()
+  const me = session.status === 'signed_in' ? session.admin : null
+  // Maker-checker: the admin who added them reviews nothing but a Super Admin may.
+  const selfAdded = !!p.addedBy && !!me && p.addedBy.id === me.id && me.role !== 'Super Admin'
   const [rejecting, setRejecting] = useState<KycDocument | 'application' | null>(null)
   const [viewing, setViewing] = useState<KycDocument | null>(null)
   const { run, busy, error } = useAction()
@@ -66,11 +70,13 @@ export function KycReview({ partner: p }: { partner: Partner }) {
 
             {reviewing && (
               <div className="mt-5 flex flex-wrap items-center gap-2 rounded-card border border-line bg-canvas/60 p-4">
-                <p className="mr-auto text-sm font-semibold text-ink-2">{open ? `${open} document${open === 1 ? '' : 's'} still to approve.` : 'Every document is approved.'}</p>
+                <p className="mr-auto text-sm font-semibold text-ink-2">
+                  {selfAdded ? 'You added this technician, so another admin approves them.' : open ? `${open} document${open === 1 ? '' : 's'} still to approve.` : 'Every document is approved.'}
+                </p>
                 <Button variant="secondary" className="text-danger" disabled={busy} onClick={() => setRejecting('application')}>
                   Reject application
                 </Button>
-                <Button variant="success" disabled={busy || open > 0} onClick={() => void run(() => approvePartner(p.id), `${p.name} approved`)}>
+                <Button variant="success" disabled={busy || open > 0 || selfAdded} onClick={() => void run(() => approvePartner(p.id), `${p.name} approved`)}>
                   <ShieldCheck /> Approve technician
                 </Button>
                 <div className="w-full">

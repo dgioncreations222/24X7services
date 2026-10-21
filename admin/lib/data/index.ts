@@ -39,7 +39,12 @@ export { useCan } from './permissions'
 export {
   KYC_DOC_TYPES,
   PartnerError,
+  addTechnician,
   approvePartner,
+  bankKeyOf,
+  deactivatePartner,
+  findClashes,
+  normalPhone,
   reactivatePartner,
   rejectPartner,
   reviewDoc,
@@ -49,6 +54,8 @@ export {
   useKycQueueCount,
   usePartner,
   usePartners,
+  type Clash,
+  type NewTechnician,
 } from './technicians'
 export {
   BookingError,

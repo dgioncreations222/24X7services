@@ -3,13 +3,14 @@
 import type { Route } from 'next'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
-import { Download, UserRoundCog } from 'lucide-react'
+import { Download, UserPlus, UserRoundCog } from 'lucide-react'
 import { SortTh } from '@/components/catalog/parts'
 import { useTable } from '@/components/catalog/useTable'
+import { AddTechnicianModal } from '@/components/technicians/AddTechnicianModal'
 import { PARTNER_STATUS, presence } from '@/components/technicians/status'
 import { TechnicianDrawer } from '@/components/technicians/TechnicianDrawer'
 import { Async, Avatar, Button, Card, Chip, Empty, Page, PageHeader, Pager, Rating, SearchInput, Select, Tabs, TableWrap, td, th, tr } from '@/components/ui'
-import { usePartners, useCategories, type Category, type Partner } from '@/lib/data'
+import { useCan, usePartners, useCategories, type Category, type Partner } from '@/lib/data'
 import { cn } from '@/lib/cn'
 import { ago, downloadCsv } from '@/lib/format'
 
@@ -27,6 +28,8 @@ function Technicians() {
   const params = useSearchParams()
   const partners = usePartners()
   const categories = useCategories()
+  const can = useCan()
+  const [adding, setAdding] = useState(false)
   const open = (id: string | null) => router.replace((id ? `/technicians?id=${id}` : '/technicians') as Route, { scroll: false })
   const active = partners.data?.filter((p) => p.status === 'active') ?? []
   return (
@@ -36,24 +39,40 @@ function Technicians() {
         title="Technicians"
         sub={partners.data ? `${active.length} active · ${active.filter((p) => p.online).length} online now · ${partners.data.filter((p) => p.status === 'kyc_pending').length} waiting for KYC review` : 'Loading…'}
         actions={
-          partners.data && (
-            <Button variant="secondary" onClick={() => exportCsv(partners.data!, categories.data ?? [])}>
-              <Download /> Export CSV
-            </Button>
-          )
+          <>
+            {partners.data && (
+              <Button variant="secondary" onClick={() => exportCsv(partners.data!, categories.data ?? [])}>
+                <Download /> Export CSV
+              </Button>
+            )}
+            {can('technicians', 'create') && (
+              <Button onClick={() => setAdding(true)}>
+                <UserPlus /> Add technician
+              </Button>
+            )}
+          </>
         }
       />
       <Card className="overflow-hidden">
-        <Async query={partners} empty={<Empty icon={<UserRoundCog />} title="No technicians yet" body="Applications from the Partner app appear here." />}>
+        <Async query={partners} empty={<Empty icon={<UserRoundCog />} title="No technicians yet" body="Technicians join through the partner desk — add the first one with Add technician." />}>
           {(rows) => <PartnerTable rows={rows} categories={categories.data ?? []} onOpen={open} />}
         </Async>
       </Card>
       <TechnicianDrawer id={params.get('id')} onClose={() => open(null)} />
+      {adding && (
+        <AddTechnicianModal
+          onClose={() => setAdding(false)}
+          onAdded={(id) => {
+            setAdding(false)
+            open(id)
+          }}
+        />
+      )}
     </Page>
   )
 }
 
-type Filter = 'active' | 'online' | 'applications' | 'approved' | 'rejected' | 'suspended'
+type Filter = 'active' | 'online' | 'applications' | 'approved' | 'rejected' | 'suspended' | 'inactive'
 
 function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; categories: Category[]; onOpen: (id: string) => void }) {
   const [category, setCategory] = useState('all')
@@ -68,6 +87,7 @@ function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; cate
       approved: (p: Partner) => p.status === 'approved',
       rejected: (p: Partner) => p.status === 'rejected',
       suspended: (p: Partner) => p.status === 'suspended',
+      inactive: (p: Partner) => p.status === 'inactive',
     },
     sorts: {
       name: (p: Partner) => p.name,
@@ -79,7 +99,7 @@ function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; cate
     },
     initialSort: 'jobs',
   })
-  const count = (f: Filter) => rows.filter((p) => ({ active: p.status === 'active', online: p.status === 'active' && p.online, applications: p.status === 'kyc_pending', approved: p.status === 'approved', rejected: p.status === 'rejected', suspended: p.status === 'suspended' })[f]).length
+  const count = (f: Filter) => rows.filter((p) => ({ active: p.status === 'active', online: p.status === 'active' && p.online, applications: p.status === 'kyc_pending', approved: p.status === 'approved', rejected: p.status === 'rejected', suspended: p.status === 'suspended', inactive: p.status === 'inactive' })[f]).length
   const queue = t.filter === 'applications' || t.filter === 'rejected'
   const catNames = (p: Partner) => p.skills.map((s) => categories.find((c) => c.id === s)?.name ?? s).join(', ')
 
@@ -102,6 +122,7 @@ function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; cate
             { value: 'approved', label: 'Approved · not started', count: count('approved') },
             { value: 'rejected', label: 'Rejected', count: count('rejected') },
             { value: 'suspended', label: 'Suspended', count: count('suspended') },
+            { value: 'inactive', label: 'Inactive', count: count('inactive') },
           ]}
           className="border-b-0"
         />

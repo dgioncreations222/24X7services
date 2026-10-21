@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { FormError, useAction } from '@/components/catalog/parts'
+import { useToast } from '@/components/toast'
 import { textareaClass } from '@/components/catalog/fields'
 import { Button, Field, Modal } from '@/components/ui'
 
@@ -24,10 +25,12 @@ export function ReasonModal({
   suggestions: string[]
   onSubmit: (reason: string) => Promise<unknown>
   onClose: () => void
-  done: string
+  /** The toast; a function gets what onSubmit resolved with. */
+  done: string | ((result: unknown) => string)
 }) {
   const [reason, setReason] = useState('')
   const { run, busy, error } = useAction()
+  const toast = useToast()
   return (
     <Modal
       open
@@ -38,7 +41,19 @@ export function ReasonModal({
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="danger" disabled={busy || !reason.trim()} onClick={() => void run(() => onSubmit(reason), done, onClose)}>
+          <Button variant="danger" disabled={busy || !reason.trim()} onClick={() => {
+              let result: unknown
+              void run(
+                async () => {
+                  result = await onSubmit(reason)
+                },
+                undefined,
+                () => {
+                  toast(typeof done === 'string' ? done : done(result))
+                  onClose()
+                }
+              )
+            }}>
             {busy ? 'Saving…' : confirm}
           </Button>
         </>

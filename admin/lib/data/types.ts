@@ -116,8 +116,11 @@ export interface ServiceArea {
 /**
  * TODO(partner.ts): the shared proposal's PartnerStatus.
  * applied → kyc_pending → approved | rejected → active ⇄ suspended.
+ * `inactive`: let go by the network. Not a ban — an admin can reactivate the
+ * same account — but while inactive their phone, email, PAN, bank and UPI
+ * cannot be used to add anyone new.
  */
-export type PartnerStatus = 'applied' | 'kyc_pending' | 'approved' | 'rejected' | 'active' | 'suspended'
+export type PartnerStatus = 'applied' | 'kyc_pending' | 'approved' | 'rejected' | 'active' | 'suspended' | 'inactive'
 
 /** TODO(partner.ts): PayoutDestination. Only the last four digits of an account are kept. */
 export type PayoutDestination = { kind: 'bank'; accountName: string; accountLast4: string; ifsc: string } | { kind: 'upi'; upiId: string }
@@ -156,6 +159,19 @@ export interface Partner {
   createdAt: number
   /** When KYC was last sent for review. */
   submittedAt?: number
+  /** Aadhaar's last four digits only — the full number is never stored. */
+  aadhaarLast4?: string
+  /** PAN, upper case. */
+  pan?: string
+  /**
+   * A one-way key of IFSC + account number, so the same bank account cannot
+   * be used for two technicians without keeping the number itself.
+   * TODO(backend): a salted SHA-256 made in a Cloud Function, kept in a
+   * technicianIdentity index that only functions can read.
+   */
+  bankKey?: string
+  /** The admin who added them; someone else has to approve them. */
+  addedBy?: { id: string; name: string }
   /** Where they are (live while online), for dispatch distances. */
   geo: GeoPoint
 }
@@ -170,8 +186,10 @@ export interface KycDocument {
   fileUrl: string
   status: 'pending' | 'approved' | 'rejected'
   rejectReason?: string
-  /** Admin name. */
+  /** Admin name, for display. */
   reviewedBy?: string
+  /** Admin id: the name can change, the id cannot. */
+  reviewedById?: string
   uploadedAt: number
   reviewedAt?: number
 }
