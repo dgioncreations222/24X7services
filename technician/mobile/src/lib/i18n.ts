@@ -55,6 +55,7 @@ const DICT: Record<Exclude<Lang, 'English'>, Record<string, string>> = {
     'Account inactive': 'अकाउंट बंद है',
     'Your account is not active right now. The partner desk can reactivate it.': 'आपका अकाउंट अभी चालू नहीं है। पार्टनर डेस्क इसे फिर से चालू कर सकता है।',
     'Call partner desk': 'पार्टनर डेस्क को कॉल करें',
+    'This account signs in with Google. Use Continue with Google.': 'यह अकाउंट Google से साइन इन करता है। Google से जारी रखें इस्तेमाल करें।',
     // Change password
     'Change password': 'पासवर्ड बदलें',
     'Password changed': 'पासवर्ड बदल गया',

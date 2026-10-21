@@ -29,8 +29,21 @@ export function OfferPopup() {
   const profile = useProfile()
   const [settings] = useDeviceSettings()
   const offer = offers.data?.find((o) => (o.priority === 'emergency' ? settings.notify.emergency : settings.notify.requests))
-  if (!offer || !profile.data?.online || pathname.startsWith('/request')) return null
-  return <OfferCard key={offer.id} offer={offer} sound={settings.notify.sound} />
+  const shown = offer && profile.data?.online && !pathname.startsWith('/request') ? offer : undefined
+  return (
+    <>
+      {/* Every open offer keeps its clock running — popped up or waiting on
+          Home — so one nobody answers is still declined and dispatch moves on. */}
+      {offers.data?.filter((o) => o.id !== shown?.id).map((o) => <OfferClock key={o.id} id={o.id} />)}
+      {shown ? <OfferCard key={shown.id} offer={shown} sound={settings.notify.sound} /> : null}
+    </>
+  )
+}
+
+/** Runs an offer's countdown without showing anything. */
+function OfferClock({ id }: { id: string }) {
+  useOfferCountdown(id)
+  return null
 }
 
 function OfferCard({ offer, sound }: { offer: PartnerJob; sound: boolean }) {

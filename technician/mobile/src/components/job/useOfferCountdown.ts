@@ -7,6 +7,8 @@ export const OFFER_SECONDS = 30
 // When each offer was first shown, so moving between the popup and the full
 // details screen does not restart its clock.
 const shownAt = new Map<string, number>()
+/** How long to wait before declining an expired offer again after a failure. */
+const RETRY_MS = 5_000
 const expired = new Set<string>()
 
 /** The first time `id` was on screen; `now` the first time it is asked. */
@@ -33,10 +35,11 @@ export function useOfferCountdown(id: string | undefined): number {
   useEffect(() => {
     if (id && left === 0 && !expired.has(id)) {
       expired.add(id)
-      // If the network drops the answer, try again on the next tick.
-      rejectJob(id).catch(() => expired.delete(id))
+      // If the network drops the answer, let a later tick try again. `now`
+      // keeps ticking while left stays at 0, so this effect does run again.
+      rejectJob(id).catch(() => setTimeout(() => expired.delete(id), RETRY_MS))
     }
-  }, [id, left])
+  }, [id, left, now])
 
   return left
 }

@@ -75,6 +75,10 @@ export function signInWithEmail(email: string, password: string) {
     if (!EMAIL.test(e)) throw new AuthError('Enter a valid email address.')
     if (password.length < 6) throw new AuthError('Password must be at least 6 characters.')
     const known = readAuth().accounts[e]
+    // A Google account has no password, so an email sign-in must not set one on it.
+    if (known?.provider === 'google') throw new AuthError('This account signs in with Google. Use Continue with Google.')
+    // An email account the desk created gets its password on the first sign-in —
+    // the mock's stand-in for the invite link; after that it must match.
     if (known?.password && known.password !== password) throw new AuthError('Wrong password. Try again or reset it.')
     signInAs(e, password)
   })
