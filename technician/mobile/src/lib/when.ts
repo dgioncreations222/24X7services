@@ -20,3 +20,21 @@ export function day(ms: number): string {
 }
 
 export const isToday = (ms: number) => startOf(ms) === startOf(Date.now())
+
+/** 20 Oct */
+export function shortDate(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+}
+
+/**
+ * How long ago, as a string for t() and its number: `t(a.text, { n: a.n })`.
+ * Past a day it is the date itself.
+ */
+export function ago(ms: number): { text: string; n?: number } {
+  const min = Math.max(0, Math.round((Date.now() - ms) / 60_000))
+  if (min < 1) return { text: 'just now' }
+  if (min < 60) return { text: '{n} min ago', n: min }
+  const h = Math.round(min / 60)
+  if (h < 24) return { text: '{n} h ago', n: h }
+  return { text: shortDate(ms) }
+}

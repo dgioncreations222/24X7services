@@ -7,7 +7,7 @@
  * Firebase replaces this with the real customer app writing to the booking.
  */
 import { lateRequest } from '../seed'
-import { read, toPartnerJob, write } from './db'
+import { addNotification, read, toPartnerJob, write } from './db'
 import type { PartnerJob } from '../data/types'
 
 export const CUSTOMER_DECIDES_MS = 5_000
@@ -38,7 +38,17 @@ export function customerReviewsExtra(jobId: string, extraId: string) {
 
 /** The customer pays the bill in their app. */
 export function customerPays(jobId: string) {
-  setTimeout(() => patch(jobId, (j) => (j.status === 'completed' ? { ...j, payment: { ...j.payment, status: 'paid' } } : j)), CUSTOMER_PAYS_MS)
+  setTimeout(() => {
+    const job = read().jobs.find((j) => j.id === jobId)
+    if (job?.status !== 'completed' || job.payment.status === 'paid') return
+    patch(jobId, (j) => ({ ...j, payment: { ...j.payment, status: 'paid' } }))
+    addNotification({
+      kind: 'payment',
+      title: `Payment received · ₹${Math.round(job.payment.amount / 100).toLocaleString('en-IN')}`,
+      body: `${job.customer.name} paid for ${job.displayId} in their app.`,
+      jobId,
+    })
+  }, CUSTOMER_PAYS_MS)
 }
 
 let queued = false
@@ -56,5 +66,11 @@ export function queueNextOffer() {
     const id = `${base.id}-${counter}`
     const offer: PartnerJob = { ...base, id, displayId: `${base.displayId}${counter}`, slotStart: Date.now() + 90 * 60_000 }
     write((db) => ({ ...db, jobs: [offer, ...db.jobs] }))
+    addNotification({
+      kind: offer.priority === 'emergency' ? 'emergency' : 'request',
+      title: `New job request · ${offer.distanceKm} km`,
+      body: `${offer.service.name}, ${offer.address.area}.`,
+      jobId: id,
+    })
   }, NEXT_OFFER_MS)
 }

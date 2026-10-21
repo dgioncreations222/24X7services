@@ -45,6 +45,17 @@ export function useReviews(): Query<PartnerReview[]> {
   return useResource((db) => [...db.reviews].sort((a, b) => b.createdAt - a.createdAt))
 }
 
+export interface RatingSummary {
+  average: number
+  count: number
+  /** Ratings with 5, 4, 3, 2 and 1 stars, in that order. */
+  byStars: [number, number, number, number, number]
+}
+
+export function useRatingSummary(): Query<RatingSummary> {
+  return useResource((db) => ({ average: db.profile.rating, count: db.profile.ratingCount, byStars: db.ratingBreakdown }))
+}
+
 export function useProfile(): Query<PartnerProfile> {
   return useResource((db) => db.profile)
 }

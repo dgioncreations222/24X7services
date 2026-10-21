@@ -29,7 +29,7 @@ import {
 } from 'lucide-react-native'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
-import { signOut, useSession } from '@/lib/data'
+import { signOut, useSession, useUnreadCount } from '@/lib/data'
 import { isBare, redirectFor } from '@/lib/gate'
 import { useStore } from '@/lib/store'
 import { Avatar, Blink, Icon, Tappable, Text } from './ui'
@@ -134,7 +134,7 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
   const pathname = usePathname()
   const store = useStore()
   const emergencies = store.jobs.filter((j) => j.status === 'request' && j.priority === 'emergency').length
-  const unread = store.notices.filter((n) => !n.read).length
+  const unread = useUnreadCount()
   const [details, setDetails] = useState(false)
   const t = useT()
   return (

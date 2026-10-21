@@ -200,6 +200,53 @@ export type PartnerReview = Pick<Review, 'id' | 'bookingId' | 'rating' | 'text' 
   serviceName: string
 }
 
+/* --------------------------------------------------------- Notifications */
+
+export type PartnerNotificationKind = 'request' | 'emergency' | 'assigned' | 'schedule' | 'cancelled' | 'customer' | 'payment' | 'rating' | 'payout'
+
+export interface PartnerNotification {
+  id: string
+  kind: PartnerNotificationKind
+  title: string
+  body: string
+  /** Epoch ms. */
+  at: number
+  read: boolean
+  jobId?: string
+}
+
+/* --------------------------------------------------------------- Support */
+
+export type TicketTopic = 'customer_unreachable' | 'wrong_address' | 'payment' | 'part' | 'app' | 'safety' | 'other'
+
+/** A question raised with the partner desk. */
+export interface SupportTicket {
+  id: string
+  topic: TicketTopic
+  jobId?: string
+  details: string
+  status: 'open' | 'in_progress' | 'resolved'
+  createdAt: number
+  /** The desk's latest answer, once there is one. */
+  reply?: string
+}
+
+export interface Faq {
+  id: string
+  question: string
+  answer: string
+}
+
+/* -------------------------------------------------------------- Settings */
+
+export type AppLanguage = 'English' | 'हिन्दी' | 'తెలుగు' | 'اردو'
+
+/** What this phone does for the technician; kept on the device, not the server. */
+export interface DeviceSettings {
+  language: AppLanguage
+  notify: { requests: boolean; emergency: boolean; schedule: boolean; payments: boolean; sound: boolean }
+}
+
 /** TODO(ratecard.ts): RateCardItem. */
 export interface RateCardItem {
   id: string
