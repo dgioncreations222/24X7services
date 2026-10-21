@@ -109,7 +109,7 @@ function OfferCard({ offer, sound }: { offer: PartnerJob; sound: boolean }) {
           <Button size="lg" variant="secondary" className="flex-1" disabled={busy !== null} onPress={() => answer('reject')}>
             {busy === 'reject' ? <ActivityIndicator color={COLORS.ink} /> : t('Reject')}
           </Button>
-          <Button size="lg" variant="success" className="flex-[2]" disabled={busy !== null} onPress={() => answer('accept')}>
+          <Button size="lg" variant="success" className="flex-[2]" disabled={busy !== null || left === 0} onPress={() => answer('accept')}>
             {busy === 'accept' ? <ActivityIndicator color={COLORS.white} /> : t('Accept')}
           </Button>
         </View>

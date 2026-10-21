@@ -26,6 +26,7 @@ export { useDeviceSettings } from './settings'
 export {
   AuthError,
   REQUIRED_DOCS,
+  changePassword,
   register,
   sendPasswordReset,
   signInWithEmail,

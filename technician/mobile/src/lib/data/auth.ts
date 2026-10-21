@@ -4,7 +4,7 @@
  */
 import { useSyncExternalStore } from 'react'
 import { mockRequest, mockUpload } from '../mock/api'
-import { GOOGLE_DEMO_EMAIL, readAuth, scheduleReviews, subscribeAuth, updateCurrent, writeAuth, type Account, type AuthState } from '../mock/auth'
+import { GOOGLE_DEMO_EMAIL, readAuth, scheduleReviews, subscribeAuth, updateCurrent, writeAuth, type AuthState } from '../mock/auth'
 import { useResource, type Query } from './query'
 import type { Category, KycDocType, KycDocument, PayoutDetails, Registration, Session } from './types'
 
@@ -19,7 +19,7 @@ export class AuthError extends Error {
 function sessionOf(s: AuthState): Session {
   const a = s.current ? s.accounts[s.current] : undefined
   if (!a) return { status: 'signed_out' }
-  const base = { email: a.email, name: a.registration?.name }
+  const base = { email: a.email, name: a.registration?.name, provider: a.provider }
   if (!a.registration) return { ...base, status: 'registering' }
   switch (a.status) {
     case 'applied':
@@ -32,6 +32,8 @@ function sessionOf(s: AuthState): Session {
       return { ...base, status: 'approved' }
     case 'suspended':
       return { ...base, status: 'suspended' }
+    case 'inactive':
+      return { ...base, status: 'inactive' }
     default:
       return { ...base, status: 'active' }
   }
@@ -52,17 +54,21 @@ export function useSession(): Session {
   return useSyncExternalStore(subscribeAuth, snapshot, snapshot)
 }
 
-function signInAs(email: string, provider: Account['provider'], password?: string) {
-  writeAuth((s) => {
-    const existing = s.accounts[email]
-    const account: Account = existing ?? { email, provider, password, status: 'applied', documents: {} }
-    return { accounts: { ...s.accounts, [email]: account }, current: email }
-  })
+const NO_ACCOUNT = 'No partner account uses this email. The partner desk adds new technicians — visit or call them to join.'
+
+/** Only accounts an admin created can sign in; the first email sign-in sets the password. */
+function signInAs(email: string, password?: string) {
+  const existing = readAuth().accounts[email]
+  if (!existing) throw new AuthError(NO_ACCOUNT)
+  writeAuth((s) => ({
+    accounts: { ...s.accounts, [email]: password && !existing.password ? { ...existing, password } : existing },
+    current: email,
+  }))
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-/** Email + password. A new email starts a new partner application. */
+/** Email + password, for an account the partner desk created. */
 export function signInWithEmail(email: string, password: string) {
   const e = email.trim().toLowerCase()
   return mockRequest(() => {
@@ -70,13 +76,13 @@ export function signInWithEmail(email: string, password: string) {
     if (password.length < 6) throw new AuthError('Password must be at least 6 characters.')
     const known = readAuth().accounts[e]
     if (known?.password && known.password !== password) throw new AuthError('Wrong password. Try again or reset it.')
-    signInAs(e, 'email', password)
+    signInAs(e, password)
   })
 }
 
 /** "Continue with Google". The mock signs in as one demo Google account. */
 export function signInWithGoogle() {
-  return mockRequest(() => signInAs(GOOGLE_DEMO_EMAIL, 'google'))
+  return mockRequest(() => signInAs(GOOGLE_DEMO_EMAIL))
 }
 
 /** Sends a reset link (mock: only checks the address is valid). */
@@ -86,8 +92,22 @@ export function sendPasswordReset(email: string) {
   })
 }
 
-export function signOut() {
-  return mockRequest(() => writeAuth((s) => ({ ...s, current: null })))
+/** Change the password of an email account; the current one must match. */
+export function changePassword(current: string, next: string) {
+  return mockRequest(() => {
+    const s = readAuth()
+    const a = s.current ? s.accounts[s.current] : undefined
+    if (!a || a.provider !== 'email') throw new AuthError('This account signs in with Google, so it has no password here.')
+    if (a.password && a.password !== current) throw new AuthError('The current password is wrong.')
+    if (next.length < 6) throw new AuthError('The new password needs at least 6 characters.')
+    if (next === current) throw new AuthError('Pick a password different from the current one.')
+    updateCurrent((x) => ({ ...x, password: next }))
+  })
+}
+
+/** Signs out on this device. Like Firebase Auth's signOut, it needs no network. */
+export async function signOut() {
+  writeAuth((s) => ({ ...s, current: null }))
 }
 
 /* ---------------------------------------------------------- Registration */

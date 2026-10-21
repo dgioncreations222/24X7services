@@ -1,38 +1,48 @@
 import { useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { ActivityIndicator, Linking, View } from 'react-native'
 import { router } from 'expo-router'
-import { CircleCheck, Clock, ShieldAlert, TriangleAlert } from 'lucide-react-native'
+import { CircleCheck, Clock, Phone, ShieldAlert, TriangleAlert, UserX } from 'lucide-react-native'
 import { AuthFrame } from '@/components/auth/AuthFrame'
 import { Button, Icon, Text } from '@/components/ui'
 import { signOut, startWorking, useKyc, useSession } from '@/lib/data'
+import { BRAND } from '@/lib/brand'
+import { telHref } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
 import { COLORS } from '@/lib/theme'
 
 /**
- * Step 3 of 3: where the application stands. Follows the review live — the
- * screen changes on its own when the decision comes in.
+ * Where the account stands until it is active. The partner desk adds each
+ * technician and uploads their documents, so anything to fix is done there:
+ * this screen says what is happening and puts the desk's number one tap away.
+ * It follows the review live — it changes on its own when a decision comes in.
  */
 export default function KycStatusScreen() {
   const t = useT()
   const session = useSession()
   const { rejectReason } = useKyc()
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const view =
     session.status === 'approved' || session.status === 'active'
       ? { icon: CircleCheck, tone: 'success', title: t('You’re approved!'), body: t('Your documents are verified. Go online to start getting jobs near you.') }
       : session.status === 'kyc_rejected'
-        ? { icon: TriangleAlert, tone: 'danger', title: t('Documents need a fix'), body: rejectReason ?? t('One of your documents could not be verified.') }
+        ? { icon: TriangleAlert, tone: 'danger', title: t('Documents need a fix'), body: `${rejectReason ?? t('One of your documents could not be verified.')} ${t('Bring the right document to the partner desk — they will upload it.')}` }
         : session.status === 'suspended'
           ? { icon: ShieldAlert, tone: 'danger', title: t('Account on hold'), body: t('Call the partner desk to know more.') }
-          : { icon: Clock, tone: 'warning', title: t('Under review'), body: t('We are checking your documents. This usually takes a few hours — we’ll notify you.') }
+          : session.status === 'inactive'
+            ? { icon: UserX, tone: 'danger', title: t('Account inactive'), body: t('Your account is not active right now. The partner desk can reactivate it.') }
+            : { icon: Clock, tone: 'warning', title: t('Under review'), body: t('We are checking your documents. This usually takes a few hours — we’ll notify you.') }
 
   async function start() {
     setBusy(true)
+    setError(null)
     try {
       if (session.status === 'approved') await startWorking()
       router.replace('/home')
+    } catch {
+      setError(t('Couldn’t reach the server. Try again.'))
     } finally {
       setBusy(false)
     }
@@ -41,21 +51,22 @@ export default function KycStatusScreen() {
   return (
     <AuthFrame
       title={t('Application status')}
-      step={{ at: 3, of: 3 }}
       footer={
         view.tone === 'success' ? (
           <Button size="lg" variant="success" disabled={busy} onPress={start} className="w-full">
             {busy ? <ActivityIndicator color={COLORS.white} /> : null}
             {t('Start taking jobs')}
           </Button>
-        ) : session.status === 'kyc_rejected' ? (
-          <Button size="lg" href="/kyc" replace className="w-full">
-            {t('Re-upload documents')}
-          </Button>
         ) : (
-          <Button size="lg" variant="secondary" onPress={() => void signOut()} className="w-full">
-            {t('Sign out')}
-          </Button>
+          <View className="flex-row gap-2.5">
+            <Button size="lg" variant="secondary" onPress={() => void signOut()} className="flex-1">
+              {t('Sign out')}
+            </Button>
+            <Button size="lg" onPress={() => void Linking.openURL(telHref(BRAND.partnerDesk))} className="flex-[1.4]">
+              <Icon as={Phone} className="size-5" />
+              {t('Call partner desk')}
+            </Button>
+          </View>
         )
       }
     >
@@ -67,6 +78,11 @@ export default function KycStatusScreen() {
           {view.title}
         </Text>
         <Text className="max-w-xs text-center text-base text-muted">{view.body}</Text>
+        {error ? (
+          <Text accessibilityRole="alert" className="text-center text-sm font-semibold text-danger">
+            {error}
+          </Text>
+        ) : null}
         {session.status === 'kyc_pending' ? <ActivityIndicator className="mt-2" color={COLORS.warning} /> : null}
       </View>
       <View className="gap-2 rounded-card bg-canvas p-4">

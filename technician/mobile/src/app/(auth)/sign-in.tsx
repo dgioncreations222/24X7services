@@ -4,6 +4,7 @@ import { Eye, EyeOff } from 'lucide-react-native'
 import { AuthFrame } from '@/components/auth/AuthFrame'
 import { Button, Icon, Tappable, Text, TextField } from '@/components/ui'
 import { signInWithEmail, signInWithGoogle } from '@/lib/data'
+import { BRAND } from '@/lib/brand'
 import { useT } from '@/lib/i18n'
 import { COLORS } from '@/lib/theme'
 
@@ -26,7 +27,7 @@ export default function SignInScreen() {
     try {
       await (kind === 'google' ? signInWithGoogle() : signInWithEmail(email, password))
     } catch (e) {
-      setError(e instanceof Error && e.name === 'AuthError' ? e.message : t('Couldn’t sign in. Check your internet and try again.'))
+      setError(e instanceof Error && e.name === 'AuthError' ? t(e.message) : t('Couldn’t sign in. Check your internet and try again.'))
     } finally {
       setBusy(null)
     }
@@ -87,7 +88,7 @@ export default function SignInScreen() {
       <Button variant="ghost" size="lg" href="/forgot" className="self-center">
         {t('Forgot password?')}
       </Button>
-      <Text className="text-center text-xs text-muted">{t('New partner? Sign in with Google or your email to start your application.')}</Text>
+      <Text className="text-center text-xs text-muted">{t('New partner? The partner desk sets up your account — call {phone}.', { phone: BRAND.partnerDesk })}</Text>
     </AuthFrame>
   )
 }

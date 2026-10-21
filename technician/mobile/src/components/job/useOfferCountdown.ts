@@ -33,7 +33,8 @@ export function useOfferCountdown(id: string | undefined): number {
   useEffect(() => {
     if (id && left === 0 && !expired.has(id)) {
       expired.add(id)
-      rejectJob(id).catch(() => undefined)
+      // If the network drops the answer, try again on the next tick.
+      rejectJob(id).catch(() => expired.delete(id))
     }
   }, [id, left])
 
