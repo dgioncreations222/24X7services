@@ -26,7 +26,7 @@ export function PhotoBody({
 }) {
   const plate = useColor('text-plate')
   return (
-    <View className={cn('relative h-full min-h-52 flex-row overflow-hidden rounded-card bg-plate p-5', className)}>
+    <View className={cn('relative grow min-h-52 flex-row overflow-hidden rounded-card bg-plate p-5', className)}>
       <View className="absolute inset-y-0 right-0 w-[46%]">
         <Img
           src={photo}
