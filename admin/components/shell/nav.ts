@@ -21,7 +21,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
-import { useKycQueueCount } from '@/lib/data'
+import { useKycQueueCount, useUnassignedCount, useUrgentDispatchCount } from '@/lib/data'
 import { useStore } from '@/lib/store'
 import type { Side } from '../ui'
 
@@ -91,16 +91,18 @@ export const TITLES: Record<string, string> = Object.fromEntries(NAV.flatMap((g)
 /** Counts that sit beside menu items: things waiting on a person. */
 export function useBadges() {
   const s = useStore()
-  // Technicians moved to lib/data in PR 9; the other counts follow as their pages move.
+  // Counts for pages already on lib/data (technicians PR 9, bookings PR 10); the rest follow as their pages move.
   const kyc = useKycQueueCount()
+  const unassigned = useUnassignedCount()
+  const emergency = useUrgentDispatchCount()
   return useMemo(
     () => ({
-      emergency: s.bookings.filter((b) => b.priority === 'emergency' && b.status === 'confirmed').length,
-      unassigned: s.bookings.filter((b) => b.status === 'confirmed').length,
+      emergency,
+      unassigned,
       kyc,
       tickets: s.tickets.filter((t) => t.status === 'open').length,
       payouts: s.payouts.filter((p) => p.status === 'pending').length,
     }),
-    [s.bookings, kyc, s.tickets, s.payouts]
+    [emergency, unassigned, kyc, s.tickets, s.payouts]
   )
 }

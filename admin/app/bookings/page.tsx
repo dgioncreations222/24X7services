@@ -1,38 +1,17 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-import { Suspense, useMemo, useState } from 'react'
-import { Download, SearchX } from 'lucide-react'
-import { AssignModal, BookingDrawer } from '@/components/BookingDrawer'
-import { ApplianceGlyph } from '@/components/glyphs'
-import { useToast } from '@/components/toast'
-import { Avatar, Button, Card, Empty, Page, PageHeader, Pager, PriorityTag, SearchInput, Select, StatusChip, TableWrap, Tabs, td, th, tr } from '@/components/ui'
-import { APPLIANCES, APPLIANCE_LABEL, BRANDS, BRAND_LABEL, inr } from '@/lib/catalog'
+import type { Route } from 'next'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { BriefcaseBusiness, Download } from 'lucide-react'
+import { BookingDrawer } from '@/components/bookings/BookingDrawer'
+import { BOOKING_STATUS, PAYMENT_STATUS, rupees, slot } from '@/components/bookings/status'
+import { SortTh } from '@/components/catalog/parts'
+import { useTable } from '@/components/catalog/useTable'
+import { Async, Button, Card, Chip, Empty, Page, PageHeader, Pager, SearchInput, Select, Tabs, TableWrap, td, th, tr } from '@/components/ui'
+import { LIVE_STATUSES, bill, useBookings, useCategories, usePartners, type AdminBooking } from '@/lib/data'
 import { cn } from '@/lib/cn'
-import { ago, dayLabel, downloadCsv, isToday, matches, time, withinDays } from '@/lib/format'
-import { BOOKING_STATUS, STATUS_GROUPS, inGroup, type StatusGroup } from '@/lib/status'
-import { useStore } from '@/lib/store'
-import type { Appliance, Brand } from '@/lib/catalog'
-import type { Booking, Priority } from '@/lib/types'
-
-const PER_PAGE = 25
-
-type Range = 'all' | 'today' | 'tomorrow' | '7' | '30'
-
-const RANGES: { value: Range; label: string }[] = [
-  { value: 'all', label: 'Any date' },
-  { value: 'today', label: 'Today' },
-  { value: 'tomorrow', label: 'Tomorrow' },
-  { value: '7', label: 'Last 7 days' },
-  { value: '30', label: 'Last 30 days' },
-]
-
-function inRange(iso: string, r: Range) {
-  if (r === 'all') return true
-  if (r === 'today') return isToday(iso)
-  if (r === 'tomorrow') return dayLabel(iso) === 'Tomorrow'
-  return withinDays(iso, Number(r))
-}
+import { downloadCsv } from '@/lib/format'
 
 export default function BookingsPage() {
   return (
@@ -42,307 +21,172 @@ export default function BookingsPage() {
   )
 }
 
-/** Every booking on the network, filterable down to the one that needs a person. */
+/** Every booking, filterable down to the one a customer is calling about. */
 function Bookings() {
-  const store = useStore()
-  const toast = useToast()
+  const router = useRouter()
   const params = useSearchParams()
-  const [open, setOpen] = useState<string | null>(params.get('id'))
-  const [assign, setAssign] = useState<Booking | null>(null)
-  const [group, setGroup] = useState<StatusGroup>('all')
-  const [q, setQ] = useState('')
-  const [brand, setBrand] = useState<Brand | 'all'>('all')
-  const [appliance, setAppliance] = useState<Appliance | 'all'>('all')
-  const [range, setRange] = useState<Range>('all')
-  const [priority, setPriority] = useState<Priority | 'all'>('all')
-  const [page, setPage] = useState(0)
-
-  // A deep link from search or an alert opens its booking even when already on this page.
-  const [lastId, setLastId] = useState(params.get('id'))
-  if (params.get('id') !== lastId) {
-    setLastId(params.get('id'))
-    setOpen(params.get('id'))
-  }
-
-  const base = useMemo(
-    () =>
-      store.bookings.filter((b) => {
-        if (brand !== 'all' && b.brand !== brand) return false
-        if (appliance !== 'all' && b.appliance !== appliance) return false
-        if (priority !== 'all' && b.priority !== priority) return false
-        if (!inRange(b.scheduledAt, range)) return false
-        const c = store.customer(b.customerId)
-        const t = store.technician(b.technicianId)
-        return matches([b.id, c?.name, c?.phone.replace(/\s/g, ''), t?.name, b.area, b.issue, BRAND_LABEL[b.brand], APPLIANCE_LABEL[b.appliance], b.service], q)
-      }),
-    [store, brand, appliance, priority, range, q]
-  )
-
-  const rows = base.filter((b) => inGroup(b.status, group))
-  const pages = Math.ceil(rows.length / PER_PAGE)
-  const current = Math.min(page, Math.max(pages - 1, 0))
-  const shown = rows.slice(current * PER_PAGE, current * PER_PAGE + PER_PAGE)
-  const emergencies = base.filter((b) => b.status === 'confirmed' && b.priority === 'emergency').length
-
-  const reset = <T,>(set: (v: T) => void) => (v: T) => {
-    set(v)
-    setPage(0)
-  }
-
-  const exportCsv = () => {
-    downloadCsv('bookings', [
-      ['Booking', 'Created', 'Slot', 'Customer', 'Phone', 'Area', 'Brand', 'Appliance', 'Service', 'Issue', 'Technician', 'Status', 'Priority', 'Amount', 'Paid', 'Method'],
-      ...rows.map((b) => {
-        const c = store.customer(b.customerId)
-        return [
-          b.id,
-          b.createdAt,
-          b.scheduledAt,
-          c?.name ?? '',
-          c?.phone ?? '',
-          b.area,
-          BRAND_LABEL[b.brand],
-          APPLIANCE_LABEL[b.appliance],
-          b.service,
-          b.issue,
-          store.technician(b.technicianId)?.name ?? '',
-          BOOKING_STATUS[b.status].label,
-          b.priority,
-          b.amount,
-          b.paid ? 'Yes' : 'No',
-          b.method ?? '',
-        ]
-      }),
-    ])
-    toast(`Exported ${rows.length} bookings`)
-  }
-
+  const bookings = useBookings()
+  const open = (id: string | null) => router.replace((id ? `/bookings?id=${id}` : '/bookings') as Route, { scroll: false })
   return (
     <Page>
       <PageHeader
         title="Bookings"
-        sub="Every customer booking and the job it became — assign, reschedule, cancel or refund."
+        sub="Find any booking, see where it stands, and assign, cancel or refund it."
         actions={
-          <Button variant="secondary" onClick={exportCsv}>
-            <Download /> Export CSV
-          </Button>
+          bookings.data && (
+            <Button variant="secondary" onClick={() => exportCsv(bookings.data!)}>
+              <Download /> Export CSV
+            </Button>
+          )
         }
       />
-
-      <Card>
-        <Tabs
-          className="px-3"
-          value={group}
-          onChange={reset(setGroup)}
-          options={STATUS_GROUPS.map((g) => ({
-            value: g.key,
-            label: g.label,
-            count: base.filter((b) => inGroup(b.status, g.key)).length,
-            alert: g.key === 'unassigned' && emergencies > 0,
-          }))}
-        />
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3 sm:px-5">
-          <SearchInput value={q} onChange={reset(setQ)} placeholder="Search id, customer, phone, technician…" className="w-full sm:w-72" />
-          <Select label="Brand" value={brand} onChange={reset(setBrand)} options={[{ value: 'all', label: 'All brands' }, ...BRANDS.map((b) => ({ value: b, label: BRAND_LABEL[b] }))]} />
-          <Select
-            label="Appliance"
-            value={appliance}
-            onChange={reset(setAppliance)}
-            options={[{ value: 'all', label: 'All appliances' }, ...APPLIANCES.map((a) => ({ value: a, label: APPLIANCE_LABEL[a] }))]}
-          />
-          <Select label="Date" value={range} onChange={reset(setRange)} options={RANGES} />
-          <Select
-            label="Priority"
-            value={priority}
-            onChange={reset(setPriority)}
-            options={[
-              { value: 'all', label: 'Any priority' },
-              { value: 'emergency', label: 'Emergency' },
-              { value: 'high', label: 'High' },
-              { value: 'normal', label: 'Normal' },
-            ]}
-          />
-        </div>
-
-        {shown.length === 0 ? (
-          <Empty icon={<SearchX />} title="No bookings match" body="Try another status tab or clear a filter." />
-        ) : (
-          <>
-          {/* Phone: one card per booking — the table would scroll sideways. */}
-          <ul className="divide-y divide-line sm:hidden">
-            {shown.map((b) => {
-              const c = store.customer(b.customerId)
-              const t = store.technician(b.technicianId)
-              const canAssign = !t && b.status === 'confirmed'
-              return (
-                <li key={b.id}>
-                  <div role="button" tabIndex={0} onClick={() => setOpen(b.id)} onKeyDown={(e) => e.key === 'Enter' && setOpen(b.id)} className="block w-full cursor-pointer px-4 py-3 text-left">
-                    <div className="flex items-start gap-3">
-                      <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', b.priority === 'emergency' ? 'bg-danger-soft text-danger' : 'bg-brand-soft text-brand')}>
-                        <ApplianceGlyph appliance={b.appliance} className="size-[18px]" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-bold">
-                              {BRAND_LABEL[b.brand]} {APPLIANCE_LABEL[b.appliance]}
-                            </span>
-                            <span className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-muted">
-                              <span className="num">{b.id}</span> · {b.service}
-                              {b.priority !== 'normal' && <PriorityTag priority={b.priority} />}
-                            </span>
-                          </span>
-                          <span className="shrink-0">
-                            <StatusChip status={b.status} />
-                          </span>
-                        </div>
-                        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-canvas px-3 py-2 text-xs">
-                          <span className="flex min-w-0 items-center gap-1.5 font-semibold">
-                            {c && <Avatar name={c.name} size={16} side="customer" />}
-                            <span className="truncate">{c?.name}</span>
-                          </span>
-                          <span className="num text-right font-bold">{inr(b.amount)}</span>
-                          <span className="truncate font-medium text-muted">
-                            {dayLabel(b.scheduledAt)}, {time(b.scheduledAt)} · {b.area}
-                          </span>
-                          <span className={cn('text-right text-[11px] font-bold', b.status === 'refunded' ? 'text-muted' : b.paid ? 'text-success' : 'text-warning')}>
-                            {b.status === 'refunded' ? 'Refunded' : b.paid ? 'Paid' : b.method === 'cash' ? 'Cash due' : 'Unpaid'}
-                          </span>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          {t ? (
-                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-ink-2">
-                              <Avatar name={t.name} size={18} side="technician" />
-                              <span className="truncate">{t.name}</span>
-                            </span>
-                          ) : (
-                            <span className="text-xs font-semibold text-faint">No technician yet</span>
-                          )}
-                          {canAssign && (
-                            <Button
-                              size="xs"
-                              variant={b.priority === 'emergency' ? 'danger' : 'primary'}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setAssign(b)
-                              }}
-                            >
-                              Assign
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-          <div className="hidden sm:block">
-          <TableWrap>
-            <thead>
-              <tr>
-                <th className={th}>Booking</th>
-                <th className={th}>
-                  <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-cust" aria-hidden />Customer</span>
-                </th>
-                <th className={th}>Appliance</th>
-                <th className={th}>Slot</th>
-                <th className={th}>
-                  <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-tech" aria-hidden />Technician</span>
-                </th>
-                <th className={cn(th, 'text-right')}>Amount</th>
-                <th className={th}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((b) => {
-                const c = store.customer(b.customerId)
-                const t = store.technician(b.technicianId)
-                const canAssign = !t && b.status === 'confirmed'
-                return (
-                  <tr key={b.id} className={cn(tr, 'cursor-pointer')} onClick={() => setOpen(b.id)}>
-                    <td className={td}>
-                      <span className="num block font-bold">{b.id}</span>
-                      <span className="block text-xs font-medium text-faint">{ago(b.createdAt)}</span>
-                    </td>
-                    <td className={td}>
-                      <span className="flex items-center gap-2.5">
-                        {c && <Avatar name={c.name} size={26} side="customer" />}
-                        <span className="min-w-0">
-                          <span className="block max-w-[150px] truncate font-semibold">{c?.name}</span>
-                          <span className="block text-xs font-medium text-muted">{b.area}</span>
-                        </span>
-                      </span>
-                    </td>
-                    <td className={td}>
-                      <span className="flex items-center gap-2.5">
-                        <span
-                          className={cn(
-                            'grid size-8 shrink-0 place-items-center rounded-lg',
-                            b.priority === 'emergency' ? 'bg-danger-soft text-danger' : 'bg-brand-soft text-brand'
-                          )}
-                        >
-                          <ApplianceGlyph appliance={b.appliance} className="size-4" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block whitespace-nowrap font-semibold">
-                            {BRAND_LABEL[b.brand]} {APPLIANCE_LABEL[b.appliance]}
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                            {b.service}
-                            {b.priority !== 'normal' && <PriorityTag priority={b.priority} />}
-                          </span>
-                        </span>
-                      </span>
-                    </td>
-                    <td className={td}>
-                      <span className="num block whitespace-nowrap font-semibold">{time(b.scheduledAt)}</span>
-                      <span className="block text-xs font-medium text-muted">{dayLabel(b.scheduledAt)}</span>
-                    </td>
-                    <td className={td}>
-                      {t ? (
-                        <span className="flex items-center gap-2">
-                          <Avatar name={t.name} size={26} side="technician" />
-                          <span className="max-w-[130px] truncate font-semibold">{t.name}</span>
-                        </span>
-                      ) : canAssign ? (
-                        <Button
-                          size="xs"
-                          variant={b.priority === 'emergency' ? 'danger' : 'primary'}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setAssign(b)
-                          }}
-                        >
-                          Assign
-                        </Button>
-                      ) : (
-                        <span className="text-xs font-semibold text-faint">—</span>
-                      )}
-                    </td>
-                    <td className={cn(td, 'text-right')}>
-                      <span className="num block font-bold">{inr(b.amount)}</span>
-                      <span className={cn('block text-[11px] font-bold', b.status === 'refunded' ? 'text-muted' : b.paid ? 'text-success' : 'text-warning')}>
-                        {b.status === 'refunded' ? 'Refunded' : b.paid ? 'Paid' : b.method === 'cash' ? 'Cash due' : 'Unpaid'}
-                      </span>
-                    </td>
-                    <td className={td}>
-                      <StatusChip status={b.status} />
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </TableWrap>
-          </div>
-          </>
-        )}
-        <Pager page={current} pages={pages} total={rows.length} onPage={setPage} />
+      <Card className="overflow-hidden">
+        <Async query={bookings} empty={<Empty icon={<BriefcaseBusiness />} title="No bookings yet" />}>
+          {(rows) => <BookingTable rows={rows} onOpen={open} />}
+        </Async>
       </Card>
-
-      <BookingDrawer id={open} onClose={() => setOpen(null)} />
-      <AssignModal booking={assign} onClose={() => setAssign(null)} />
+      <BookingDrawer id={params.get('id')} onClose={() => open(null)} />
     </Page>
   )
+}
+
+const DAY = 86_400_000
+const startOfToday = () => new Date(new Date().setHours(0, 0, 0, 0)).getTime()
+const RANGES = {
+  all: { label: 'Any date', test: () => true },
+  today: { label: 'Today', test: (t: number) => t >= startOfToday() && t < startOfToday() + DAY },
+  tomorrow: { label: 'Tomorrow', test: (t: number) => t >= startOfToday() + DAY && t < startOfToday() + 2 * DAY },
+  week: { label: 'Last 7 days', test: (t: number) => t >= startOfToday() - 6 * DAY && t < startOfToday() + DAY },
+  month: { label: 'Last 30 days', test: (t: number) => t >= startOfToday() - 29 * DAY && t < startOfToday() + DAY },
+} as const
+type Range = keyof typeof RANGES
+
+function BookingTable({ rows: all, onOpen }: { rows: AdminBooking[]; onOpen: (id: string) => void }) {
+  const categories = useCategories()
+  const partners = usePartners()
+  const [category, setCategory] = useState('all')
+  const [range, setRange] = useState<Range>('all')
+  const [priority, setPriority] = useState<'all' | 'emergency' | 'normal'>('all')
+  const techName = (id?: string) => (id ? partners.data?.find((p) => p.id === id)?.name : undefined)
+  const rows = all.filter((b) => (category === 'all' || b.categoryId === category) && RANGES[range].test(b.slotStart) && (priority === 'all' || b.priority === priority))
+  const t = useTable({
+    rows,
+    search: (b) => [b.id, b.displayId, b.customer.name, b.customer.phone.replace(/\s/g, ''), b.area, b.pincode, b.serviceName, b.brand, techName(b.technicianId)],
+    filters: {
+      all: () => true,
+      unassigned: (b: AdminBooking) => b.status === 'confirmed',
+      live: (b: AdminBooking) => LIVE_STATUSES.includes(b.status),
+      payment: (b: AdminBooking) => b.status === 'pending_payment' || b.status === 'failed',
+      completed: (b: AdminBooking) => b.status === 'completed',
+      cancelled: (b: AdminBooking) => b.status === 'cancelled' || b.status === 'refunded',
+    },
+    sorts: { slot: (b: AdminBooking) => -b.slotStart, created: (b: AdminBooking) => -b.createdAt, amount: (b: AdminBooking) => -bill(b).total },
+    initialSort: 'slot',
+    pageSize: 20,
+  })
+  const n = (f: (b: AdminBooking) => boolean) => rows.filter(f).length
+  return (
+    <>
+      <div className="flex flex-col gap-3 border-b border-line p-4">
+        <Tabs
+          value={t.filter}
+          onChange={t.setFilter}
+          options={[
+            { value: 'all', label: 'All', count: rows.length },
+            { value: 'unassigned', label: 'Unassigned', count: n((b) => b.status === 'confirmed'), alert: true },
+            { value: 'live', label: 'Live', count: n((b) => LIVE_STATUSES.includes(b.status)) },
+            { value: 'payment', label: 'Awaiting payment', count: n((b) => b.status === 'pending_payment' || b.status === 'failed') },
+            { value: 'completed', label: 'Completed', count: n((b) => b.status === 'completed') },
+            { value: 'cancelled', label: 'Cancelled', count: n((b) => b.status === 'cancelled' || b.status === 'refunded') },
+          ]}
+          className="border-b-0"
+        />
+        <div className="flex flex-col gap-2 lg:flex-row">
+          <SearchInput value={t.q} onChange={t.setQ} placeholder="Booking ID, customer, phone, area or technician" className="flex-1" />
+          <div className="flex flex-wrap gap-2">
+            <Select label="Category" value={category} onChange={setCategory} options={[{ value: 'all', label: 'All categories' }, ...(categories.data ?? []).map((c) => ({ value: c.id, label: c.name }))]} />
+            <Select label="Date" value={range} onChange={setRange} options={(Object.keys(RANGES) as Range[]).map((k) => ({ value: k, label: RANGES[k].label }))} />
+            <Select
+              label="Priority"
+              value={priority}
+              onChange={setPriority}
+              options={[
+                { value: 'all', label: 'Any priority' },
+                { value: 'emergency', label: 'Emergency' },
+                { value: 'normal', label: 'Normal' },
+              ]}
+            />
+          </div>
+        </div>
+      </div>
+      {t.total === 0 ? (
+        <Empty icon={<BriefcaseBusiness />} title="No bookings match" body="Try another search, tab or filter." />
+      ) : (
+        <TableWrap>
+          <thead>
+            <tr>
+              <th className={th}>Booking</th>
+              <SortTh by="slot" label="Slot" sort={t.sort} onSort={t.sortBy} />
+              <th className={th}>Customer · area</th>
+              <th className={th}>Technician</th>
+              <SortTh by="amount" label="Amount" sort={t.sort} onSort={t.sortBy} />
+              <th className={th}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {t.visible.map((b) => {
+              const s = BOOKING_STATUS[b.status]
+              return (
+                <tr key={b.id} className={cn(tr, 'cursor-pointer')} onClick={() => onOpen(b.id)}>
+                  <td className={td}>
+                    <button type="button" className="text-left" onClick={() => onOpen(b.id)}>
+                      <span className="num block font-bold">{b.displayId}</span>
+                      <span className="block text-xs text-muted">
+                        {b.serviceName}
+                        {b.priority === 'emergency' && <span className="font-bold text-danger"> · Emergency</span>}
+                      </span>
+                    </button>
+                  </td>
+                  <td className={cn(td, 'text-[13px]')}>{slot(b.slotStart)}</td>
+                  <td className={td}>
+                    <span className="block font-semibold">{b.customer.name}</span>
+                    <span className="block text-xs text-muted">{b.area}</span>
+                  </td>
+                  <td className={cn(td, 'text-[13px]')}>{techName(b.technicianId) ?? (b.dispatch.noTechFound ? <span className="font-bold text-danger">None found</span> : <span className="text-faint">—</span>)}</td>
+                  <td className={td}>
+                    <span className="num block font-bold">{rupees(bill(b).total)}</span>
+                    <span className="block text-[11px] text-muted">{PAYMENT_STATUS[b.payment.status].label}</span>
+                  </td>
+                  <td className={td}>
+                    <Chip tone={s.tone}>{s.label}</Chip>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </TableWrap>
+      )}
+      <Pager page={t.page} pages={t.pages} total={t.total} onPage={t.setPage} />
+    </>
+  )
+}
+
+function exportCsv(rows: AdminBooking[]) {
+  downloadCsv('bookings', [
+    ['Booking', 'Service', 'Slot', 'Customer', 'Phone', 'Area', 'Pincode', 'Priority', 'Status', 'Total (₹)', 'Payment', 'Technician ID'],
+    ...rows.map((b) => [
+      b.displayId,
+      b.serviceName,
+      new Date(b.slotStart).toISOString(),
+      b.customer.name,
+      b.customer.phone,
+      b.area,
+      b.pincode,
+      b.priority,
+      BOOKING_STATUS[b.status].label,
+      bill(b).total / 100,
+      PAYMENT_STATUS[b.payment.status].label,
+      b.technicianId ?? '',
+    ]),
+  ])
 }
