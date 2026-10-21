@@ -1,24 +1,30 @@
 /**
  * The mock backend's data, kept in memory: a reload starts it afresh from the
- * seed. Each admin phase adds its collections here (catalog in PR 8,
- * technicians in PR 9, …); this one holds the admin accounts sign-in needs.
+ * seed. Each admin phase adds its collections here: admin accounts for
+ * sign-in (PR 7), the catalog (PR 8), technicians next (PR 9).
  *
  * `read` returns the current snapshot; `write` replaces it and tells every
  * subscriber, which is how every screen reading a record sees it change.
  */
 import { controlSeed } from '../control'
 import { seed } from '../seed'
-import type { AdminAccount } from '../data/types'
+import type { AdminAccount, Category, Question, RateCardItem, Service, ServiceArea } from '../data/types'
+import { seedCatalog } from './catalogSeed'
 
 export interface MockDb {
   admins: AdminAccount[]
+  categories: Category[]
+  services: Service[]
+  questions: Question[]
+  rateCard: RateCardItem[]
+  areas: ServiceArea[]
 }
 
 function fresh(): MockDb {
   const admins = controlSeed(seed()).admins.map(
     (a): AdminAccount => ({ id: a.id, name: a.name, email: a.email, role: a.role, status: a.status })
   )
-  return { admins }
+  return { admins, ...seedCatalog() }
 }
 
 let db: MockDb | null = null

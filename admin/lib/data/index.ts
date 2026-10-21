@@ -9,3 +9,30 @@ export { useResource, type Query } from './query'
 export { AuthError, signInWithEmail, signInWithGoogle, signOut, useAdminSession } from './auth'
 export { NetworkError } from '../mock/api'
 export type * from './types'
+export {
+  CatalogError,
+  addArea,
+  deleteQuestion,
+  moveCategory,
+  moveQuestion,
+  moveRateCardItem,
+  moveService,
+  saveCategory,
+  saveQuestion,
+  saveRateCardItem,
+  saveService,
+  setAreaActive,
+  setCategoryActive,
+  setRateCardItemActive,
+  setServiceActive,
+  useAreas,
+  useCategories,
+  useQuestions,
+  useRateCard,
+  useServices,
+  type CategoryInput,
+  type QuestionInput,
+  type RateCardInput,
+  type ServiceInput,
+} from './catalog'
+export { useCan } from './permissions'
