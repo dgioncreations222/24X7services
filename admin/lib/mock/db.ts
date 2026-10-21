@@ -1,17 +1,18 @@
 /**
  * The mock backend's data, kept in memory: a reload starts it afresh from the
  * seed. Each admin phase adds its collections here: admin accounts for
- * sign-in (PR 7), the catalog (PR 8), technicians and KYC (PR 9), bookings (PR 10), customers (PR 12).
+ * sign-in (PR 7), the catalog (PR 8), technicians and KYC (PR 9), bookings (PR 10), customers (PR 12), coupons, plans, banners and reviews (PR 13).
  *
  * `read` returns the current snapshot; `write` replaces it and tells every
  * subscriber, which is how every screen reading a record sees it change.
  */
 import { controlSeed } from '../control'
 import { seed } from '../seed'
-import type { AdminAccount, AdminBooking, AdminCustomer, Category, KycDocument, Partner, Question, RateCardItem, Service, ServiceArea } from '../data/types'
+import type { AdminAccount, AdminBooking, AdminCustomer, AdminReview, Coupon, HomeBanner, PlusPlan, Category, KycDocument, Partner, Question, RateCardItem, Service, ServiceArea } from '../data/types'
 import { seedCatalog } from './catalogSeed'
 import { seedBookings } from './bookingSeed'
 import { seedCustomers } from './customerSeed'
+import { seedGrowth } from './growthSeed'
 import { seedPartners } from './partnerSeed'
 
 export interface MockDb {
@@ -25,6 +26,10 @@ export interface MockDb {
   kycDocs: KycDocument[]
   bookings: AdminBooking[]
   customers: AdminCustomer[]
+  coupons: Coupon[]
+  plans: PlusPlan[]
+  banners: HomeBanner[]
+  reviews: AdminReview[]
 }
 
 function fresh(): MockDb {
@@ -34,7 +39,7 @@ function fresh(): MockDb {
   const catalog = seedCatalog()
   const people = seedPartners()
   const active = people.partners.filter((p) => p.status === 'active').map((p) => p.id)
-  return { admins, ...catalog, ...people, ...seedBookings(catalog, active), ...seedCustomers() }
+  return { admins, ...catalog, ...people, ...seedBookings(catalog, active), ...seedCustomers(), ...seedGrowth() }
 }
 
 let db: MockDb | null = null
