@@ -33,10 +33,7 @@ export function InvoiceView({ invoice, className }: InvoiceViewProps) {
           <Text className="mt-1 text-lg font-bold text-ink">{invoice.number}</Text>
           <Text className="mt-0.5 text-xs text-muted">{formatDateTime(invoice.issuedAt)}</Text>
         </View>
-        <ToneBadge
-          tone={invoice.paymentStatus === 'paid' ? 'success' : 'warning'}
-          label={invoice.paymentStatus === 'paid' ? 'Paid' : 'Payment due'}
-        />
+        <ToneBadge tone={paymentLabel(invoice.paymentStatus).tone} label={paymentLabel(invoice.paymentStatus).label} />
       </View>
 
       <View className="gap-4 border-b border-border p-4">
@@ -140,10 +137,18 @@ export function invoiceText(invoice: Invoice): string {
           `SGST @ ${invoice.gstRate / 2}%: ${formatPaise(invoice.price.sgst)}`,
         ]),
     `Total: ${formatPaise(invoice.price.total)}`,
-    invoice.paymentStatus === 'paid' ? 'Paid' : 'Payment due',
+    paymentLabel(invoice.paymentStatus).label,
     '',
     `SAC code: ${invoice.sacCode}`,
     'This is a computer-generated invoice and needs no signature.',
   ]
   return rows.join('\n')
+}
+
+/** What the invoice says about payment. Refunds happen after paying, so they read as paid. */
+function paymentLabel(status: string): { label: string; tone: 'success' | 'warning' } {
+  if (status === 'paid') return { label: 'Paid', tone: 'success' }
+  if (status === 'partially_refunded') return { label: 'Paid · partly refunded', tone: 'success' }
+  if (status === 'refunded') return { label: 'Paid · refunded', tone: 'success' }
+  return { label: 'Payment due', tone: 'warning' }
 }

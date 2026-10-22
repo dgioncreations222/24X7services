@@ -12,11 +12,12 @@ import { Icon } from '@/components/ui/Icon'
 import { Text } from '@/components/ui/Text'
 import { ErrorState } from '@/components/ui/States'
 import { useToast } from '@/components/Toast'
-import { callFn, friendlyError } from '@/lib/callables'
+import { callFn, friendlyError, isFailedPrecondition } from '@/lib/callables'
 import { CHECKOUT_IS_SIMULATED, CheckoutDismissed, openCheckout } from '@/lib/checkout'
 import { useAuth } from '@/lib/auth'
 import { clearDraft, useBookingDraft } from '@/lib/bookingDraft'
 import { removeBooked } from '@/lib/cart'
+import { clearPendingBooking, readPendingBooking, savePendingBooking } from '@/lib/pendingBooking'
 
 /**
  * Taking the money, or not taking it yet.
@@ -34,7 +35,7 @@ import { removeBooked } from '@/lib/cart'
  * is accounted for rather than inviting a second attempt.
  */
 
-type Stage = 'ready' | 'creating' | 'paying' | 'confirming' | 'held'
+type Stage = 'ready' | 'creating' | 'paying' | 'confirming' | 'held' | 'confirming_later' | 'released'
 
 export default function PaymentScreen() {
   const { draft } = useBookingDraft()
@@ -43,15 +44,19 @@ export default function PaymentScreen() {
 
   const [stage, setStage] = useState<Stage>('ready')
   const [error, setError] = useState<string | null>(null)
+  // The booking already created for this draft, even if the customer left
+  // this screen or the app since — paying again must not book twice.
   const [booking, setBooking] = useState<{
     id: string
     displayId: string
     price: PriceBreakdown
-  } | null>(null)
+  } | null>(() => readPendingBooking(draft))
 
   const parsed = bookingDraftSchema.safeParse(draft)
   const payingNow = draft.paymentMode === 'online'
   const busy = stage !== 'ready' && stage !== 'held'
+  // After a released slot or a payment still being confirmed, paying again is wrong.
+  const settled = stage === 'confirming_later' || stage === 'released'
 
   function finish(bookingId: string): void {
     // The draft has become a booking; keeping it would offer the customer the
@@ -63,6 +68,7 @@ export default function PaymentScreen() {
         issueIds: draft.issueIds ?? [],
       })
     }
+    clearPendingBooking()
     clearDraft()
     router.replace(`/book/confirmed?b=${bookingId}` as Href)
   }
@@ -85,6 +91,7 @@ export default function PaymentScreen() {
           price: created.price,
         }
         setBooking(current)
+        savePendingBooking(draft, current)
 
         if (!created.requiresPayment) {
           finish(created.bookingId)
@@ -124,9 +131,18 @@ export default function PaymentScreen() {
         return
       }
 
+      if (verified.status === 'pending') {
+        // The bank has not confirmed it yet. Paying again would charge twice;
+        // the booking confirms itself when the payment lands.
+        setStage('confirming_later')
+        setError('Your payment is being confirmed by the bank. This can take a few minutes — please do not pay again. We will update the booking in My bookings.')
+        return
+      }
+
       // Razorpay took the money but the booking could not be confirmed — the
       // hold had already lapsed. Support settles this, not a retry.
-      setStage('held')
+      clearPendingBooking()
+      setStage('released')
       setError(
         'Your payment went through but the slot had already been released. ' +
           'Our support team will refund it and help you rebook.'
@@ -135,6 +151,16 @@ export default function PaymentScreen() {
       if (caught instanceof CheckoutDismissed) {
         setStage('held')
         toast.show('Payment cancelled. Your slot is held for a few minutes.')
+        return
+      }
+      if (isFailedPrecondition(caught)) {
+        // The server will not take payment for this booking any more — its hold
+        // lapsed and it was cancelled, or it is already paid. Forget it, so the
+        // next tap starts a new booking rather than failing the same way again.
+        clearPendingBooking()
+        setBooking(null)
+        setStage('ready')
+        setError(`${friendlyError(caught)} Tap the button to book this slot again.`)
         return
       }
       setStage('held')
@@ -160,10 +186,10 @@ export default function PaymentScreen() {
       stepKey="payment"
       title={payingNow ? 'Pay the visit fee' : 'Confirm your booking'}
       cta={{
-        label: booking ? 'Try the payment again' : payingNow ? 'Pay now' : 'Confirm booking',
-        onClick: () => void pay(),
-        loading: busy,
-        disabled: busy,
+        label: settled ? 'Go to My bookings' : booking ? 'Try the payment again' : payingNow ? 'Pay now' : 'Confirm booking',
+        onClick: () => (settled ? router.replace('/bookings' as Href) : void pay()),
+        loading: busy && !settled,
+        disabled: busy && !settled,
       }}
     >
       {booking ? (

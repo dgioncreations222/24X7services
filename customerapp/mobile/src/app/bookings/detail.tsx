@@ -80,7 +80,9 @@ function Detail({ booking, events }: { booking: Booking; events: BookingEvent[] 
         />
       ) : null}
 
-      {booking.status === 'pending_payment' || booking.price.due > 0 ? (
+      {/* A held slot, or a finished job with money left. Never a cancelled or
+          expired booking, and never mid-job: the final bill comes at the end. */}
+      {booking.status === 'pending_payment' || (booking.status === 'completed' && booking.price.due > 0) ? (
         <Card className="mt-4 p-4">
           <Text className="text-sm font-semibold text-ink">
             {booking.status === 'pending_payment'
