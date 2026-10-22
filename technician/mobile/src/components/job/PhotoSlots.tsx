@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { View } from 'react-native'
 import { Image } from 'expo-image'
 import { Camera, RotateCcw } from 'lucide-react-native'
-import { uploadPhoto, type PartnerJob } from '@/lib/data'
+import { canAddPhoto, uploadPhoto, type PartnerJob } from '@/lib/data'
 import { useT } from '@/lib/i18n'
 import { capturePhoto } from '@/lib/photo'
 import { Icon } from '../base/Icon'
@@ -20,6 +20,8 @@ export function PhotoSlots({ job, kind }: { job: PartnerJob; kind: 'before' | 'a
   const t = useT()
   const [pending, setPending] = useState<Pending[]>([])
   const saved = job.photos[kind]
+  // Only while this kind of photo belongs to the job's current step.
+  const open = canAddPhoto(job, kind)
 
   async function send(uri: string) {
     const set = (p: Partial<Pending>) => setPending((list) => list.map((x) => (x.uri === uri ? { ...x, ...p } : x)))
@@ -32,14 +34,21 @@ export function PhotoSlots({ job, kind }: { job: PartnerJob; kind: 'before' | 'a
     }
   }
 
+  const [pickError, setPickError] = useState(false)
+
   async function add() {
-    const uri = await capturePhoto({ max: 1280 })
+    setPickError(false)
+    const uri = await capturePhoto({ max: 1280 }).catch(() => {
+      setPickError(true)
+      return null
+    })
     if (!uri) return
     setPending((list) => [...list, { uri, progress: 0, failed: false }])
     await send(uri)
   }
 
   const tile = 'aspect-square w-[31%] overflow-hidden rounded-xl'
+  const shown = open ? pending : []
 
   return (
     <View className="flex-row flex-wrap gap-[3.5%] gap-y-3">
@@ -48,7 +57,7 @@ export function PhotoSlots({ job, kind }: { job: PartnerJob; kind: 'before' | 'a
           <Image source={{ uri: p.url }} style={{ width: '100%', height: '100%' }} contentFit="cover" accessibilityLabel={t('Saved photo')} />
         </View>
       ))}
-      {pending.map((p) => (
+      {shown.map((p) => (
         <Tappable
           key={p.uri}
           disabled={!p.failed}
@@ -71,10 +80,13 @@ export function PhotoSlots({ job, kind }: { job: PartnerJob; kind: 'before' | 'a
           </View>
         </Tappable>
       ))}
-      <Tappable onPress={add} accessibilityLabel={kind === 'before' ? t('Take a before photo') : t('Take an after photo')} className={`${tile} items-center justify-center gap-1 border-2 border-dashed border-brand/40 bg-brand-soft`}>
-        <Icon as={Camera} className="size-7 text-brand" />
-        <Text className="text-xs font-extrabold text-brand">{t('Add photo')}</Text>
-      </Tappable>
+      {open ? (
+        <Tappable onPress={add} accessibilityLabel={kind === 'before' ? t('Take a before photo') : t('Take an after photo')} className={`${tile} items-center justify-center gap-1 border-2 border-dashed border-brand/40 bg-brand-soft`}>
+          <Icon as={Camera} className="size-7 text-brand" />
+          <Text className="text-xs font-extrabold text-brand">{t('Add photo')}</Text>
+        </Tappable>
+      ) : null}
+      {pickError ? <Text className="w-full text-sm font-semibold text-danger">{t('Couldn’t open the camera. Try again.')}</Text> : null}
     </View>
   )
 }

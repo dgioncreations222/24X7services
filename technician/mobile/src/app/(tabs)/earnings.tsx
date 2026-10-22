@@ -58,7 +58,7 @@ function PeriodView({ period }: { period: Period }) {
             </View>
             <View className="flex-row">
               <Figure label={t('Customers paid')} value={rupees(s.gross)} />
-              <Figure label={t('Commission (20%)')} value={`− ${rupees(s.commission)}`} className="border-l border-line" />
+              <Figure label={t('Commission')} value={`− ${rupees(s.commission)}`} className="border-l border-line" />
             </View>
           </Card>
 

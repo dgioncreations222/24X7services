@@ -26,9 +26,11 @@ const NO_JOB = 'none'
 /** The ticket form: what it is about, which job (if any), and what happened. */
 export function RaiseTicketSheet({ open, onClose, topic: initial }: { open: boolean; onClose: () => void; topic?: TicketTopic }) {
   const t = useT()
+  const upcoming = useJobs('upcoming')
   const ongoing = useJobs('ongoing')
   const done = useJobs('completed')
-  const jobs = [...(ongoing.data ?? []), ...(done.data ?? [])].slice(0, 5)
+  // Upcoming too: the FAQ sends a technician here to give back an accepted job.
+  const jobs = [...(ongoing.data ?? []), ...(upcoming.data ?? []), ...(done.data ?? [])].slice(0, 6)
   const [topic, setTopic] = useState<TicketTopic>(initial ?? 'customer_unreachable')
   const [jobId, setJobId] = useState<string>(NO_JOB)
   const [details, setDetails] = useState('')

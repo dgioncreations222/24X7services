@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { router, usePathname } from 'expo-router'
 import { Clock, MapPin } from 'lucide-react-native'
-import { acceptJob, rejectJob, useJobs, useProfile, type PartnerJob } from '@/lib/data'
+import { acceptJob, rejectJob, useDeviceSettings, useJobs, useProfile, type PartnerJob } from '@/lib/data'
+import { chime } from '@/lib/chime'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
 import { rupees } from '@/lib/money'
@@ -13,24 +14,46 @@ import { clock, day } from '@/lib/when'
 import { Icon } from '../base/Icon'
 import { Text } from '../base/Text'
 import { Button } from '../ui/Button'
-import { OFFER_SECONDS, useOfferCountdown } from './useOfferCountdown'
+import { answerOffer, OFFER_SECONDS, useOfferCountdown } from './useOfferCountdown'
 
 /**
  * A new request takes the bottom of whatever screen is open, the way the
  * UC partner app does: service, area, time, what it pays, a 30-second clock
  * and two big buttons. Only while online, and not over the request's own
- * details screen.
+ * details screen. Settings → Alerts decides which kinds pop up; the rest
+ * wait on Home.
  */
 export function OfferPopup() {
   const pathname = usePathname()
   const offers = useJobs('offers')
   const profile = useProfile()
-  const offer = offers.data?.[0]
-  if (!offer || !profile.data?.online || pathname.startsWith('/request')) return null
-  return <OfferCard key={offer.id} offer={offer} />
+  const [settings] = useDeviceSettings()
+  // Kinds switched on in Alerts pop up one at a time, each with its own 30 s.
+  // The rest wait on Home with their clock running and shown.
+  // Until the profile has loaded, online is unknown: start no clocks yet, or
+  // every waiting request would begin its 30 s in that first moment.
+  if (!profile.data) return null
+  const online = profile.data.online
+  const popsUp = (o: PartnerJob) => online && (o.priority === 'emergency' ? settings.notify.emergency : settings.notify.requests)
+  const offer = offers.data?.find(popsUp)
+  const shown = offer && !pathname.startsWith('/request') ? offer : undefined
+  return (
+    <>
+      {/* Every open offer keeps its clock running — popped up or waiting on
+          Home — so one nobody answers is still declined and dispatch moves on. */}
+      {offers.data?.filter((o) => o.id !== shown?.id && !popsUp(o)).map((o) => <OfferClock key={o.id} id={o.id} />)}
+      {shown ? <OfferCard key={shown.id} offer={shown} sound={settings.notify.sound} /> : null}
+    </>
+  )
 }
 
-function OfferCard({ offer }: { offer: PartnerJob }) {
+/** Runs an offer's countdown without showing anything. */
+function OfferClock({ id }: { id: string }) {
+  useOfferCountdown(id)
+  return null
+}
+
+function OfferCard({ offer, sound }: { offer: PartnerJob; sound: boolean }) {
   const t = useT()
   const insets = useSafeAreaInsets()
   const left = useOfferCountdown(offer.id)
@@ -38,14 +61,19 @@ function OfferCard({ offer }: { offer: PartnerJob }) {
   const [error, setError] = useState<string | null>(null)
   const urgent = offer.priority === 'emergency'
 
+  // One chime as the card appears, if the technician wants alert sounds.
+  useEffect(() => {
+    if (sound) chime(urgent)
+  }, [sound, urgent])
+
   async function answer(kind: 'accept' | 'reject') {
     setBusy(kind)
     setError(null)
     try {
       if (kind === 'accept') {
-        await acceptJob(offer.id)
+        await answerOffer(offer.id, () => acceptJob(offer.id))
         router.push(`/jobs/detail?id=${offer.id}`)
-      } else await rejectJob(offer.id)
+      } else await answerOffer(offer.id, () => rejectJob(offer.id))
     } catch {
       setError(t('Couldn’t reach the server. Try again.'))
       setBusy(null)
@@ -101,7 +129,7 @@ function OfferCard({ offer }: { offer: PartnerJob }) {
           <Button size="lg" variant="secondary" className="flex-1" disabled={busy !== null} onPress={() => answer('reject')}>
             {busy === 'reject' ? <ActivityIndicator color={COLORS.ink} /> : t('Reject')}
           </Button>
-          <Button size="lg" variant="success" className="flex-[2]" disabled={busy !== null} onPress={() => answer('accept')}>
+          <Button size="lg" variant="success" className="flex-[2]" disabled={busy !== null || left === 0} onPress={() => answer('accept')}>
             {busy === 'accept' ? <ActivityIndicator color={COLORS.white} /> : t('Accept')}
           </Button>
         </View>

@@ -7,7 +7,7 @@
  * Firebase replaces this with the real customer app writing to the booking.
  */
 import { lateRequest } from '../seed'
-import { addNotification, read, toPartnerJob, write } from './db'
+import { addNotification, displayIdOf, read, split, toPartnerJob, write } from './db'
 import type { PartnerJob } from '../data/types'
 
 export const CUSTOMER_DECIDES_MS = 5_000
@@ -26,11 +26,14 @@ export function customerReviewsExtra(jobId: string, extraId: string) {
       if (!extra || extra.status !== 'pending') return j
       const extras = j.extras.map((e) => (e.id === extraId ? { ...e, status: 'approved' as const } : e))
       const stillWaiting = extras.some((e) => e.status === 'pending')
+      const amount = j.payment.amount + extra.amount
       return {
         ...j,
         extras,
         status: j.status === 'awaiting_approval' && !stillWaiting ? 'in_progress' : j.status,
-        payment: { ...j.payment, amount: j.payment.amount + extra.amount },
+        payment: { ...j.payment, amount },
+        // The technician's share grows with the bill, at the job's own rate.
+        earning: split(amount, j.commissionPct).net,
       }
     })
   }, CUSTOMER_DECIDES_MS)
@@ -54,17 +57,20 @@ export function customerPays(jobId: string) {
 let queued = false
 let counter = 0
 
-/** When no request is waiting, send one more after a short gap. */
+/** When the technician is online and no request is waiting, send one more after a short gap. */
 export function queueNextOffer() {
-  if (queued || read().jobs.some((j) => j.status === 'offered')) return
+  const db = read()
+  if (queued || !db.profile.online || db.jobs.some((j) => j.status === 'offered')) return
   queued = true
   setTimeout(() => {
     queued = false
+    // They may have gone offline during the gap.
+    if (!read().profile.online) return
     const base = toPartnerJob(lateRequest())
     if (!base) return
     counter += 1
     const id = `${base.id}-${counter}`
-    const offer: PartnerJob = { ...base, id, displayId: `${base.displayId}${counter}`, slotStart: Date.now() + 90 * 60_000 }
+    const offer: PartnerJob = { ...base, id, displayId: displayIdOf(Number(base.id.replace(/\D/g, '')) + counter), slotStart: Date.now() + 90 * 60_000 }
     write((db) => ({ ...db, jobs: [offer, ...db.jobs] }))
     addNotification({
       kind: offer.priority === 'emergency' ? 'emergency' : 'request',

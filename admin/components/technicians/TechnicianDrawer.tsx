@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Phone, ShieldAlert, ShieldCheck } from 'lucide-react'
+import { Phone, ShieldAlert, ShieldCheck, UserX } from 'lucide-react'
 import { useAction } from '@/components/catalog/parts'
 import { Async, Avatar, Button, Chip, Drawer, Empty, SkeletonRows, Tabs, buttonClass } from '@/components/ui'
-import { reactivatePartner, suspendPartner, useCan, usePartner, type Partner } from '@/lib/data'
+import { deactivatePartner, reactivatePartner, suspendPartner, useCan, usePartner, type Partner } from '@/lib/data'
 import { cn } from '@/lib/cn'
 import { KycReview } from './KycReview'
 import { PerformancePanel } from './PerformancePanel'
@@ -15,6 +15,9 @@ import { PARTNER_STATUS, presence } from './status'
 type Section = 'kyc' | 'profile' | 'performance'
 
 const SUSPEND_REASONS = ['Repeated customer complaints — under review.', 'Asked customers to pay outside the app.', 'Documents found to be invalid after approval.']
+const INACTIVE_REASONS = ['Left the network.', 'Took jobs outside the app.', 'Not worked for 60 days.']
+
+const backToDispatch = (n: number) => (n ? ` · ${n} job${n === 1 ? '' : 's'} back to dispatch` : '')
 
 /** One technician: KYC, profile and performance, with suspend / reactivate in the footer. */
 export function TechnicianDrawer({ id, onClose }: { id: string | null; onClose: () => void }) {
@@ -44,6 +47,7 @@ function Body({ partner: p, onClose }: { partner: Partner; onClose: () => void }
   const can = useCan()
   const [section, setSection] = useState<Section>(p.status === 'kyc_pending' || p.status === 'rejected' ? 'kyc' : 'profile')
   const [suspending, setSuspending] = useState(false)
+  const [deactivating, setDeactivating] = useState(false)
   const { run, busy } = useAction()
   const s = PARTNER_STATUS[p.status]
   const pr = presence(p)
@@ -74,8 +78,13 @@ function Body({ partner: p, onClose }: { partner: Partner; onClose: () => void }
                 <ShieldAlert /> Suspend
               </Button>
             )}
-            {canDecide && p.status === 'suspended' && (
-              <Button variant="success" size="sm" className="mr-auto" disabled={busy} onClick={() => void run(() => reactivatePartner(p.id), `${p.name} reactivated`)}>
+            {canDecide && (p.status === 'active' || p.status === 'approved' || p.status === 'suspended') && (
+              <Button variant="subtle" size="sm" className={cn('text-ink-2', p.status === 'suspended' && 'mr-auto')} onClick={() => setDeactivating(true)}>
+                <UserX /> Make inactive
+              </Button>
+            )}
+            {canDecide && (p.status === 'suspended' || p.status === 'inactive') && (
+              <Button variant="success" size="sm" className={cn(p.status === 'inactive' && 'mr-auto')} disabled={busy} onClick={() => void run(() => reactivatePartner(p.id), `${p.name} reactivated`)}>
                 <ShieldCheck /> Reactivate
               </Button>
             )}
@@ -92,6 +101,8 @@ function Body({ partner: p, onClose }: { partner: Partner; onClose: () => void }
               {p.area}, {p.city} · {p.experienceYears} yrs exp.
             </p>
             {p.status === 'suspended' && p.statusReason && <p className="mt-1 font-semibold text-danger">Suspended: {p.statusReason}</p>}
+            {p.status === 'inactive' && p.statusReason && <p className="mt-1 font-semibold text-ink-2">Inactive: {p.statusReason}</p>}
+            {p.addedBy && <p className="mt-1 text-xs text-muted">Added by {p.addedBy.name}</p>}
           </div>
         </div>
 
@@ -117,8 +128,19 @@ function Body({ partner: p, onClose }: { partner: Partner; onClose: () => void }
           confirm="Suspend technician"
           suggestions={SUSPEND_REASONS}
           onSubmit={(r) => suspendPartner(p.id, r)}
-          done={`${p.name} suspended`}
+          done={(n) => `${p.name} suspended${backToDispatch(Number(n))}`}
           onClose={() => setSuspending(false)}
+        />
+      )}
+      {deactivating && (
+        <ReasonModal
+          title={`Make ${p.name} inactive?`}
+          body="They go offline and stop getting jobs; jobs they have not started go back to dispatch. The account stays — you can reactivate it — and nobody new can be added with their phone, email, PAN, bank or UPI meanwhile."
+          confirm="Make inactive"
+          suggestions={INACTIVE_REASONS}
+          onSubmit={(r) => deactivatePartner(p.id, r)}
+          done={(n) => `${p.name} is inactive${backToDispatch(Number(n))}`}
+          onClose={() => setDeactivating(false)}
         />
       )}
     </>

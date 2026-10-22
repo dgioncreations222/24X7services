@@ -1,3 +1,4 @@
+import { useProfile } from '@/lib/data'
 import { useEffect, useState } from 'react'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -14,6 +15,7 @@ import Animated, {
 import { Coffee, Radar, ShieldAlert, SlidersHorizontal } from 'lucide-react-native'
 import { DAYS, RADIUS_STEPS, WEEKDAYS, availability, range12, type Availability } from '@/lib/availability'
 import { cn } from '@/lib/cn'
+import { useT } from '@/lib/i18n'
 import { useStore, useTick } from '@/lib/store'
 import type { DayKey, DayHours } from '@/lib/types'
 import { TimeField } from './TimeField'
@@ -276,17 +278,20 @@ export function AvailabilitySummary() {
  * — dashboard, drawer, Settings or Profile. Mounted once in the app shell.
  */
 export function AvailabilityToast() {
-  const { online } = useStore()
+  // The data layer's online, the one Home, the drawer and offers all use.
+  const online = useProfile().data?.online
+  const tr = useT()
   const insets = useSafeAreaInsets()
   const [prev, setPrev] = useState(online)
   const [msg, setMsg] = useState<{ text: string; off: boolean } | null>(null)
 
   if (online !== prev) {
     setPrev(online)
-    setMsg(
+    // The first load is not a switch.
+    if (prev !== undefined && online !== undefined) setMsg(
       online
-        ? { text: 'You’re online and receiving new jobs.', off: false }
-        : { text: 'You’re now offline and will not receive new service requests. Accepted jobs stay with you.', off: true }
+        ? { text: tr('You’re online and receiving new jobs.'), off: false }
+        : { text: tr('You’re now offline and will not receive new service requests. Accepted jobs stay with you.'), off: true }
     )
   }
 

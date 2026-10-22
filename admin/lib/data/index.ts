@@ -35,12 +35,20 @@ export {
   type RateCardInput,
   type ServiceInput,
 } from './catalog'
-export { useCan } from './permissions'
+export { PermissionError, assertCan, useCan } from './permissions'
 export {
   KYC_DOC_TYPES,
   PartnerError,
+  addTechnician,
   approvePartner,
+  bankKeyOf,
+  deactivatePartner,
+  findClashes,
+  isOwnAddition,
+  normalPhone,
   reactivatePartner,
+  replaceKycDocument,
+  resubmitApplication,
   rejectPartner,
   reviewDoc,
   setPartnerSkills,
@@ -49,6 +57,8 @@ export {
   useKycQueueCount,
   usePartner,
   usePartners,
+  type Clash,
+  type NewTechnician,
 } from './technicians'
 export {
   BookingError,
@@ -66,7 +76,7 @@ export {
   useUrgentDispatchCount,
   type Candidate,
 } from './bookings'
-export { CustomerError, blockCustomer, unblockCustomer, useCustomer, useCustomerBookings, useCustomers, type CustomerRow } from './customers'
+export { addWalletCredit, blockCustomer, CustomerError, type CustomerRow, unblockCustomer, useCustomer, useCustomerBookings, useCustomers, WALLET_CREDIT_LIMIT } from './customers'
 export { useDashboard, type DashboardData } from './dashboard'
 export {
   GrowthError,
@@ -110,4 +120,4 @@ export {
   useTickets,
 } from './system'
 export { buildReport, useReport, type Report, type ReportRow } from './reports'
-export { MoneyError, approvePayouts, markPayoutPaid, transactions, usePayouts, usePendingPayoutCount, useTransactions } from './money'
+export { MoneyError, approvePayouts, cashHeld, markPayoutPaid, settledJobs, transactions, useCashHeld, usePayoutAdjustments, usePayouts, usePendingPayoutCount, useTransactions } from './money'

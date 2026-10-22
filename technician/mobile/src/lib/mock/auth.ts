@@ -3,18 +3,22 @@
  * keeps you signed in the way Firebase Auth would. Firebase Auth replaces
  * this file; lib/data/auth.ts keeps its shape.
  *
- * - The seeded technician (ravi.naidu@…) signs in with any 6+ character
- *   password and is already active.
- * - Any other email, or Google, creates a new applicant on first sign-in,
- *   who then registers and uploads KYC.
- * - A submitted KYC is "reviewed" after REVIEW_MS: approved, unless the dev
- *   switch says reject.
+ * Technicians do not sign themselves up: an admin adds them in the console,
+ * with their documents, and they sign in with the email the admin used.
+ *
+ * - The seeded technician (ravi.naidu@…) is active. Their first email
+ *   sign-in sets the password (the invite link's job); after that it must match.
+ * - new.partner@gmail.com (also "Continue with Google") was added by an
+ *   admin and waits for KYC review, which ends after REVIEW_MS: approved,
+ *   unless the dev switch says reject.
+ * - Any other email is refused: there is no account for it.
  */
 import { kv } from '../storage'
 import { TECHNICIAN } from '../seed'
 import type { KycDocType, KycDocument, PartnerStatus, Registration } from '../data/types'
 
-const KEY = 'partner.auth.v1'
+// v2: accounts are added by an admin; v1 saves held self-registered applicants.
+const KEY = 'partner.auth.v2'
 export const REVIEW_MS = 8_000
 export const GOOGLE_DEMO_EMAIL = 'new.partner@gmail.com'
 
@@ -47,6 +51,21 @@ const SEEDED: Account = {
   payout: { accountName: TECHNICIAN.name, accountNumber: '50100234184471', ifsc: 'HDFC0001922' },
 }
 
+/** Added by an admin with their documents; waiting for another admin's review. */
+const ADDED: Account = {
+  email: GOOGLE_DEMO_EMAIL,
+  provider: 'google',
+  status: 'kyc_pending',
+  registration: { name: 'Salman Qureshi', phone: '+919849012345', city: 'Hyderabad', skills: ['ac', 'fridge'], experienceYears: 3 },
+  documents: Object.fromEntries(
+    (['aadhaar', 'pan', 'photo', 'bank'] as const).map((type) => [type, { type, fileUrl: '', status: 'pending', uploadedAt: Date.now() }])
+  ),
+  payout: { upiId: 'salman.q@okhdfc' },
+  submittedAt: Date.now(),
+}
+
+const seededAccounts = (): Record<string, Account> => ({ [SEEDED.email]: SEEDED, [ADDED.email]: { ...ADDED, submittedAt: Date.now() } })
+
 function load(): AuthState {
   try {
     const raw = kv.getItem(KEY)
@@ -54,7 +73,7 @@ function load(): AuthState {
   } catch {
     /* storage unavailable — start signed out */
   }
-  return { accounts: { [SEEDED.email]: SEEDED }, current: null }
+  return { accounts: seededAccounts(), current: null }
 }
 
 let state: AuthState = load()
@@ -114,9 +133,9 @@ export function scheduleReviews() {
   }
 }
 
-/** Back to the seeded technician only, signed out — for the dev screen. */
+/** Back to the seeded accounts, signed out — for the dev screen. */
 export function resetMockAuth() {
-  writeAuth(() => ({ accounts: { [SEEDED.email]: SEEDED }, current: null }))
+  writeAuth(() => ({ accounts: seededAccounts(), current: null }))
 }
 
 scheduleReviews()

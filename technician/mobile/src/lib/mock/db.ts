@@ -20,8 +20,18 @@ import type {
   SupportTicket,
 } from '../data/types'
 
-/** The platform's cut of each job, until the backend says otherwise. */
-export const COMMISSION_RATE = 0.2
+/** The platform's cut of each job, in percent, until the backend says otherwise. */
+export const COMMISSION_PCT = 20
+
+/**
+ * A bill split between the platform and the technician: the commission is a
+ * percent of the whole bill, parts and extras included, and the technician
+ * keeps the rest. The one place this sum is done, so every screen agrees.
+ */
+export function split(bill: number, pct: number) {
+  const commission = Math.round((bill * pct) / 100)
+  return { commission, net: bill - commission }
+}
 
 export interface MockDb {
   jobs: PartnerJob[]
@@ -37,6 +47,9 @@ export interface MockDb {
 
 const paise = (rupees: number) => Math.round(rupees * 100)
 const ms = (iso?: string) => (iso ? new Date(iso).getTime() : undefined)
+
+/** What the customer sees on their booking: #AP and five digits, as shared's bookingSchema expects. */
+export const displayIdOf = (n: number | string) => `#AP${String(n).replace(/\D/g, '').padStart(5, '0').slice(-5)}`
 
 const STATUS: Record<Job['status'], PartnerJobStatus | null> = {
   request: 'offered',
@@ -56,7 +69,8 @@ const STATUS: Record<Job['status'], PartnerJobStatus | null> = {
 export function toPartnerJob(j: Job): PartnerJob | null {
   const status = STATUS[j.status]
   if (!status) return null
-  const bill = j.amount ?? j.estFee
+  // A cancelled job was never billed.
+  const bill = status === 'cancelled' ? 0 : (j.amount ?? j.estFee)
   const timeline = (
     [
       ['assigned', j.log.accepted ?? j.log.assigned],
@@ -68,7 +82,7 @@ export function toPartnerJob(j: Job): PartnerJob | null {
   ).flatMap(([s, at]) => (at ? [{ status: s as PartnerJobStatus, at: ms(at)! }] : []))
   return {
     id: j.id,
-    displayId: `#${j.id.replace(/\D/g, '')}`,
+    displayId: displayIdOf(j.id),
     status,
     priority: j.priority === 'emergency' ? 'emergency' : 'normal',
     service: {
@@ -97,7 +111,8 @@ export function toPartnerJob(j: Job): PartnerJob | null {
       { questionId: 'problem', label: 'What’s wrong?', value: j.issue },
     ],
     notes: j.customerNote,
-    earning: paise(bill * (1 - COMMISSION_RATE)),
+    earning: split(paise(bill), COMMISSION_PCT).net,
+    commissionPct: COMMISSION_PCT,
     payment: { amount: paise(bill), status: j.bill?.paid || j.status === 'closed' ? 'paid' : 'pending' },
     photos: {
       before: j.photos.filter((p) => p.kind === 'before').map((p) => ({ id: p.id, url: p.url, takenAt: ms(j.log.diagnosis) ?? 0 })),
@@ -123,7 +138,7 @@ function seedPayouts(now: number): Payout[] {
   const nets = [11840, 13260, 9980, 12410]
   return nets.map((net, i) => {
     const end = now - i * week
-    const gross = Math.round(net / (1 - COMMISSION_RATE))
+    const gross = Math.round(net / (1 - COMMISSION_PCT / 100))
     return {
       id: `PO-${4 - i}`,
       periodStart: end - week,

@@ -1,5 +1,6 @@
 'use client'
 
+import { rupees } from '@/lib/money'
 import Link from 'next/link'
 import type { Route } from 'next'
 import { ChevronRight, CircleCheck } from 'lucide-react'
@@ -9,7 +10,6 @@ import { Avatar, Card, CardHeader, Chip, Rating } from '@/components/ui'
 import type { DashboardData } from '@/lib/data'
 import { cn } from '@/lib/cn'
 
-const rupees = (p: number) => '₹' + Math.round(p / 100).toLocaleString('en-IN')
 const more = (href: Route, label: string) => (
   <Link href={href} className="text-xs font-bold text-brand hover:underline">
     {label}

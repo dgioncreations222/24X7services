@@ -9,4 +9,6 @@ export const BRAND = {
   mark: 'CS',
   /** Placeholder domain for demo email addresses. */
   domain: 'customerservice.example',
+  /** The partner desk: adds technicians, takes their documents, answers calls. */
+  partnerDesk: '040 6824 1000',
 } as const

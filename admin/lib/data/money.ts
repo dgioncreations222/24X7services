@@ -2,17 +2,18 @@
 
 /**
  * Money: every payment and refund on bookings (worked out from the bookings,
- * so it always agrees with them), and the weekly payouts to technicians —
- * approved by finance, then marked paid once the bank transfer goes out.
+ * so it always agrees with them), the cash technicians are holding, and the
+ * weekly payouts — approved by one admin, marked paid by another once the
+ * bank transfer goes out. The sums themselves live in lib/money.
  */
 import { useSyncExternalStore } from 'react'
+import { bill, cashCollected, commissionOn, payable, rupees as rs } from '../money'
 import { mockRequest } from '../mock/api'
 import { read, subscribe, write, type MockDb } from '../mock/db'
 import { audit } from './audit'
-import { bill } from './bookings'
-import { currentAdmin } from './auth'
+import { assertCan } from './permissions'
 import { useResource, type Query } from './query'
-import type { PartnerPayout, Transaction } from './types'
+import type { Paise, PartnerPayout, PayoutAdjustment, Transaction } from './types'
 
 export class MoneyError extends Error {
   constructor(message: string) {
@@ -23,33 +24,109 @@ export class MoneyError extends Error {
 const fail = (m: string): never => {
   throw new MoneyError(m)
 }
-const rs = (p: number) => `₹${Math.round(p / 100).toLocaleString('en-IN')}`
 
 /* ---------------------------------------------------------- Transactions */
 
+/**
+ * Every payment and refund. Commission is at each booking's own rate (the
+ * one fixed when it completed), and a refund takes its share of commission
+ * back, so the column adds up to what the platform actually kept.
+ */
 export function transactions(db: MockDb): Transaction[] {
-  const pct = db.settings.commissionPct
   return db.bookings.flatMap((b) => {
     const m = bill(b)
+    const pct = b.commissionPct ?? db.settings.commissionPct
     const base = { bookingId: b.id, displayId: b.displayId, customerName: b.customer.name, method: b.payment.method }
     const out: Transaction[] = []
-    if (b.payment.status === 'paid' || b.payment.status === 'partially_paid' || b.payment.status === 'refunded') {
-      out.push({ ...base, id: `${b.id}-pay`, kind: 'payment', amount: m.total, commission: Math.round((m.total * pct) / 100), status: 'success', at: b.payment.paidAt ?? b.slotStart })
+    if (m.paid > 0) {
+      out.push({ ...base, id: `${b.id}-pay`, kind: 'payment', amount: m.paid, commission: payable(b) ? commissionOn(m.paid, pct) : 0, status: 'success', at: b.payment.paidAt ?? b.slotStart, note: m.paid < m.total ? `Part paid — ${rs(m.total - m.paid)} still due` : undefined })
     } else if (b.payment.status === 'failed' || b.status === 'failed') {
       out.push({ ...base, id: `${b.id}-pay`, kind: 'payment', amount: m.total, commission: 0, status: 'failed', at: b.createdAt, note: 'Payment failed at checkout' })
     } else if (b.status === 'pending_payment') {
       out.push({ ...base, id: `${b.id}-pay`, kind: 'payment', amount: m.total, commission: 0, status: 'pending', at: b.createdAt, note: 'Waiting for the customer to pay' })
     }
-    b.refunds.forEach((r, i) => out.push({ ...base, id: `${b.id}-ref${i}`, kind: 'refund', amount: -r.amount, commission: 0, status: 'success', at: r.at, note: `${r.reason} · ${r.by}` }))
+    b.refunds.forEach((r, i) =>
+      out.push({ ...base, id: `${b.id}-ref${i}`, kind: 'refund', amount: -r.amount, commission: payable(b) ? -commissionOn(r.amount, pct) : 0, status: 'success', at: r.at, note: `${r.reason} · ${r.by}` })
+    )
     return out
   })
 }
 
+// Worked out once per snapshot, not on every render of every page reading it.
+let txCache: { db: MockDb; list: Transaction[] } | null = null
+function sortedTransactions(db: MockDb) {
+  if (txCache?.db !== db) txCache = { db, list: transactions(db).sort((a, b) => b.at - a.at) }
+  return txCache.list
+}
+
 export function useTransactions(): Query<Transaction[]> {
-  return useResource((db) => transactions(db).sort((a, b) => b.at - a.at))
+  return useResource(sortedTransactions)
+}
+
+/* ------------------------------------------------------------- Cash held */
+
+/**
+ * Cash each technician has collected on paid, completed jobs that no paid
+ * payout has settled yet — what they are holding that belongs partly to the
+ * platform. Keyed by technician id.
+ */
+export function cashHeld(db: MockDb): Record<string, Paise> {
+  const settled = settledJobs(db.payouts)
+  const out: Record<string, Paise> = {}
+  for (const b of db.bookings) {
+    if (!b.technicianId || settled.has(b.id)) continue
+    // Part-paid cash counts: it is in their hand even before the job is payable.
+    const cash = cashCollected(b)
+    if (cash) out[b.technicianId] = (out[b.technicianId] ?? 0) + cash
+  }
+  return out
+}
+
+/**
+ * Jobs whose money is settled. A paid week settles its own jobs and the
+ * carried-forward weeks just before it (their balance went in as carriedIn).
+ * A carried week whose next week is still pending, approved or on hold is not
+ * settled yet, whatever later weeks have been paid.
+ */
+export function settledJobs(payouts: PartnerPayout[]): Set<string> {
+  const settled = new Set<string>()
+  const byPartner = new Map<string, PartnerPayout[]>()
+  for (const p of payouts) byPartner.set(p.partnerId, [...(byPartner.get(p.partnerId) ?? []), p])
+  for (const weeks of byPartner.values()) {
+    let carried: PartnerPayout[] = []
+    for (const w of [...weeks].sort((a, b) => a.periodStart - b.periodStart)) {
+      if (w.status === 'carried_forward') {
+        // A week that came out exactly even carries nothing forward: it settles
+        // itself and the carried weeks before it. One that came out negative
+        // waits for the week it was carried into.
+        if (w.net === 0) {
+          for (const x of [...carried, w]) for (const id of x.jobIds) settled.add(id)
+          carried = []
+        } else carried.push(w)
+        continue
+      }
+      if (w.status === 'paid') for (const x of [...carried, w]) for (const id of x.jobIds) settled.add(id)
+      // Paid or not, this week took the carried balance; the chain ends here.
+      carried = []
+    }
+  }
+  return settled
+}
+
+let cashCache: { db: MockDb; map: Record<string, Paise> } | null = null
+export function useCashHeld(): Query<Record<string, Paise>> {
+  return useResource((db) => {
+    if (cashCache?.db !== db) cashCache = { db, map: cashHeld(db) }
+    return cashCache.map
+  })
 }
 
 /* --------------------------------------------------------------- Payouts */
+
+/** Deductions from refunds on settled weeks, waiting for each technician's next payout. */
+export function usePayoutAdjustments(): Query<PayoutAdjustment[]> {
+  return useResource((db) => [...db.payoutAdjustments].sort((a, b) => b.at - a.at))
+}
 
 export function usePayouts(): Query<PartnerPayout[]> {
   return useResource((db) => [...db.payouts].sort((a, b) => b.periodStart - a.periodStart || b.net - a.net))
@@ -63,33 +140,46 @@ export function usePendingPayoutCount(): number {
 }
 
 /**
- * Approve one or more pending payouts. A suspended technician's payout is
- * held: it stays pending until they are reactivated.
+ * Approve one or more pending payouts. On-hold payouts (suspended or
+ * inactive technician) and weeks with nothing to pay cannot be approved.
  */
 export function approvePayouts(ids: string[]) {
   return mockRequest(() => {
-    if (!ids.length) fail('Pick at least one payout.')
+    const me = assertCan('payouts', 'approve')
+    const unique = [...new Set(ids)]
+    if (!unique.length) fail('Pick at least one payout.')
     const db = read()
-    const list = ids.map((id) => db.payouts.find((p) => p.id === id) ?? fail('A payout in the list no longer exists.'))
+    const list = unique.map((id) => db.payouts.find((p) => p.id === id) ?? fail('A payout in the list no longer exists.'))
+    if (list.some((p) => p.status === 'on_hold')) fail('A payout on hold cannot be approved — reactivate the technician first.')
     if (list.some((p) => p.status !== 'pending')) fail('Only payouts waiting for approval can be approved.')
-    const held = list.filter((p) => db.partners.find((x) => x.id === p.partnerId)?.status === 'suspended')
-    if (held.length) fail(`${held.length === 1 ? 'One technician is' : `${held.length} technicians are`} suspended — their payout stays on hold until reactivated.`)
+    const away = list.filter((p) => db.partners.find((x) => x.id === p.partnerId)?.status !== 'active')
+    if (away.length) fail(`${away.length === 1 ? 'One technician is' : `${away.length} technicians are`} not active — their payout stays on hold.`)
+    if (list.some((p) => p.net <= 0)) fail('A week with nothing to pay carries forward; it is not approved.')
     const now = Date.now()
-    const by = currentAdmin()?.name ?? 'Admin'
-    write((d) => ({ ...d, payouts: d.payouts.map((p) => (ids.includes(p.id) ? { ...p, status: 'approved', approvedBy: by, approvedAt: now } : p)) }))
+    write((d) => ({ ...d, payouts: d.payouts.map((p) => (unique.includes(p.id) ? { ...p, status: 'approved', approvedBy: me.name, approvedById: me.id, approvedAt: now } : p)) }))
     for (const p of list) audit('payouts', 'Approved payout', { target: `${db.partners.find((x) => x.id === p.partnerId)?.name ?? p.partnerId} · ${p.id}`, new: rs(p.net) })
     return list.length
   })
 }
 
-/** Record that the bank transfer for an approved payout went out. */
+/**
+ * Record that the bank transfer for an approved payout went out. Maker-checker:
+ * the admin who approved it cannot also mark it paid (Super Admin excepted),
+ * and a bank reference is used once.
+ */
 export function markPayoutPaid(id: string, reference: string) {
   return mockRequest(() => {
-    const p = read().payouts.find((x) => x.id === id) ?? fail('This payout no longer exists.')
+    const me = assertCan('payouts', 'approve')
+    const db = read()
+    const p = db.payouts.find((x) => x.id === id) ?? fail('This payout no longer exists.')
     if (p.status !== 'approved') fail('Approve the payout before marking it paid.')
+    if (db.partners.find((x) => x.id === p.partnerId)?.status !== 'active') fail('This technician is not active — their payout is on hold.')
+    if (p.approvedById === me.id && me.role !== 'Super Admin') fail('You approved this payout, so another admin has to mark it paid.')
     const ref = reference.trim().toUpperCase()
     if (!/^[A-Z0-9]{6,22}$/.test(ref)) fail('Enter the bank reference (UTR) — 6 to 22 letters or numbers.')
-    write((d) => ({ ...d, payouts: d.payouts.map((x) => (x.id === id ? { ...x, status: 'paid', paidAt: Date.now(), reference: ref } : x)) }))
+    const used = db.payouts.find((x) => x.id !== id && x.reference === ref)
+    if (used) fail(`This bank reference is already on payout ${used.id}.`)
+    write((d) => ({ ...d, payouts: d.payouts.map((x) => (x.id === id ? { ...x, status: 'paid', paidAt: Date.now(), paidBy: me.name, paidById: me.id, reference: ref } : x)) }))
     audit('payouts', 'Marked payout paid', { target: id, new: `${rs(p.net)} · ${ref}` })
   })
 }

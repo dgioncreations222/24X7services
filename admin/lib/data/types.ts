@@ -116,8 +116,11 @@ export interface ServiceArea {
 /**
  * TODO(partner.ts): the shared proposal's PartnerStatus.
  * applied → kyc_pending → approved | rejected → active ⇄ suspended.
+ * `inactive`: let go by the network. Not a ban — an admin can reactivate the
+ * same account — but while inactive their phone, email, PAN, bank and UPI
+ * cannot be used to add anyone new.
  */
-export type PartnerStatus = 'applied' | 'kyc_pending' | 'approved' | 'rejected' | 'active' | 'suspended'
+export type PartnerStatus = 'applied' | 'kyc_pending' | 'approved' | 'rejected' | 'active' | 'suspended' | 'inactive'
 
 /** TODO(partner.ts): PayoutDestination. Only the last four digits of an account are kept. */
 export type PayoutDestination = { kind: 'bank'; accountName: string; accountLast4: string; ifsc: string } | { kind: 'upi'; upiId: string }
@@ -156,6 +159,21 @@ export interface Partner {
   createdAt: number
   /** When KYC was last sent for review. */
   submittedAt?: number
+  /** Aadhaar's last four digits only — the full number is never stored. */
+  aadhaarLast4?: string
+  /** PAN, upper case. */
+  pan?: string
+  /**
+   * A one-way key of IFSC + account number, so the same bank account cannot
+   * be used for two technicians without keeping the number itself.
+   * TODO(backend): a salted SHA-256 made in a Cloud Function, kept in a
+   * technicianIdentity index that only functions can read.
+   */
+  bankKey?: string
+  /** The admin who added them; someone else has to approve them. */
+  addedBy?: { id: string; name: string }
+  /** Where they were before being suspended or made inactive; reactivating returns them there. */
+  pausedFrom?: 'active' | 'approved'
   /** Where they are (live while online), for dispatch distances. */
   geo: GeoPoint
 }
@@ -170,8 +188,12 @@ export interface KycDocument {
   fileUrl: string
   status: 'pending' | 'approved' | 'rejected'
   rejectReason?: string
-  /** Admin name. */
+  /** Admin name, for display. */
   reviewedBy?: string
+  /** Admin id: the name can change, the id cannot. */
+  reviewedById?: string
+  /** The admin who put in a replacement file; someone else reviews it. */
+  replacedById?: string
   uploadedAt: number
   reviewedAt?: number
 }
@@ -197,7 +219,8 @@ export type BookingStatus =
   | 'refunded'
   | 'failed'
 
-export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'partially_paid' | 'failed' | 'refunded'
+/** `partially_refunded`: paid in full, then part of it given back. */
+export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'partially_paid' | 'partially_refunded' | 'failed' | 'refunded'
 
 /** The shared BookingExtra: a part or charge added on site, approved by the customer. */
 export interface BookingExtra {
@@ -243,11 +266,20 @@ export interface AdminBooking {
   timeline: BookingEvent[]
   extras: BookingExtra[]
   price: { service: Paise; discount: Paise; coupon?: string }
-  payment: { status: PaymentStatus; method?: 'upi' | 'card' | 'cash' | 'wallet'; paidAt?: number }
+  /**
+   * `paidAmount`: what came in, when it was less than the bill (`partially_paid`,
+   * and kept through any refund after). Unset means the whole bill was paid.
+   */
+  payment: { status: PaymentStatus; method?: 'upi' | 'card' | 'cash' | 'wallet'; paidAt?: number; paidAmount?: Paise }
   cancellation?: { at: number; by: 'customer' | 'support' | 'system'; reason: string }
   refunds: { amount: Paise; reason: string; at: number; by: string }[]
   /** Who was offered the job and said no (or let it time out). */
   dispatch: { declinedBy: string[]; noTechFound: boolean }
+  /**
+   * The platform's percent of the whole bill, fixed when the job completed,
+   * so changing it in Settings never rewrites old jobs. Unset until then.
+   */
+  commissionPct?: number
 }
 
 /* ------------------------------------------------------------- Customers */
@@ -407,17 +439,52 @@ export interface PartnerPayout {
   partnerId: string
   periodStart: number
   periodEnd: number
+  /** What customers paid for the week's completed jobs, extras included. */
   gross: Paise
+  /** Given back to customers on those jobs. */
+  refunds: Paise
+  /** The platform's share of (gross − refunds), at each job's own rate. */
   commission: Paise
-  /** Stored, so a later commission change cannot rewrite a paid payout. */
+  /** Cash the technician collected themselves — already in their pocket. */
+  cashHeld: Paise
+  /** Last week's balance: negative when they owed the platform (more cash than share). */
+  carriedIn: Paise
+  /**
+   * Stored, so a later commission change cannot rewrite it:
+   * gross − refunds − commission − cashHeld + carriedIn.
+   * Zero or less means nothing to pay; it moves to next week as carriedIn.
+   */
   net: Paise
   jobIds: string[]
-  status: 'pending' | 'approved' | 'paid'
+  /**
+   * pending → approved → paid. on_hold while the technician is suspended or
+   * inactive; carried_forward when the net is zero or less.
+   */
+  status: 'pending' | 'on_hold' | 'approved' | 'paid' | 'carried_forward'
   approvedBy?: string
+  approvedById?: string
   approvedAt?: number
+  /** Who marked it paid — never the admin who approved it (Super Admin excepted). */
+  paidBy?: string
+  paidById?: string
   paidAt?: number
-  /** Bank reference once paid. */
+  /** Bank reference once paid; unique across payouts. */
   reference?: string
+}
+
+/**
+ * A deduction waiting for the technician's next payout: a refund on a job
+ * whose week was already paid or carried forward. The weekly payout run
+ * applies it as part of carriedIn.
+ */
+export interface PayoutAdjustment {
+  id: string
+  partnerId: string
+  bookingId: string
+  /** Negative: what comes off the technician's next payout. */
+  amount: Paise
+  reason: string
+  at: number
 }
 
 /** One money movement on a booking, worked out from the booking. */

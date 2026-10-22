@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { View } from 'react-native'
-import { Bell, Check, Headset, IndianRupee, CalendarClock, Siren, Volume2, type LucideIcon } from 'lucide-react-native'
+import { Bell, Check, Headset, IndianRupee, CalendarClock, KeyRound, Siren, Volume2, type LucideIcon } from 'lucide-react-native'
+import { ChangePasswordSheet } from '@/components/account/ChangePasswordSheet'
 import { LogoutButton } from '@/components/account/LogoutButton'
 import { NavRow } from '@/components/account/NavRow'
 import { Card, Icon, Page, ScreenHeader, SectionTitle, Tappable, Text, Toggle } from '@/components/ui'
-import { useDeviceSettings, type AppLanguage, type DeviceSettings } from '@/lib/data'
+import { useDeviceSettings, useSession, type AppLanguage, type DeviceSettings } from '@/lib/data'
 import { BRAND } from '@/lib/brand'
 import { chime } from '@/lib/chime'
 import { cn } from '@/lib/cn'
@@ -20,8 +22,8 @@ type NotifyKey = keyof DeviceSettings['notify']
 
 /** Each switch says in its own row what it does right now. */
 const NOTIFY: readonly { key: NotifyKey; icon: LucideIcon; title: string; on: string; off: string }[] = [
-  { key: 'requests', icon: Bell, title: 'New service requests', on: 'Pop-up for each new job in your shift', off: 'New jobs wait quietly in Jobs' },
-  { key: 'emergency', icon: Siren, title: 'Emergency requests', on: 'Full-screen alert, even off shift', off: 'Emergencies wait quietly in Jobs' },
+  { key: 'requests', icon: Bell, title: 'New service requests', on: 'Pop-up for each new job in your shift', off: 'New requests wait on Home' },
+  { key: 'emergency', icon: Siren, title: 'Emergency requests', on: 'Pop-up for each emergency request', off: 'Emergencies wait on Home' },
   { key: 'schedule', icon: CalendarClock, title: 'Schedule changes & cancellations', on: 'Notified when a job moves or is cancelled', off: 'No schedule notifications' },
   { key: 'payments', icon: IndianRupee, title: 'Payments & ratings', on: 'Notified for every payment and rating', off: 'No payment or rating notifications' },
   { key: 'sound', icon: Volume2, title: 'Alert sound', on: 'A chime plays with every alert', off: 'Alerts arrive silently' },
@@ -31,6 +33,8 @@ const NOTIFY: readonly { key: NotifyKey; icon: LucideIcon; title: string; on: st
 export default function SettingsScreen() {
   const t = useT()
   const [settings, update] = useDeviceSettings()
+  const session = useSession()
+  const [passwordOpen, setPasswordOpen] = useState(false)
 
   function toggle(key: NotifyKey, on: boolean) {
     update({ notify: { ...settings.notify, [key]: on } })
@@ -91,8 +95,10 @@ export default function SettingsScreen() {
         </View>
 
         <Card>
-          <NavRow first icon={Headset} title={t('Help & Support')} href="/support" />
+          {session.provider === 'email' ? <NavRow first icon={KeyRound} title={t('Change password')} onPress={() => setPasswordOpen(true)} /> : null}
+          <NavRow first={session.provider !== 'email'} icon={Headset} title={t('Help & Support')} href="/support" />
         </Card>
+        <ChangePasswordSheet open={passwordOpen} onClose={() => setPasswordOpen(false)} />
         <LogoutButton />
         <Text className="text-center text-xs font-semibold text-faint">{BRAND.app} · v0.1.0</Text>
       </Page>

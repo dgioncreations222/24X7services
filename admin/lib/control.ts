@@ -35,7 +35,7 @@ export const DEFAULT_ROLES: RoleMatrix = {
     dashboard: r('view'),
     dispatch: r('view', 'assign', 'edit'),
     bookings: r('view', 'create', 'edit', 'assign', 'export'),
-    technicians: r('view', 'edit', 'approve', 'assign'),
+    technicians: r('view', 'create', 'edit', 'approve', 'assign'),
     customers: r('view', 'edit'),
     support: r('view'),
     reports: r('view'),
@@ -115,13 +115,6 @@ export function controlSeed(base: Seed, nowMs = Date.now()): Control {
 
   const admins: AdminUser[] = [
     { id: 'ADM-01', name: 'Aditi Rao', email: 'aditi.rao@customerservice.example', phone: '+91 98480 11201', role: 'Super Admin', status: 'active', twoFactor: true, lastActive: ago(1), createdAt: ago(60 * 24 * 410) },
-    { id: 'ADM-02', name: 'Vivek Menon', email: 'vivek.menon@customerservice.example', phone: '+91 98480 11202', role: 'Operations Admin', status: 'active', twoFactor: true, lastActive: ago(14), createdAt: ago(60 * 24 * 300) },
-    { id: 'ADM-03', name: 'Sravani K', email: 'sravani.k@customerservice.example', phone: '+91 98480 11203', role: 'Operations Admin', status: 'active', twoFactor: true, lastActive: ago(3), createdAt: ago(60 * 24 * 190) },
-    { id: 'ADM-04', name: 'Meghana Iyer', email: 'meghana.iyer@customerservice.example', phone: '+91 98480 11204', role: 'Finance Admin', status: 'active', twoFactor: true, lastActive: ago(60 * 5), createdAt: ago(60 * 24 * 260) },
-    { id: 'ADM-05', name: 'Kavya Shetty', email: 'kavya.shetty@customerservice.example', phone: '+91 98480 11205', role: 'Content Admin', status: 'active', twoFactor: false, lastActive: ago(45), createdAt: ago(60 * 24 * 80) },
-    { id: 'ADM-06', name: 'Farah Khan', email: 'farah.khan@customerservice.example', phone: '+91 98480 11206', role: 'Support Admin', status: 'active', twoFactor: true, lastActive: ago(9), createdAt: ago(60 * 24 * 150) },
-    { id: 'ADM-07', name: 'Rohan Das', email: 'rohan.das@customerservice.example', phone: '+91 98480 11207', role: 'Support Admin', status: 'active', twoFactor: false, lastActive: ago(70), createdAt: ago(60 * 24 * 120) },
-    { id: 'ADM-08', name: 'Imran Siddiqui', email: 'imran.s@customerservice.example', phone: '+91 98480 11208', role: 'Finance Admin', status: 'invited', twoFactor: false, lastActive: ago(60 * 24 * 2), createdAt: ago(60 * 24 * 2) },
   ]
 
   /* ---------------------------------------------------------- Catalog */

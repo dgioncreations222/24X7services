@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Modal, Pressable, ScrollView, View } from 'react-native'
+import { Dimensions, Modal, Pressable, ScrollView, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Animated, {
   Easing,
@@ -19,7 +19,6 @@ import {
   Headset,
   House,
   LogOut,
-  Map as MapIcon,
   Settings,
   Star,
   UserRound,
@@ -29,7 +28,7 @@ import {
 } from 'lucide-react-native'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
-import { signOut, useSession, useUnreadCount } from '@/lib/data'
+import { setOnline, signOut, useProfile, useSession, useUnreadCount } from '@/lib/data'
 import { isBare, redirectFor } from '@/lib/gate'
 import { useStore } from '@/lib/store'
 import { Avatar, Blink, Icon, Tappable, Text } from './ui'
@@ -43,7 +42,6 @@ import { COLORS } from '@/lib/theme'
 const SIDE: readonly { href: Href & string; label: string; icon: LucideIcon }[] = [
   { href: '/home', label: 'Dashboard', icon: House },
   { href: '/jobs', label: 'Jobs', icon: BriefcaseBusiness },
-  { href: '/map', label: 'Map', icon: MapIcon },
   { href: '/earnings', label: 'Earnings', icon: Wallet },
   { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/profile', label: 'Profile', icon: UserRound },
@@ -102,6 +100,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 /** The web's phone drawer: the sidebar sliding in from the left. */
 function Drawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const insets = useSafeAreaInsets()
+  // The modal covers the whole screen, nav bar included; size the panel to the
+  // screen too, so the footer (Logout) sits above the nav bar, never under it.
+  const { height } = useWindowDimensions()
+  const screen = Dimensions.get('screen').height
   return (
     <Modal visible={open} transparent animationType="none" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
       <View className="flex-1">
@@ -111,8 +113,12 @@ function Drawer({ open, onClose }: { open: boolean; onClose: () => void }) {
         <Animated.View
           entering={SlideInLeft.duration(240).reduceMotion(ReduceMotion.System)}
           accessibilityViewIsModal
-          className="absolute inset-y-0 left-0 w-[82%] max-w-[300px] bg-card shadow-float"
-          style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+          className="absolute left-0 top-0 w-[82%] max-w-[300px] bg-card shadow-float"
+          style={{
+            height: Math.max(height, screen),
+            paddingTop: insets.top,
+            paddingBottom: Math.max(insets.bottom, 16),
+          }}
         >
           <SidebarBody onNavigate={onClose} />
           <Tappable
@@ -135,6 +141,21 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
   const store = useStore()
   const emergencies = store.jobs.filter((j) => j.status === 'request' && j.priority === 'emergency').length
   const unread = useUnreadCount()
+  // Online lives in lib/data (what offers and Home read), not the old store.
+  const online = useProfile().data?.online ?? false
+  const [switching, setSwitching] = useState(false)
+  const [switchFailed, setSwitchFailed] = useState(false)
+  async function switchTo(on: boolean) {
+    setSwitching(true)
+    setSwitchFailed(false)
+    try {
+      await setOnline(on)
+    } catch {
+      setSwitchFailed(true)
+    } finally {
+      setSwitching(false)
+    }
+  }
   const [details, setDetails] = useState(false)
   const t = useT()
   return (
@@ -150,7 +171,7 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
         <View>
           <Avatar name={store.tech.name} photo={store.tech.photo} size={40} />
           <View
-            className={cn('absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card', store.online ? 'bg-success' : 'bg-faint')}
+            className={cn('absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card', online ? 'bg-success' : 'bg-faint')}
           />
         </View>
         <View className="min-w-0 flex-1">
@@ -196,19 +217,19 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
         })}
       </ScrollView>
       <View className="border-t border-line p-3">
-        <View className={cn('rounded-xl border p-2', store.online ? 'border-success/25 bg-success-soft' : 'border-line-strong bg-canvas')}>
+        <View className={cn('rounded-xl border p-2', online ? 'border-success/25 bg-success-soft' : 'border-line-strong bg-canvas')}>
           <View className="flex-row items-center gap-2 px-1 pb-2 pt-0.5" accessibilityLiveRegion="polite">
-            {store.online ? (
+            {online ? (
               <Blink className="size-2 shrink-0 rounded-full bg-success" />
             ) : (
               <View className="size-2 shrink-0 rounded-full bg-faint" />
             )}
-            <Text className={cn('text-xs font-bold', store.online ? 'text-success' : 'text-muted')}>
-              {t(store.online ? 'Online' : 'Offline')}
+            <Text className={cn('text-xs font-bold', online ? 'text-success' : 'text-muted')}>
+              {t(online ? 'Online' : 'Offline')}
             </Text>
             <Text className="text-xs font-bold text-faint">•</Text>
             <Text numberOfLines={1} className="flex-1 text-xs font-bold text-ink-2">
-              {t(store.online ? 'Receiving jobs' : 'Not receiving jobs')}
+              {switchFailed ? t('Couldn’t change it. Try again.') : t(online ? 'Receiving jobs' : 'Not receiving jobs')}
             </Text>
           </View>
           <View
@@ -217,13 +238,14 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
             className="flex-row gap-1 rounded-lg border border-line bg-card p-0.5"
           >
             {([true, false] as const).map((on) => {
-              const selected = store.online === on
+              const selected = online === on
               return (
                 <Tappable
                   key={String(on)}
                   accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
-                  onPress={() => store.setOnline(on)}
+                  accessibilityState={{ checked: selected, disabled: switching }}
+                  disabled={switching}
+                  onPress={() => void switchTo(on)}
                   className={cn(
                     'h-8 flex-1 items-center justify-center rounded-md',
                     selected ? (on ? 'bg-success' : 'bg-ink-2') : 'active:bg-canvas'
@@ -240,9 +262,10 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
         <Tappable
           onPress={() => {
             onNavigate()
-            store.setOnline(false)
-            store.signOut()
-            router.replace('/login')
+            // Offline first, best effort; signing out never needs the network.
+            void setOnline(false)
+              .catch(() => undefined)
+              .finally(() => void signOut())
           }}
           className="mt-2 h-11 w-full flex-row items-center gap-2.5 rounded-xl px-3 active:bg-danger-soft active:opacity-100"
         >

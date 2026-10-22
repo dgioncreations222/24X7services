@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useIsFocused } from 'expo-router'
 import { View } from 'react-native'
 import { router, type Href } from 'expo-router'
 import Animated, { ReduceMotion, useAnimatedStyle, withTiming } from 'react-native-reanimated'
@@ -64,8 +65,10 @@ export function BookingStep({ stepKey, title, subtitle, cta, ctaDetail, children
   const signedOut = needsAuth && authReady && user === null
   const blocked = !draftReady || !authReady || noService || Boolean(missing) || signedOut
 
+  const focused = useIsFocused()
+
   useEffect(() => {
-    if (!draftReady) return
+    if (!draftReady || !focused) return
     if (noService) {
       router.replace('/services')
       return
@@ -79,7 +82,7 @@ export function BookingStep({ stepKey, title, subtitle, cta, ctaDetail, children
       // would leave a filled-in draft stranded behind a nav bar.
       router.replace(`/login?next=${encodeURIComponent(String(step?.route ?? '/book/brand'))}` as Href)
     }
-  }, [draftReady, authReady, user, noService, missing, needsAuth, step])
+  }, [draftReady, focused, authReady, user, noService, missing, needsAuth, step])
 
   return (
     <Screen

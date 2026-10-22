@@ -22,7 +22,7 @@ export function JobCard({ job }: { job: PartnerJob }) {
   return (
     <Tappable
       href={jobRoute(job.id, job.status)}
-      accessibilityLabel={`${job.service.name}, ${t(s.label)}, ${day(job.slotStart)} ${clock(job.slotStart)}, ${job.address.area}`}
+      accessibilityLabel={`${job.service.name}, ${t(s.label)}, ${t(day(job.slotStart))} ${clock(job.slotStart)}, ${job.address.area}`}
       className={cn('gap-3 rounded-card border bg-card p-4 shadow-card active:opacity-90', job.priority === 'emergency' && !done ? 'border-danger/40' : 'border-line')}
     >
       <View className="flex-row items-start justify-between gap-3">

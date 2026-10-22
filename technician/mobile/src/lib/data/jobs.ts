@@ -113,10 +113,32 @@ export function addExtra(id: string, extra: Pick<JobExtra, 'source' | 'rateCardI
   })
 }
 
+/**
+ * When each kind of photo can be taken: before photos once at the door and
+ * not after work starts, after photos only while the work is going on. A
+ * finished or cancelled job takes no photos, so the record cannot change later.
+ */
+const PHOTO_STEPS: Record<'before' | 'after', readonly PartnerJobStatus[]> = {
+  before: ['arrived'],
+  after: ['in_progress', 'awaiting_approval'],
+}
+
+export function canAddPhoto(j: Pick<PartnerJob, 'status'>, kind: 'before' | 'after') {
+  return PHOTO_STEPS[kind].includes(j.status)
+}
+
+function checkPhotoStep(id: string, kind: 'before' | 'after') {
+  if (!canAddPhoto(job(id), kind)) {
+    throw new JobStepError(kind === 'before' ? 'Before photos are taken on arrival, before the job starts.' : 'After photos are taken while the job is in progress.')
+  }
+}
+
 /** Upload a before / after photo; `onProgress` gets 0–1 while it goes up. */
 export async function uploadPhoto(id: string, kind: 'before' | 'after', uri: string, onProgress?: (fraction: number) => void) {
-  job(id)
+  checkPhotoStep(id, kind)
   await mockUpload(onProgress)
+  // The job may have moved on while the photo was going up.
+  checkPhotoStep(id, kind)
   const photo: JobPhoto = { id: `ph-${Date.now()}`, url: uri, takenAt: Date.now() }
   patch(id, (x) => ({ ...x, photos: { ...x.photos, [kind]: [...x.photos[kind], photo] } }))
   return photo

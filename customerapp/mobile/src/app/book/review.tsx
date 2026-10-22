@@ -81,13 +81,15 @@ export default function ReviewScreen() {
   const service = data.data?.service
   const config = data.data?.config
   const address = data.data?.address ?? draft.address ?? null
+  // A draft from when pay-after-service was on cannot keep it once it is off.
+  const effectiveMode: PaymentMode = config?.allowPayAfterService ? mode : 'online'
 
   const issueLabels = (draft.issueIds ?? [])
     .map((id) => data.data?.issues.find((issue) => issue.id === id)?.label)
     .filter((label): label is string => Boolean(label))
 
   function submit(): void {
-    patchDraft({ paymentMode: mode })
+    patchDraft({ paymentMode: effectiveMode })
     router.push('/book/payment')
   }
 
@@ -96,7 +98,7 @@ export default function ReviewScreen() {
       stepKey="review"
       title="Check your booking"
       cta={{
-        label: mode === 'online' ? 'Pay visit fee' : 'Confirm booking',
+        label: effectiveMode === 'online' ? 'Pay visit fee' : 'Confirm booking',
         onClick: submit,
         disabled: !service,
       }}
@@ -170,7 +172,7 @@ export default function ReviewScreen() {
             </Text>
 
             <View className="gap-3">
-              <CardButton onPress={() => setMode('online')} selected={mode === 'online'} className="p-4">
+              <CardButton onPress={() => setMode('online')} selected={effectiveMode === 'online'} className="p-4">
                 <Text className="text-sm font-semibold text-ink">Pay {formatPaise(service.visitFee)} now</Text>
                 <Text className="mt-0.5 text-sm text-muted">
                   The visit and inspection fee. It confirms your slot straight away.

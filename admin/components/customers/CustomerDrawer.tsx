@@ -2,12 +2,15 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Ban, Phone, SearchX, ShieldCheck } from 'lucide-react'
+import { Ban, Gift, Phone, SearchX, ShieldCheck } from 'lucide-react'
 import { BOOKING_STATUS, rupees, slot } from '@/components/bookings/status'
-import { useAction } from '@/components/catalog/parts'
+import { FormError, useAction } from '@/components/catalog/parts'
+import { textareaClass } from '@/components/catalog/fields'
 import { ReasonModal } from '@/components/technicians/ReasonModal'
-import { Async, Avatar, Button, Chip, Detail, Drawer, Empty, SectionLabel, SkeletonRows, buttonClass } from '@/components/ui'
-import { bill, blockCustomer, unblockCustomer, useCan, useCustomer, useCustomerBookings, type CustomerRow } from '@/lib/data'
+import { Async, Avatar, Button, Chip, Detail, Drawer, Empty, Field, Modal, SectionLabel, SkeletonRows, buttonClass } from '@/components/ui'
+import { WALLET_CREDIT_LIMIT, addWalletCredit, bill, blockCustomer, unblockCustomer, useCan, useCustomer, useCustomerBookings, type CustomerRow } from '@/lib/data'
+import { BRAND } from '@/lib/brand'
+import { cn } from '@/lib/cn'
 import { longDate } from '@/lib/format'
 
 const BLOCK_REASONS = ['Repeated no-shows when the technician arrived.', 'Abusive to technicians on calls.', 'Payment disputes raised in bad faith.']
@@ -38,6 +41,7 @@ export function CustomerDrawer({ id, onClose }: { id: string | null; onClose: ()
 
 function Body({ customer: c, onClose }: { customer: CustomerRow; onClose: () => void }) {
   const can = useCan()
+  const [crediting, setCrediting] = useState(false)
   const bookings = useCustomerBookings(c.id)
   const [blocking, setBlocking] = useState(false)
   const { run, busy } = useAction()
@@ -65,6 +69,11 @@ function Body({ customer: c, onClose }: { customer: CustomerRow; onClose: () => 
             {editable && c.status === 'blocked' && (
               <Button variant="success" size="sm" className="mr-auto" disabled={busy} onClick={() => void run(() => unblockCustomer(c.id), `${c.name} unblocked`)}>
                 <ShieldCheck /> Unblock
+              </Button>
+            )}
+            {editable && c.status === 'active' && (
+              <Button variant="secondary" size="sm" onClick={() => setCrediting(true)}>
+                <Gift /> Wallet credit
               </Button>
             )}
             <a href={`tel:${c.phone.replace(/\s/g, '')}`} className={buttonClass('secondary', 'sm')}>
@@ -125,6 +134,7 @@ function Body({ customer: c, onClose }: { customer: CustomerRow; onClose: () => 
           )}
         </Async>
       </Drawer>
+      {crediting && <CreditModal customer={c} onClose={() => setCrediting(false)} />}
       {blocking && (
         <ReasonModal
           title={`Block ${c.name}?`}
@@ -137,5 +147,53 @@ function Body({ customer: c, onClose }: { customer: CustomerRow; onClose: () => 
         />
       )}
     </>
+  )
+}
+
+/** Goodwill credit for the customer's next booking, with the reason kept for the next admin. */
+function CreditModal({ customer: c, onClose }: { customer: CustomerRow; onClose: () => void }) {
+  const [amount, setAmount] = useState(20_000)
+  const [reason, setReason] = useState('')
+  const { run, busy, error } = useAction()
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Wallet credit for ${c.name}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={busy || reason.trim().length < 10} onClick={() => void run(() => addWalletCredit(c.id, amount, reason), `${rupees(amount)} credit added for ${c.name}`, onClose)}>
+            Add {rupees(amount)}
+          </Button>
+        </>
+      }
+    >
+      <p className="mb-3 text-sm text-muted">
+        Lands in their {BRAND.name} wallet and comes off their next booking. Up to {rupees(WALLET_CREDIT_LIMIT)} without a Super Admin.
+      </p>
+      <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label="Amount">
+        {[10_000, 20_000, 50_000, 100_000].map((v) => (
+          <button
+            key={v}
+            type="button"
+            role="radio"
+            aria-checked={amount === v}
+            onClick={() => setAmount(v)}
+            className={cn('num h-11 rounded-lg border text-sm font-extrabold', amount === v ? 'border-brand bg-brand-soft text-brand' : 'border-line-strong hover:border-ink-2')}
+          >
+            {rupees(v)}
+          </button>
+        ))}
+      </div>
+      <Field label="Why" className="mt-4">
+        <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Technician arrived 2 hours late." className={textareaClass} />
+      </Field>
+      <div className="mt-3">
+        <FormError error={error} />
+      </div>
+    </Modal>
   )
 }

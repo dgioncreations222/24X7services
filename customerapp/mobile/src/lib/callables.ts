@@ -40,6 +40,11 @@ export async function callFn<N extends CallableName>(
  * for a person to read, so they pass through. Everything else is ours to
  * explain, and the raw message is not fit for a customer.
  */
+/** The server refused because of the booking's state (cancelled, already paid…), not the network. */
+export function isFailedPrecondition(error: unknown): boolean {
+  return error instanceof FunctionsError && error.code === 'functions/failed-precondition'
+}
+
 export function friendlyError(error: unknown): string {
   if (error instanceof FunctionsError) {
     switch (error.code) {

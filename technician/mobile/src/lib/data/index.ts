@@ -13,6 +13,7 @@ export {
   markOnTheWay,
   rejectJob,
   startJob,
+  canAddPhoto,
   uploadPhoto,
   useJob,
   useJobs,
@@ -25,6 +26,7 @@ export { useDeviceSettings } from './settings'
 export {
   AuthError,
   REQUIRED_DOCS,
+  changePassword,
   register,
   sendPasswordReset,
   signInWithEmail,
@@ -39,5 +41,5 @@ export {
   useSession,
   type KycState,
 } from './auth'
-export { NetworkError } from '../mock/api'
+export { NetworkError, isNetworkError } from '../mock/api'
 export type * from './types'

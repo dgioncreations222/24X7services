@@ -21,13 +21,10 @@ export function LogoutButton() {
   async function logout() {
     setBusy(true)
     setError(false)
-    try {
-      await setOnline(false)
-      await signOut()
-    } catch {
-      setError(true)
-      setBusy(false)
-    }
+    // Going offline is best effort: with no signal the server drops them
+    // when the session ends anyway. Signing out itself never needs the network.
+    await setOnline(false).catch(() => setError(true))
+    await signOut()
   }
 
   return (

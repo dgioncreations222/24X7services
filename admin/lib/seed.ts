@@ -402,7 +402,7 @@ export function seed(nowMs = Date.now()): Seed {
     },
     {
       id: 'TKT-3107', side: 'technician', personId: technicians[3]!.id, subject: 'Part not available at Kukatpally hub', category: 'Parts & inventory',
-      priority: 'high', status: 'in_progress', createdAt: minsAgo(55), assignee: 'Farah Khan',
+      priority: 'high', status: 'in_progress', createdAt: minsAgo(55), assignee: 'Aditi Rao',
       messages: [
         { from: 'user', text: 'Need LG inverter PCB (RF-PC08) for a job tomorrow morning. Hub says out of stock.', at: minsAgo(55) },
         { from: 'agent', text: 'Checking with the Secunderabad hub — will confirm in 20 min.', at: minsAgo(41) },
@@ -420,7 +420,7 @@ export function seed(nowMs = Date.now()): Seed {
     },
     {
       id: 'TKT-3104', side: 'customer', personId: tk(3).customerId, bookingId: tk(3).id, subject: 'AC stopped cooling again after repair', category: 'Repeat issue',
-      priority: 'normal', status: 'in_progress', createdAt: minsAgo(60 * 6), assignee: 'Rohan Das',
+      priority: 'normal', status: 'in_progress', createdAt: minsAgo(60 * 6), assignee: 'Aditi Rao',
       messages: [
         { from: 'user', text: 'Repair was done 3 days ago, again not cooling.', at: minsAgo(60 * 6) },
         { from: 'agent', text: 'Sorry about this. A free revisit is booked under warranty for tomorrow 10 AM.', at: minsAgo(60 * 5) },
@@ -433,7 +433,7 @@ export function seed(nowMs = Date.now()): Seed {
     },
     {
       id: 'TKT-3102', side: 'customer', personId: customers[12]!.id, subject: 'Want to reschedule to Sunday', category: 'Reschedule',
-      priority: 'low', status: 'resolved', createdAt: minsAgo(60 * 22), assignee: 'Farah Khan',
+      priority: 'low', status: 'resolved', createdAt: minsAgo(60 * 22), assignee: 'Aditi Rao',
       messages: [
         { from: 'user', text: 'Can I move my booking to Sunday morning?', at: minsAgo(60 * 22) },
         { from: 'agent', text: 'Done — moved to Sunday 10:00 AM. You will get a confirmation SMS.', at: minsAgo(60 * 21) },
@@ -441,7 +441,7 @@ export function seed(nowMs = Date.now()): Seed {
     },
     {
       id: 'TKT-3101', side: 'technician', personId: technicians[1]!.id, subject: 'App crashed during bill generation', category: 'App issue',
-      priority: 'normal', status: 'resolved', createdAt: minsAgo(60 * 30), assignee: 'Rohan Das',
+      priority: 'normal', status: 'resolved', createdAt: minsAgo(60 * 30), assignee: 'Aditi Rao',
       messages: [
         { from: 'user', text: 'App closed when I tapped Generate Bill.', at: minsAgo(60 * 30) },
         { from: 'agent', text: 'Fixed in today’s update. Please update the app from the store.', at: minsAgo(60 * 26) },
@@ -513,11 +513,6 @@ export function seed(nowMs = Date.now()): Seed {
     areas: AREAS.map((a, i) => ({ pincode: a.pincode, area: a.area, active: i !== 11 })),
     team: [
       { name: 'Aditi Rao', email: 'aditi.rao@customerservice.example', role: 'Super admin', lastActive: minsAgo(1) },
-      { name: 'Vivek Menon', email: 'vivek.menon@customerservice.example', role: 'Operations', lastActive: minsAgo(14) },
-      { name: 'Sravani K', email: 'sravani.k@customerservice.example', role: 'Dispatcher', lastActive: minsAgo(3) },
-      { name: 'Farah Khan', email: 'farah.khan@customerservice.example', role: 'Support', lastActive: minsAgo(9) },
-      { name: 'Rohan Das', email: 'rohan.das@customerservice.example', role: 'Support', lastActive: minsAgo(70) },
-      { name: 'Meghana Iyer', email: 'meghana.iyer@customerservice.example', role: 'Finance', lastActive: minsAgo(60 * 5) },
     ],
   }
 

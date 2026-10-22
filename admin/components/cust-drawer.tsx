@@ -1,5 +1,6 @@
 'use client'
 
+import { BRAND } from '@/lib/brand'
 import Link from 'next/link'
 import type { Route } from 'next'
 import { useState } from 'react'
@@ -336,7 +337,7 @@ export function CustomerDrawer({ c, bookings, spend, onClose }: { c?: Customer; 
           </>
         }
       >
-        <p className="mb-3 text-sm font-medium text-muted">Credit lands in the customer’s Customer Service Wallet and applies to their next booking.</p>
+        <p className="mb-3 text-sm font-medium text-muted">Credit lands in the customer’s {BRAND.name} Wallet and applies to their next booking.</p>
         <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Amount">
           {[100, 200, 500].map((v) => (
             <button

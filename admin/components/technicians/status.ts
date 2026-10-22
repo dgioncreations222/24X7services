@@ -8,6 +8,7 @@ export const PARTNER_STATUS: Record<PartnerStatus, { label: string; tone: Tone }
   rejected: { label: 'Rejected', tone: 'danger' },
   active: { label: 'Active', tone: 'success' },
   suspended: { label: 'Suspended', tone: 'danger' },
+  inactive: { label: 'Inactive', tone: 'neutral' },
 }
 
 export const DOC_LABEL: Record<KycDocType, string> = {

@@ -75,6 +75,12 @@ export interface PartnerJob {
   notes?: string
   /** What the technician takes home for the job, after commission. */
   earning: Paise
+  /**
+   * The platform's cut when the job was booked, in percent of the whole bill
+   * (extras included). Kept on the job so a later change in Settings cannot
+   * rewrite what an old job earned.
+   */
+  commissionPct: number
   /** The customer's bill and whether it is paid — status only, no collection here. */
   payment: { amount: Paise; status: PaymentStatus }
   photos: { before: JobPhoto[]; after: JobPhoto[] }
@@ -125,7 +131,8 @@ export interface Payout {
 /* --------------------------------------------------------------- Profile */
 
 /** TODO(partner.ts): Partner. */
-export type PartnerStatus = 'applied' | 'kyc_pending' | 'approved' | 'rejected' | 'active' | 'suspended'
+/** `inactive`: let go by the network; an admin can reactivate the same account later. */
+export type PartnerStatus = 'applied' | 'kyc_pending' | 'approved' | 'rejected' | 'active' | 'suspended' | 'inactive'
 
 export interface PartnerProfile {
   id: string
@@ -154,7 +161,7 @@ export interface PartnerProfile {
  * screens they may see. Follows the partner status diagram:
  * registering → kyc_required → kyc_pending → approved / kyc_rejected → active.
  */
-export type SessionStatus = 'signed_out' | 'registering' | 'kyc_required' | 'kyc_pending' | 'kyc_rejected' | 'approved' | 'active' | 'suspended'
+export type SessionStatus = 'signed_out' | 'registering' | 'kyc_required' | 'kyc_pending' | 'kyc_rejected' | 'approved' | 'active' | 'suspended' | 'inactive'
 
 export interface Session {
   status: SessionStatus
@@ -162,6 +169,8 @@ export interface Session {
   name?: string
   /** Why KYC was rejected, when it was. */
   rejectReason?: string
+  /** How they signed in; only email accounts have a password to change. */
+  provider?: 'google' | 'email'
 }
 
 /** The registration form. TODO(partner.ts): fields of Partner. */

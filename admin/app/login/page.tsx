@@ -115,8 +115,7 @@ export default function Login() {
           <p className="mt-6 flex items-start gap-2 rounded-lg border border-line bg-card p-3 text-xs font-medium leading-relaxed text-muted">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
             <span>
-              Demo: any seeded admin with any 6+ character password, e.g. <span className="font-bold text-ink-2">aditi.rao@customerservice.example</span> (Super Admin) or{' '}
-              <span className="font-bold text-ink-2">vivek.menon@customerservice.example</span> (Operations). Google signs in as Aditi.
+              Demo: <span className="font-bold text-ink-2">aditi.rao@customerservice.example</span> (Super Admin) with any 6+ character password. Google signs in as Aditi.
             </span>
           </p>
         </div>

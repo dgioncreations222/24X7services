@@ -1,6 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio'
 import { File, Paths } from 'expo-file-system'
 import * as Haptics from 'expo-haptics'
+import { Platform, Vibration } from 'react-native'
 import { NOTES } from './chimeNotes'
 
 /**
@@ -10,31 +11,48 @@ import { NOTES } from './chimeNotes'
  * visual alert still shows.
  */
 export function chime(urgent = false) {
+  // On Android every expo-audio player opens a media session, and the system
+  // keeps an "Unknown song" player card in the shade even after it is
+  // released. So Android gets a longer buzz instead; the real offer sound
+  // will come from the push notification's channel.
+  if (Platform.OS === 'android') {
+    Vibration.vibrate(urgent ? [0, 400, 150, 400, 150, 400] : [0, 250, 120, 250])
+    return
+  }
   void Haptics.notificationAsync(
     urgent ? Haptics.NotificationFeedbackType.Warning : Haptics.NotificationFeedbackType.Success
   ).catch(() => undefined)
   try {
-    const player = playerFor(urgent)
-    void player.seekTo(0).then(() => player.play())
+    const player = createAudioPlayer({ uri: fileFor(urgent) })
+    player.play()
+    // A player that stays alive keeps an Android media session, which shows
+    // as a music player in the notification shade. Drop it once it is done.
+    setTimeout(() => release(player), RELEASE_MS)
   } catch {
     /* no audio on this device */
   }
 }
 
-const players: Partial<Record<'normal' | 'urgent', AudioPlayer>> = {}
+/** Both chimes end well inside this. */
+const RELEASE_MS = 1500
 
-function playerFor(urgent: boolean): AudioPlayer {
+function release(player: AudioPlayer) {
+  try {
+    player.clearLockScreenControls()
+    player.remove()
+  } catch {
+    /* already gone */
+  }
+}
+
+function fileFor(urgent: boolean): string {
   const key = urgent ? 'urgent' : 'normal'
-  const existing = players[key]
-  if (existing) return existing
   const file = new File(Paths.cache, `chime-${key}.wav`)
   if (!file.exists) {
     file.create({ overwrite: true })
     file.write(wav(NOTES[key]))
   }
-  const player = createAudioPlayer({ uri: file.uri })
-  players[key] = player
-  return player
+  return file.uri
 }
 
 /** 16-bit mono PCM: each note 170 ms on a 180 ms step, with the web's envelope. */

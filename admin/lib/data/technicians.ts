@@ -2,17 +2,20 @@
 
 /**
  * Technicians: the list, one technician, their KYC documents, and what an
- * admin does about them — review documents, approve or reject an
- * application, suspend and reactivate. Every decision that the technician
+ * admin does about them — add a technician with their documents (the only
+ * way in: there is no self sign-up), review documents, approve or reject,
+ * suspend, make inactive and reactivate. Every decision that the technician
  * will read needs a reason in plain words.
  */
 import { useSyncExternalStore } from 'react'
 import { mockRequest } from '../mock/api'
 import { read, subscribe, write, type MockDb } from '../mock/db'
 import { currentAdmin } from './auth'
+import { assertCan, guarded } from './permissions'
 import { audit } from './audit'
+import { bankKeyOf, digits, normalPhone } from '../identity'
 import { useResource, type Query } from './query'
-import type { KycDocType, KycDocument, Partner, PartnerStatus } from './types'
+import type { AdminAccount, AdminBooking, KycDocType, KycDocument, Partner, PartnerStatus, PayoutDestination } from './types'
 
 export class PartnerError extends Error {
   constructor(message: string) {
@@ -66,19 +69,82 @@ function setPartner(id: string, patch: Partial<Partner>) {
   write((d) => ({ ...d, partners: d.partners.map((p) => (p.id === id ? { ...p, ...patch } : p)) }))
 }
 
-const reviewer = () => currentAdmin()?.name ?? 'Admin'
+/**
+ * Maker-checker: the admin who added a technician neither reviews their
+ * documents nor approves them (a Super Admin may). Nobody signed in is refused.
+ */
+export function isOwnAddition(p: Pick<Partner, 'addedBy'>, me: Pick<AdminAccount, 'id' | 'role'> | null | undefined) {
+  return !!me && !!p.addedBy && p.addedBy.id === me.id && me.role !== 'Super Admin'
+}
+
+/**
+ * For a KYC decision (document, approve, reject): the signed-in admin must
+ * have technicians:approve and must not be the one who added them.
+ */
+function checkReviewer(p: Partner) {
+  const me = assertCan('technicians', 'approve')
+  if (isOwnAddition(p, me)) throw new PartnerError('You added this technician, so another admin reviews and approves them.')
+}
+
+/** Who is deciding: the name to show and the id to keep. */
+function reviewer() {
+  const a = currentAdmin()
+  return { reviewedBy: a?.name ?? 'Admin', reviewedById: a?.id ?? 'unknown' }
+}
+
+/**
+ * Hand back the jobs a technician had accepted but not started, so dispatch
+ * gives them to someone else. Jobs already under way stay with them.
+ */
+function releaseJobs(d: MockDb, partnerId: string, why: string): MockDb {
+  const now = Date.now()
+  const by = currentAdmin()?.name ?? 'Admin'
+  return {
+    ...d,
+    bookings: d.bookings.map(
+      (b): AdminBooking =>
+        b.technicianId === partnerId && b.status === 'assigned'
+          ? { ...b, status: 'confirmed', technicianId: undefined, timeline: [...b.timeline, { status: 'confirmed', at: now, by, note: `Back to dispatch: ${why}` }] }
+          : b
+    ),
+  }
+}
+
+/**
+ * Payouts not yet paid wait while the technician is suspended or inactive —
+ * approved ones too. Released, they need approving again.
+ */
+function holdPayouts(d: MockDb, partnerId: string, hold: boolean): MockDb {
+  return {
+    ...d,
+    payouts: d.payouts.map((p) => {
+      if (p.partnerId !== partnerId) return p
+      if (hold && (p.status === 'pending' || p.status === 'approved')) return { ...p, status: 'on_hold', approvedBy: undefined, approvedById: undefined, approvedAt: undefined }
+      if (!hold && p.status === 'on_hold') return { ...p, status: 'pending' }
+      return p
+    }),
+  }
+}
+
+const openJobsOf = (d: MockDb, partnerId: string) => d.bookings.filter((b) => b.technicianId === partnerId && b.status === 'assigned').length
 
 /** Approve one document, or reject it with what to fix. */
 export function reviewDoc(docId: string, decision: 'approved' | 'rejected', why?: string) {
   return mockRequest(() => {
     const doc = read().kycDocs.find((d) => d.id === docId)
     if (!doc) throw new PartnerError('This document is no longer there.')
-    if (partner(read(), doc.partnerId).status !== 'kyc_pending') throw new PartnerError('Documents can only be reviewed while the application is waiting.')
+    const p = partner(read(), doc.partnerId)
+    if (p.status !== 'kyc_pending') throw new PartnerError('Documents can only be reviewed while the application is waiting.')
+    if (doc.status !== 'pending') throw new PartnerError('This document is already decided. Replace the file to review it again.')
+    checkReviewer(p)
+    const me = currentAdmin()
+    if (doc.replacedById && me && doc.replacedById === me.id && me.role !== 'Super Admin') throw new PartnerError('You put this file in, so another admin reviews it.')
     const rejectReason = decision === 'rejected' ? reason(why, 'this document is rejected') : undefined
     write((d) => ({
       ...d,
-      kycDocs: d.kycDocs.map((x) => (x.id === docId ? { ...x, status: decision, rejectReason, reviewedBy: reviewer(), reviewedAt: Date.now() } : x)),
+      kycDocs: d.kycDocs.map((x) => (x.id === docId ? { ...x, status: decision, rejectReason, ...reviewer(), reviewedAt: Date.now() } : x)),
     }))
+    audit('technicians', decision === 'approved' ? 'Approved document' : 'Rejected document', { target: `${p.name} · ${doc.type}`, new: rejectReason })
   })
 }
 
@@ -91,6 +157,8 @@ export function approvePartner(id: string) {
     const docs = db.kycDocs.filter((d) => d.partnerId === id)
     const notOk = KYC_DOC_TYPES.filter((t) => docs.find((d) => d.type === t)?.status !== 'approved')
     if (notOk.length) throw new PartnerError(`Approve every document first — ${notOk.length} still ${notOk.length === 1 ? 'needs' : 'need'} a look.`)
+    // Maker-checker: whoever added a technician cannot also let them in.
+    checkReviewer(p)
     setPartner(id, { status: 'approved', statusReason: undefined })
     audit('technicians', 'Approved technician', { target: p.name, old: 'KYC to review', new: 'Approved' })
   })
@@ -104,42 +172,267 @@ export function rejectPartner(id: string, why: string) {
   return mockRequest(() => {
     const p = partner(read(), id)
     if (p.status !== 'kyc_pending') throw new PartnerError('Only a waiting application can be rejected.')
+    checkReviewer(p)
     const r = reason(why, 'the application is rejected')
     const now = Date.now()
     write((d) => ({
       ...d,
       partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'rejected' as PartnerStatus, statusReason: r } : x)),
-      kycDocs: d.kycDocs.map((x) => (x.partnerId === id && x.status === 'pending' ? { ...x, status: 'rejected', rejectReason: r, reviewedBy: reviewer(), reviewedAt: now } : x)),
+      kycDocs: d.kycDocs.map((x) => (x.partnerId === id && x.status === 'pending' ? { ...x, status: 'rejected', rejectReason: r, ...reviewer(), reviewedAt: now } : x)),
     }))
     audit('technicians', 'Rejected application', { target: p.name, new: r })
   })
 }
 
-/** Stop an active (or approved) technician getting jobs; they go offline at once. */
+/**
+ * Stop an active (or approved) technician getting jobs for a while; they go
+ * offline at once and jobs they had not started go back to dispatch.
+ * Resolves with how many jobs went back.
+ */
 export function suspendPartner(id: string, why: string) {
   return mockRequest(() => {
     const p = partner(read(), id)
+    assertCan('technicians', 'approve')
     if (p.status !== 'active' && p.status !== 'approved') throw new PartnerError('Only an active technician can be suspended.')
     const r = reason(why, 'they are suspended')
-    setPartner(id, { status: 'suspended', statusReason: r, online: false, onJob: false })
+    const released = openJobsOf(read(), id)
+    const pausedFrom = p.status
+    write((d) => holdPayouts(releaseJobs({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'suspended', statusReason: r, online: false, onJob: false, pausedFrom } : x)) }, id, `${p.name} suspended`), id, true))
     audit('technicians', 'Suspended technician', { target: p.name, old: p.status, new: r })
+    return released
   })
 }
 
-export function reactivatePartner(id: string) {
+/**
+ * Let a technician go. Not a ban: the account stays and can be reactivated,
+ * but while they are inactive nobody can be added with their phone, email,
+ * PAN, bank account or UPI. Resolves with how many jobs went back to dispatch.
+ */
+export function deactivatePartner(id: string, why: string) {
   return mockRequest(() => {
     const p = partner(read(), id)
-    if (p.status !== 'suspended') throw new PartnerError('Only a suspended technician can be reactivated.')
-    setPartner(id, { status: 'active', statusReason: undefined })
-    audit('technicians', 'Reactivated technician', { target: p.name, old: 'Suspended', new: 'Active' })
+    // Only a vetted technician can be let go: an applicant's application is
+    // rejected instead, so reactivating can never skip the KYC review.
+    assertCan('technicians', 'approve')
+    if (p.status !== 'active' && p.status !== 'approved' && p.status !== 'suspended') throw new PartnerError('Only an approved, active or suspended technician can be made inactive.')
+    const r = reason(why, 'they are made inactive')
+    const released = openJobsOf(read(), id)
+    // A suspended technician keeps where they were before the suspension.
+    const pausedFrom = p.status === 'suspended' ? (p.pausedFrom ?? 'active') : p.status
+    write((d) => holdPayouts(releaseJobs({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: 'inactive', statusReason: r, online: false, onJob: false, pausedFrom } : x)) }, id, `${p.name} made inactive`), id, true))
+    audit('technicians', 'Made technician inactive', { target: p.name, old: p.status, new: r })
+    return released
+  })
+}
+
+/**
+ * Back from suspended or inactive, on the same account, to where they were:
+ * active, or approved if they had not started yet (so nothing is skipped).
+ */
+export function reactivatePartner(id: string) {
+  return mockRequest(() => {
+    assertCan('technicians', 'approve')
+    const p = partner(read(), id)
+    if (p.status !== 'suspended' && p.status !== 'inactive') throw new PartnerError('Only a suspended or inactive technician can be reactivated.')
+    const back = p.pausedFrom ?? 'active'
+    write((d) => holdPayouts({ ...d, partners: d.partners.map((x) => (x.id === id ? { ...x, status: back, statusReason: undefined, pausedFrom: undefined } : x)) }, id, false))
+    audit('technicians', 'Reactivated technician', { target: p.name, old: p.status === 'inactive' ? 'Inactive' : 'Suspended', new: back === 'approved' ? 'Approved' : 'Active' })
+  })
+}
+
+/* ------------------------------------------------------ Adding a technician */
+
+export { bankKeyOf, normalPhone }
+
+export interface NewTechnician {
+  name: string
+  phone: string
+  email: string
+  city: string
+  area: string
+  skills: string[]
+  experienceYears: number
+  aadhaarLast4: string
+  pan: string
+  payout: { kind: 'bank'; accountName: string; accountNumber: string; ifsc: string } | { kind: 'upi'; upiId: string }
+  /** Data URLs (or paths) of the four documents. */
+  docs: Record<KycDocType, string | undefined>
+  /** The admin checked that the names on Aadhaar, PAN and the bank account are this person's. */
+  namesMatch: boolean
+  /** The admin compared the person in front of them with the Aadhaar photo. */
+  faceChecked: boolean
+}
+
+export interface Clash {
+  field: 'phone' | 'email' | 'PAN' | 'bank account' | 'UPI'
+  partner: Pick<Partner, 'id' | 'name' | 'status'>
+}
+
+/**
+ * Anyone already on the network with the same phone, email, PAN, bank account
+ * or UPI. An inactive technician's details stay here on purpose: someone who
+ * was let go cannot come back under another person's documents while their
+ * own phone, bank or UPI is the same.
+ */
+export function findClashes(partners: Partner[], input: Pick<NewTechnician, 'phone' | 'email' | 'pan' | 'payout'>): Clash[] {
+  const phone = normalPhone(input.phone)
+  const email = input.email.trim().toLowerCase()
+  const pan = input.pan.trim().toUpperCase()
+  const bank = input.payout.kind === 'bank' && input.payout.ifsc && digits(input.payout.accountNumber) ? bankKeyOf(input.payout.ifsc, input.payout.accountNumber) : ''
+  const upi = input.payout.kind === 'upi' ? input.payout.upiId.trim().toLowerCase() : ''
+  const out: Clash[] = []
+  for (const p of partners) {
+    const who = { id: p.id, name: p.name, status: p.status }
+    if (phone && normalPhone(p.phone) === phone) out.push({ field: 'phone', partner: who })
+    if (email && p.email.toLowerCase() === email) out.push({ field: 'email', partner: who })
+    if (pan && p.pan === pan) out.push({ field: 'PAN', partner: who })
+    if (bank && p.bankKey === bank) out.push({ field: 'bank account', partner: who })
+    if (upi && p.payout?.kind === 'upi' && p.payout.upiId.toLowerCase() === upi) out.push({ field: 'UPI', partner: who })
+  }
+  return out
+}
+
+const PAN = /^[A-Z]{5}[0-9]{4}[A-Z]$/
+const IFSC = /^[A-Z]{4}0[A-Z0-9]{6}$/
+const UPI = /^[\w.-]{2,}@[a-z]{2,}$/i
+const HYDERABAD = { lat: 17.385, lng: 78.4867 }
+
+/**
+ * Add a technician from the partner desk, with all four documents. They wait
+ * in "KYC to review" for another admin. A clash with someone already on the
+ * network stops it; only a Super Admin can save anyway (`override`).
+ */
+export function addTechnician(input: NewTechnician, override = false) {
+  return mockRequest(() => {
+    const me = assertCan('technicians', 'create')
+    const db = read()
+    const name = input.name.trim()
+    const email = input.email.trim().toLowerCase()
+    const phone = normalPhone(input.phone)
+    const pan = input.pan.trim().toUpperCase()
+    if (name.length < 3) throw new PartnerError('Enter their full name, as on the Aadhaar.')
+    if (!phone || !/^\+91[6-9]/.test(phone)) throw new PartnerError('Enter a 10-digit Indian mobile number.')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new PartnerError('Enter the email they will sign in with.')
+    if (!input.city.trim() || !input.area.trim()) throw new PartnerError('Enter their city and base area.')
+    const known = new Set(db.categories.map((c) => c.id))
+    if (!input.skills.length || input.skills.some((s) => !known.has(s))) throw new PartnerError('Pick at least one category they work in.')
+    if (!Number.isInteger(input.experienceYears) || input.experienceYears < 0 || input.experienceYears > 60) throw new PartnerError('Experience is a whole number of years, 0 to 60.')
+    if (!/^\d{4}$/.test(input.aadhaarLast4)) throw new PartnerError('Enter the last 4 digits of the Aadhaar — never the full number.')
+    if (!PAN.test(pan)) throw new PartnerError('PAN looks like ABCDE1234F.')
+    let payout: PayoutDestination
+    let bankKey: string | undefined
+    if (input.payout.kind === 'bank') {
+      const { accountName, accountNumber, ifsc } = input.payout
+      if (accountName.trim().length < 3) throw new PartnerError('Enter the bank account holder’s name.')
+      if (!/^\d{9,18}$/.test(digits(accountNumber))) throw new PartnerError('Account number should be 9 to 18 digits.')
+      if (!IFSC.test(ifsc.toUpperCase())) throw new PartnerError('IFSC looks like HDFC0001234.')
+      payout = { kind: 'bank', accountName: accountName.trim(), accountLast4: digits(accountNumber).slice(-4), ifsc: ifsc.toUpperCase() }
+      bankKey = bankKeyOf(ifsc, accountNumber)
+    } else {
+      if (!UPI.test(input.payout.upiId.trim())) throw new PartnerError('UPI ID looks like name@okhdfc.')
+      payout = { kind: 'upi', upiId: input.payout.upiId.trim().toLowerCase() }
+    }
+    const missing = KYC_DOC_TYPES.filter((t) => !input.docs[t])
+    if (missing.length) throw new PartnerError(`Upload all four documents — ${missing.length} missing.`)
+    if (!input.namesMatch) throw new PartnerError('Check that the names on Aadhaar, PAN and the bank account are the same person, and tick the box.')
+    if (!input.faceChecked) throw new PartnerError('Match their face with the Aadhaar photo, and tick the box.')
+
+    const clashes = findClashes(db.partners, { ...input, phone, email, pan })
+    if (clashes.length && !(override && me.role === 'Super Admin')) {
+      const c = clashes[0]!
+      const away = c.partner.status === 'inactive' || c.partner.status === 'suspended'
+      throw new PartnerError(
+        `This ${c.field} already belongs to ${c.partner.name} (${c.partner.status}).${away ? ' Reactivate their account instead of adding a new one.' : ''}${me.role === 'Super Admin' ? '' : ' Only a Super Admin can save anyway.'}`
+      )
+    }
+
+    let n = db.partners.length + 1
+    while (db.partners.some((p) => p.id === `TCH-HYD-${String(n).padStart(4, '0')}`)) n++
+    const id = `TCH-HYD-${String(n).padStart(4, '0')}`
+    const now = Date.now()
+    const added: Partner = {
+      id,
+      name,
+      phone,
+      email,
+      city: input.city.trim(),
+      area: input.area.trim(),
+      skills: input.skills,
+      experienceYears: input.experienceYears,
+      status: 'kyc_pending',
+      online: false,
+      onJob: false,
+      rating: 0,
+      ratingCount: 0,
+      completedJobs: 0,
+      acceptanceRate: 0,
+      onTimeRate: 0,
+      cancelRate: 0,
+      jobs30: 0,
+      earnings30: 0,
+      payout,
+      createdAt: now,
+      submittedAt: now,
+      geo: HYDERABAD,
+      aadhaarLast4: input.aadhaarLast4,
+      pan,
+      bankKey,
+      addedBy: { id: me.id, name: me.name },
+    }
+    const docs: KycDocument[] = KYC_DOC_TYPES.map((type) => ({ id: `${id}-${type}`, partnerId: id, type, fileUrl: input.docs[type]!, status: 'pending', uploadedAt: now }))
+    write((d) => ({ ...d, partners: [added, ...d.partners], kycDocs: [...docs, ...d.kycDocs] }))
+    audit('technicians', clashes.length ? 'Added technician (clash overridden)' : 'Added technician', {
+      target: `${name} · ${id}`,
+      new: clashes.map((c) => `${c.field} of ${c.partner.name}`).join(', ') || undefined,
+    })
+    // TODO(backend): a Cloud Function creates their sign-in account with the
+    // partner claim and emails a set-password link; documents go to Storage
+    // under partners/{id}/kyc/, never into the Firestore document.
+    return added
   })
 }
 
 /** Which categories they may take jobs in. At least one. */
 export function setPartnerSkills(id: string, skills: string[]) {
-  return mockRequest(() => {
-    if (!skills.length) throw new PartnerError('A technician needs at least one category.')
+  return guarded([['technicians', 'edit']], () => {
+    const p = partner(read(), id)
     const known = new Set(read().categories.map((c) => c.id))
-    setPartner(partner(read(), id).id, { skills: skills.filter((s) => known.has(s)) })
+    const next = [...new Set(skills.filter((s) => known.has(s)))]
+    if (!next.length) throw new PartnerError('A technician needs at least one category.')
+    setPartner(id, { skills: next })
+    audit('technicians', 'Changed categories', { target: p.name, old: p.skills.join(', '), new: next.join(', ') })
+  })
+}
+
+/**
+ * Put a new photo in place of a rejected document (the technician brought a
+ * clear one to the desk). It goes back to waiting for review.
+ */
+export function replaceKycDocument(docId: string, fileUrl: string) {
+  return guarded([['technicians', 'edit']], () => {
+    const me = currentAdmin()
+    const doc = read().kycDocs.find((d) => d.id === docId)
+    if (!doc) throw new PartnerError('This document is no longer there.')
+    const p = partner(read(), doc.partnerId)
+    if (p.status !== 'kyc_pending' && p.status !== 'rejected') throw new PartnerError('Documents are replaced only while the application is open or sent back.')
+    if (doc.status !== 'rejected') throw new PartnerError('Only a rejected document is replaced.')
+    if (!fileUrl) throw new PartnerError('Choose the new photo.')
+    write((d) => ({
+      ...d,
+      kycDocs: d.kycDocs.map((x) => (x.id === docId ? { ...x, fileUrl, status: 'pending', rejectReason: undefined, reviewedBy: undefined, reviewedById: undefined, reviewedAt: undefined, uploadedAt: Date.now(), replacedById: me?.id } : x)),
+    }))
+    audit('technicians', 'Replaced document', { target: `${p.name} · ${doc.type}` })
+  })
+}
+
+/** A sent-back application, once every rejected document is replaced, waits for review again. */
+export function resubmitApplication(id: string) {
+  return guarded([['technicians', 'edit']], () => {
+    const p = partner(read(), id)
+    if (p.status !== 'rejected') throw new PartnerError('Only a sent-back application is resubmitted.')
+    const left = read().kycDocs.filter((d) => d.partnerId === id && d.status === 'rejected').length
+    if (left) throw new PartnerError(`Replace the rejected document${left === 1 ? '' : 's'} first — ${left} left.`)
+    setPartner(id, { status: 'kyc_pending', statusReason: undefined, submittedAt: Date.now() })
+    audit('technicians', 'Resubmitted application', { target: p.name, old: 'Rejected', new: 'KYC to review' })
   })
 }

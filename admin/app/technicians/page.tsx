@@ -3,13 +3,14 @@
 import type { Route } from 'next'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
-import { Download, UserRoundCog } from 'lucide-react'
-import { SortTh } from '@/components/catalog/parts'
+import { Download, UserPlus, UserRoundCog } from 'lucide-react'
+import { SortTh, rupees } from '@/components/catalog/parts'
 import { useTable } from '@/components/catalog/useTable'
+import { AddTechnicianModal } from '@/components/technicians/AddTechnicianModal'
 import { PARTNER_STATUS, presence } from '@/components/technicians/status'
 import { TechnicianDrawer } from '@/components/technicians/TechnicianDrawer'
 import { Async, Avatar, Button, Card, Chip, Empty, Page, PageHeader, Pager, Rating, SearchInput, Select, Tabs, TableWrap, td, th, tr } from '@/components/ui'
-import { usePartners, useCategories, type Category, type Partner } from '@/lib/data'
+import { useCan, useCashHeld, usePartners, useCategories, type Category, type Partner } from '@/lib/data'
 import { cn } from '@/lib/cn'
 import { ago, downloadCsv } from '@/lib/format'
 
@@ -27,6 +28,8 @@ function Technicians() {
   const params = useSearchParams()
   const partners = usePartners()
   const categories = useCategories()
+  const can = useCan()
+  const [adding, setAdding] = useState(false)
   const open = (id: string | null) => router.replace((id ? `/technicians?id=${id}` : '/technicians') as Route, { scroll: false })
   const active = partners.data?.filter((p) => p.status === 'active') ?? []
   return (
@@ -36,28 +39,46 @@ function Technicians() {
         title="Technicians"
         sub={partners.data ? `${active.length} active · ${active.filter((p) => p.online).length} online now · ${partners.data.filter((p) => p.status === 'kyc_pending').length} waiting for KYC review` : 'Loading…'}
         actions={
-          partners.data && (
-            <Button variant="secondary" onClick={() => exportCsv(partners.data!, categories.data ?? [])}>
-              <Download /> Export CSV
-            </Button>
-          )
+          <>
+            {partners.data && (
+              <Button variant="secondary" onClick={() => exportCsv(partners.data!, categories.data ?? [])}>
+                <Download /> Export CSV
+              </Button>
+            )}
+            {can('technicians', 'create') && (
+              <Button onClick={() => setAdding(true)}>
+                <UserPlus /> Add technician
+              </Button>
+            )}
+          </>
         }
       />
       <Card className="overflow-hidden">
-        <Async query={partners} empty={<Empty icon={<UserRoundCog />} title="No technicians yet" body="Applications from the Partner app appear here." />}>
+        <Async query={partners} empty={<Empty icon={<UserRoundCog />} title="No technicians yet" body="Technicians join through the partner desk — add the first one with Add technician." />}>
           {(rows) => <PartnerTable rows={rows} categories={categories.data ?? []} onOpen={open} />}
         </Async>
       </Card>
       <TechnicianDrawer id={params.get('id')} onClose={() => open(null)} />
+      {adding && (
+        <AddTechnicianModal
+          onClose={() => setAdding(false)}
+          onAdded={(id) => {
+            setAdding(false)
+            open(id)
+          }}
+        />
+      )}
     </Page>
   )
 }
 
-type Filter = 'active' | 'online' | 'applications' | 'approved' | 'rejected' | 'suspended'
+type Filter = 'active' | 'online' | 'applications' | 'approved' | 'rejected' | 'suspended' | 'inactive'
 
 function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; categories: Category[]; onOpen: (id: string) => void }) {
   const [category, setCategory] = useState('all')
   const rows = category === 'all' ? all : all.filter((p) => p.skills.includes(category))
+  // Cash they collected on paid jobs that no paid payout has settled yet.
+  const cash = useCashHeld().data ?? {}
   const t = useTable({
     rows,
     search: (p) => [p.id, p.name, p.phone.replace(/\s/g, ''), p.email, p.area],
@@ -68,6 +89,7 @@ function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; cate
       approved: (p: Partner) => p.status === 'approved',
       rejected: (p: Partner) => p.status === 'rejected',
       suspended: (p: Partner) => p.status === 'suspended',
+      inactive: (p: Partner) => p.status === 'inactive',
     },
     sorts: {
       name: (p: Partner) => p.name,
@@ -75,11 +97,12 @@ function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; cate
       jobs: (p: Partner) => -p.jobs30,
       accept: (p: Partner) => -p.acceptanceRate,
       ontime: (p: Partner) => -p.onTimeRate,
+      cash: (p: Partner) => -(cash[p.id] ?? 0),
       waiting: (p: Partner) => p.submittedAt ?? 0,
     },
     initialSort: 'jobs',
   })
-  const count = (f: Filter) => rows.filter((p) => ({ active: p.status === 'active', online: p.status === 'active' && p.online, applications: p.status === 'kyc_pending', approved: p.status === 'approved', rejected: p.status === 'rejected', suspended: p.status === 'suspended' })[f]).length
+  const count = (f: Filter) => rows.filter((p) => ({ active: p.status === 'active', online: p.status === 'active' && p.online, applications: p.status === 'kyc_pending', approved: p.status === 'approved', rejected: p.status === 'rejected', suspended: p.status === 'suspended', inactive: p.status === 'inactive' })[f]).length
   const queue = t.filter === 'applications' || t.filter === 'rejected'
   const catNames = (p: Partner) => p.skills.map((s) => categories.find((c) => c.id === s)?.name ?? s).join(', ')
 
@@ -102,6 +125,7 @@ function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; cate
             { value: 'approved', label: 'Approved · not started', count: count('approved') },
             { value: 'rejected', label: 'Rejected', count: count('rejected') },
             { value: 'suspended', label: 'Suspended', count: count('suspended') },
+            { value: 'inactive', label: 'Inactive', count: count('inactive') },
           ]}
           className="border-b-0"
         />
@@ -126,6 +150,7 @@ function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; cate
                   <SortTh by="jobs" label="Jobs · 30 d" sort={t.sort} onSort={t.sortBy} />
                   <SortTh by="accept" label="Accept." sort={t.sort} onSort={t.sortBy} />
                   <SortTh by="ontime" label="On time" sort={t.sort} onSort={t.sortBy} />
+                  <SortTh by="cash" label="Cash held" sort={t.sort} onSort={t.sortBy} />
                 </>
               )}
               <th className={th}>Status</th>
@@ -161,6 +186,7 @@ function PartnerTable({ rows: all, categories, onOpen }: { rows: Partner[]; cate
                       <td className={cn(td, 'num font-semibold')}>{p.jobs30}</td>
                       <td className={cn(td, 'num', p.acceptanceRate < 80 && 'text-warning')}>{p.acceptanceRate}%</td>
                       <td className={cn(td, 'num', p.onTimeRate < 90 && 'text-warning')}>{p.onTimeRate}%</td>
+                      <td className={cn(td, 'num', (cash[p.id] ?? 0) > 500_000 && 'font-bold text-danger')}>{cash[p.id] ? rupees(cash[p.id]!) : '—'}</td>
                     </>
                   )}
                   <td className={td}>

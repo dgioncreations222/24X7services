@@ -32,7 +32,7 @@ export function ErrorState({
       </Text>
       <Text className="mt-1 max-w-xs text-center text-sm text-muted">{body ?? t('Check your internet and try again.')}</Text>
       <Button size="lg" className="mt-5 self-stretch" disabled={retrying} onPress={onRetry}>
-        {retrying ? <ActivityIndicator color={COLORS.white} /> : <Icon as={RotateCcw} className="size-5" />}
+        {retrying ? <ActivityIndicator color={COLORS.muted} /> : <Icon as={RotateCcw} className="size-5" />}
         {retrying ? t('Trying again…') : t('Try again')}
       </Button>
     </View>

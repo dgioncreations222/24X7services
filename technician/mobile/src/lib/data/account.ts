@@ -1,6 +1,7 @@
 /** The technician's own side: earnings, payouts, reviews and profile. */
 import { mockRequest } from '../mock/api'
-import { COMMISSION_RATE, write, type MockDb } from '../mock/db'
+import { queueNextOffer } from '../mock/customer'
+import { split, write, type MockDb } from '../mock/db'
 import { useResource, type Query } from './query'
 import type { EarningLine, EarningsSummary, PartnerProfile, PartnerReview, Payout } from './types'
 
@@ -21,8 +22,8 @@ function summarise(db: MockDb, period: EarningsSummary['period']): EarningsSumma
     .map((j) => {
       const at = j.timeline.find((t) => t.status === 'completed')?.at ?? j.slotStart
       const gross = j.payment.amount
-      const commission = Math.round(gross * COMMISSION_RATE)
-      return { jobId: j.id, displayId: j.displayId, serviceName: j.service.name, at, gross, commission, net: gross - commission }
+      const { commission, net } = split(gross, j.commissionPct)
+      return { jobId: j.id, displayId: j.displayId, serviceName: j.service.name, at, gross, commission, net }
     })
     .filter((l) => l.at >= from && l.at < from + 31 * DAY)
     .sort((a, b) => b.at - a.at)
@@ -60,7 +61,17 @@ export function useProfile(): Query<PartnerProfile> {
   return useResource((db) => db.profile)
 }
 
-/** The Home toggle: online gets new requests, offline does not. */
-export function setOnline(online: boolean) {
-  return mockRequest(() => write((db) => ({ ...db, profile: { ...db.profile, online } })))
+/**
+ * The Home toggle: online gets new requests, offline does not. Going offline
+ * hands any open request back to dispatch; jobs already accepted stay.
+ */
+export async function setOnline(online: boolean) {
+  await mockRequest(() =>
+    write((db) => ({
+      ...db,
+      profile: { ...db.profile, online },
+      jobs: online ? db.jobs : db.jobs.filter((j) => j.status !== 'offered'),
+    }))
+  )
+  if (online) queueNextOffer()
 }
