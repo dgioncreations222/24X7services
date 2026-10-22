@@ -5,7 +5,7 @@ import { mockRequest } from '../mock/api'
 import { read, write, type MockDb } from '../mock/db'
 import { bill } from '../money'
 import { audit } from './audit'
-import { assertCan } from './permissions'
+import {assertCan, guarded } from './permissions'
 import { useResource, type Query } from './query'
 import type { AdminBooking, AdminCustomer, Paise } from './types'
 
@@ -61,7 +61,7 @@ export function useCustomerBookings(id: string | null | undefined): Query<AdminB
 
 /** Stop a customer booking; their open bookings are left for support to handle. */
 export function blockCustomer(id: string, reason: string) {
-  return mockRequest(() => {
+  return guarded([['customers', 'edit']], () => {
     const c = read().customers.find((x) => x.id === id)
     if (!c) throw new CustomerError('This customer no longer exists.')
     if (c.status === 'blocked') throw new CustomerError('Already blocked.')
@@ -73,7 +73,7 @@ export function blockCustomer(id: string, reason: string) {
 }
 
 export function unblockCustomer(id: string) {
-  return mockRequest(() => {
+  return guarded([['customers', 'edit']], () => {
     const c = read().customers.find((x) => x.id === id)
     if (!c || c.status !== 'blocked') throw new CustomerError('Only a blocked customer can be unblocked.')
     write((d) => ({ ...d, customers: d.customers.map((x) => (x.id === id ? { ...x, status: 'active', blockReason: undefined } : x)) }))

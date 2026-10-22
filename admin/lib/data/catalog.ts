@@ -6,9 +6,9 @@
  * backend has the change and throws a CatalogError when the form needs
  * fixing, or a NetworkError when it could not be saved.
  */
-import { mockRequest } from '../mock/api'
 import { read, write, type MockDb } from '../mock/db'
 import { audit } from './audit'
+import { guarded } from './permissions'
 import { useResource, type Query } from './query'
 import type { Category, Question, RateCardItem, Service, ServiceArea } from './types'
 
@@ -79,7 +79,7 @@ function siblings(db: MockDb, key: Ordered, row: Row & Partial<{ categoryId: str
 
 /** Move a row one place up or down among its siblings. */
 function move(key: Ordered, id: string, dir: -1 | 1) {
-  return mockRequest(() =>
+  return guarded([['catalog', 'edit']], () =>
     write((db) => {
       const rows = db[key] as Row[]
       const row = rows.find((r) => r.id === id)
@@ -97,7 +97,7 @@ function move(key: Ordered, id: string, dir: -1 | 1) {
 const KIND = { categories: 'category', services: 'service', rateCard: 'rate card item' } as const
 
 function setActive(key: 'categories' | 'services' | 'rateCard', id: string, active: boolean) {
-  return mockRequest(() => {
+  return guarded([['catalog', 'edit']], () => {
     const row = (read()[key] as (Row & { name: string })[]).find((r) => r.id === id)
     write((db) => ({ ...db, [key]: (db[key] as (Row & { active: boolean })[]).map((r) => (r.id === id ? { ...r, active } : r)) }))
     audit('catalog', `${active ? 'Showed' : 'Hid'} ${KIND[key]}`, { target: row?.name ?? id })
@@ -111,7 +111,7 @@ const clean = (list: string[]) => list.map((s) => s.trim()).filter(Boolean)
 export type CategoryInput = Pick<Category, 'name' | 'description' | 'image'> & { id?: string }
 
 export function saveCategory(input: CategoryInput) {
-  return mockRequest(() => {
+  return guarded([['catalog', input.id ? 'edit' : 'create']], () => {
     const name = input.name.trim()
     if (name.length < 2) throw new CatalogError('Give the category a name.')
     const db = read()
@@ -134,7 +134,7 @@ export const moveCategory = (id: string, dir: -1 | 1) => move('categories', id, 
 export type ServiceInput = Omit<Service, 'id' | 'order' | 'active'> & { id?: string }
 
 export function saveService(input: ServiceInput) {
-  return mockRequest(() => {
+  return guarded([['catalog', input.id ? 'edit' : 'create']], () => {
     const name = input.name.trim()
     if (name.length < 2) throw new CatalogError('Give the service a name.')
     const db = read()
@@ -162,7 +162,7 @@ export const moveService = (id: string, dir: -1 | 1) => move('services', id, dir
 export type QuestionInput = Omit<Question, 'id' | 'order'> & { id?: string }
 
 export function saveQuestion(input: QuestionInput) {
-  return mockRequest(() => {
+  return guarded([['catalog', 'edit']], () => {
     const label = input.label.trim()
     if (label.length < 3) throw new CatalogError('Write the question the customer will see.')
     const options = input.kind === 'options' ? clean(input.options) : []
@@ -187,7 +187,7 @@ export function saveQuestion(input: QuestionInput) {
 }
 
 export function deleteQuestion(id: string) {
-  return mockRequest(() => {
+  return guarded([['catalog', 'edit']], () => {
     const q = read().questions.find((x) => x.id === id)
     write((d) => ({ ...d, questions: d.questions.filter((x) => x.id !== id) }))
     audit('catalog', 'Removed question', { target: q ? `${q.serviceId} · ${q.label}` : id })
@@ -201,7 +201,7 @@ export const moveQuestion = (id: string, dir: -1 | 1) => move('questions', id, d
 export type RateCardInput = Pick<RateCardItem, 'categoryId' | 'name' | 'price'> & { id?: string }
 
 export function saveRateCardItem(input: RateCardInput) {
-  return mockRequest(() => {
+  return guarded([['catalog', input.id ? 'edit' : 'create']], () => {
     const name = input.name.trim()
     if (name.length < 2) throw new CatalogError('Name the part or charge.')
     if (!Number.isFinite(input.price) || input.price <= 0) throw new CatalogError('Enter a price above ₹0.')
@@ -233,7 +233,7 @@ export const moveRateCardItem = (id: string, dir: -1 | 1) => move('rateCard', id
 /* ----------------------------------------------------------------- Areas */
 
 export function addArea(input: Omit<ServiceArea, 'active'>) {
-  return mockRequest(() => {
+  return guarded([['catalog', 'create']], () => {
     const pincode = input.pincode.trim()
     if (!/^[1-9][0-9]{5}$/.test(pincode)) throw new CatalogError('Enter a valid 6-digit pincode.')
     if (input.area.trim().length < 2) throw new CatalogError('Name the area.')
@@ -247,7 +247,7 @@ export function addArea(input: Omit<ServiceArea, 'active'>) {
 }
 
 export function setAreaActive(pincode: string, active: boolean) {
-  return mockRequest(() => {
+  return guarded([['catalog', 'edit']], () => {
     write((d) => ({ ...d, areas: d.areas.map((a) => (a.pincode === pincode ? { ...a, active } : a)) }))
     audit('catalog', active ? 'Opened service area' : 'Closed service area', { target: pincode })
   })

@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { Check, Maximize2, ShieldCheck, X } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Check, ImageUp, Maximize2, RotateCcw, ShieldCheck, X } from 'lucide-react'
 import { FormError, useAction } from '@/components/catalog/parts'
 import { Async, Button, Chip, Modal, SectionLabel, SkeletonRows } from '@/components/ui'
-import { approvePartner, isOwnAddition, rejectPartner, reviewDoc, useAdminSession, useCan, useKycDocs, type KycDocument, type Partner } from '@/lib/data'
+import { approvePartner, isOwnAddition, rejectPartner, replaceKycDocument, resubmitApplication, reviewDoc, useAdminSession, useCan, useKycDocs, type KycDocument, type Partner } from '@/lib/data'
 import { dateTime } from '@/lib/format'
 import { DOC_LABEL, DOC_STATUS } from './status'
 import { ReasonModal } from './ReasonModal'
@@ -20,6 +20,8 @@ export function KycReview({ partner: p }: { partner: Partner }) {
   const docs = useKycDocs(p.id)
   const can = useCan()
   const reviewing = p.status === 'kyc_pending' && can('technicians', 'approve')
+  // A rejected document is replaced at the desk with a clear photo.
+  const replacing = (p.status === 'kyc_pending' || p.status === 'rejected') && can('technicians', 'edit')
   const session = useAdminSession()
   const me = session.status === 'signed_in' ? session.admin : null
   // Maker-checker: the admin who added them reviews nothing (a Super Admin may).
@@ -37,6 +39,16 @@ export function KycReview({ partner: p }: { partner: Partner }) {
             {p.status === 'rejected' && p.statusReason && (
               <p className="mb-4 rounded-lg border border-danger/25 bg-danger-soft px-3 py-2 text-sm font-semibold text-danger">Sent back: {p.statusReason}</p>
             )}
+            {p.status === 'rejected' && replacing && (
+              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-card border border-line bg-canvas/60 p-3">
+                <p className="mr-auto text-sm font-semibold text-ink-2">
+                  {list.some((d) => d.status === 'rejected') ? 'Replace each rejected document with a clear photo, then send the application back for review.' : 'Every rejected document is replaced.'}
+                </p>
+                <Button size="sm" disabled={busy || list.some((d) => d.status === 'rejected')} onClick={() => void run(() => resubmitApplication(p.id), `${p.name}’s application is waiting for review again`)}>
+                  <RotateCcw /> Send back for review
+                </Button>
+              </div>
+            )}
             <SectionLabel>Documents{p.submittedAt ? ` · sent ${dateTime(new Date(p.submittedAt).toISOString())}` : ''}</SectionLabel>
             <ul className="grid gap-3 sm:grid-cols-2">
               {list.map((d) => (
@@ -53,7 +65,8 @@ export function KycReview({ partner: p }: { partner: Partner }) {
                     </div>
                     {d.rejectReason && <p className="text-xs font-semibold text-danger">{d.rejectReason}</p>}
                     {d.reviewedBy && d.status !== 'pending' && <p className="text-[11px] text-muted">by {d.reviewedBy}</p>}
-                    {reviewing && !selfAdded && d.status !== 'approved' && (
+                    {replacing && d.status === 'rejected' && <ReplaceFile doc={d} />}
+                    {reviewing && !selfAdded && d.status === 'pending' && (
                       <div className="flex gap-2">
                         <Button size="sm" variant="success" disabled={busy} onClick={() => void run(() => reviewDoc(d.id, 'approved'), `${DOC_LABEL[d.type]} approved`)}>
                           <Check /> Approve
@@ -115,5 +128,34 @@ export function KycReview({ partner: p }: { partner: Partner }) {
         )
       }}
     </Async>
+  )
+}
+
+/** Pick a new photo for a rejected document; it goes back to waiting for review. */
+function ReplaceFile({ doc }: { doc: KycDocument }) {
+  const file = useRef<HTMLInputElement>(null)
+  const { run, busy, error, setError } = useAction()
+  return (
+    <div className="space-y-1">
+      <Button size="sm" variant="secondary" disabled={busy} onClick={() => file.current?.click()}>
+        <ImageUp /> {busy ? 'Uploading…' : 'Replace file'}
+      </Button>
+      <input
+        ref={file}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          e.target.value = ''
+          if (!f) return
+          if (f.size > 800_000) return setError('Pick an image under 800 KB.')
+          const r = new FileReader()
+          r.onload = () => void run(() => replaceKycDocument(doc.id, String(r.result)), `${DOC_LABEL[doc.type]} replaced`)
+          r.readAsDataURL(f)
+        }}
+      />
+      {error && <p className="text-xs font-semibold text-danger">{error}</p>}
+    </div>
   )
 }

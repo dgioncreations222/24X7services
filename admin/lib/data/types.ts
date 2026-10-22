@@ -192,6 +192,8 @@ export interface KycDocument {
   reviewedBy?: string
   /** Admin id: the name can change, the id cannot. */
   reviewedById?: string
+  /** The admin who put in a replacement file; someone else reviews it. */
+  replacedById?: string
   uploadedAt: number
   reviewedAt?: number
 }
@@ -264,7 +266,10 @@ export interface AdminBooking {
   timeline: BookingEvent[]
   extras: BookingExtra[]
   price: { service: Paise; discount: Paise; coupon?: string }
-  /** `paidAmount`: what has come in so far, when the status is `partially_paid`. */
+  /**
+   * `paidAmount`: what came in, when it was less than the bill (`partially_paid`,
+   * and kept through any refund after). Unset means the whole bill was paid.
+   */
   payment: { status: PaymentStatus; method?: 'upi' | 'card' | 'cash' | 'wallet'; paidAt?: number; paidAmount?: Paise }
   cancellation?: { at: number; by: 'customer' | 'support' | 'system'; reason: string }
   refunds: { amount: Paise; reason: string; at: number; by: string }[]
@@ -465,6 +470,21 @@ export interface PartnerPayout {
   paidAt?: number
   /** Bank reference once paid; unique across payouts. */
   reference?: string
+}
+
+/**
+ * A deduction waiting for the technician's next payout: a refund on a job
+ * whose week was already paid or carried forward. The weekly payout run
+ * applies it as part of carriedIn.
+ */
+export interface PayoutAdjustment {
+  id: string
+  partnerId: string
+  bookingId: string
+  /** Negative: what comes off the technician's next payout. */
+  amount: Paise
+  reason: string
+  at: number
 }
 
 /** One money movement on a booking, worked out from the booking. */

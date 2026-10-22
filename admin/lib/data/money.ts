@@ -7,13 +7,13 @@
  * bank transfer goes out. The sums themselves live in lib/money.
  */
 import { useSyncExternalStore } from 'react'
-import { bill, cashCollected, commissionOn, rupees as rs } from '../money'
+import { bill, cashCollected, commissionOn, payable, rupees as rs } from '../money'
 import { mockRequest } from '../mock/api'
 import { read, subscribe, write, type MockDb } from '../mock/db'
 import { audit } from './audit'
 import { assertCan } from './permissions'
 import { useResource, type Query } from './query'
-import type { Paise, PartnerPayout, Transaction } from './types'
+import type { Paise, PartnerPayout, PayoutAdjustment, Transaction } from './types'
 
 export class MoneyError extends Error {
   constructor(message: string) {
@@ -39,14 +39,14 @@ export function transactions(db: MockDb): Transaction[] {
     const base = { bookingId: b.id, displayId: b.displayId, customerName: b.customer.name, method: b.payment.method }
     const out: Transaction[] = []
     if (m.paid > 0) {
-      out.push({ ...base, id: `${b.id}-pay`, kind: 'payment', amount: m.paid, commission: b.status === 'completed' ? commissionOn(m.paid, pct) : 0, status: 'success', at: b.payment.paidAt ?? b.slotStart, note: m.paid < m.total ? `Part paid — ${rs(m.total - m.paid)} still due` : undefined })
+      out.push({ ...base, id: `${b.id}-pay`, kind: 'payment', amount: m.paid, commission: payable(b) ? commissionOn(m.paid, pct) : 0, status: 'success', at: b.payment.paidAt ?? b.slotStart, note: m.paid < m.total ? `Part paid — ${rs(m.total - m.paid)} still due` : undefined })
     } else if (b.payment.status === 'failed' || b.status === 'failed') {
       out.push({ ...base, id: `${b.id}-pay`, kind: 'payment', amount: m.total, commission: 0, status: 'failed', at: b.createdAt, note: 'Payment failed at checkout' })
     } else if (b.status === 'pending_payment') {
       out.push({ ...base, id: `${b.id}-pay`, kind: 'payment', amount: m.total, commission: 0, status: 'pending', at: b.createdAt, note: 'Waiting for the customer to pay' })
     }
     b.refunds.forEach((r, i) =>
-      out.push({ ...base, id: `${b.id}-ref${i}`, kind: 'refund', amount: -r.amount, commission: b.status === 'completed' ? -commissionOn(r.amount, pct) : 0, status: 'success', at: r.at, note: `${r.reason} · ${r.by}` })
+      out.push({ ...base, id: `${b.id}-ref${i}`, kind: 'refund', amount: -r.amount, commission: payable(b) ? -commissionOn(r.amount, pct) : 0, status: 'success', at: r.at, note: `${r.reason} · ${r.by}` })
     )
     return out
   })
@@ -123,6 +123,11 @@ export function useCashHeld(): Query<Record<string, Paise>> {
 
 /* --------------------------------------------------------------- Payouts */
 
+/** Deductions from refunds on settled weeks, waiting for each technician's next payout. */
+export function usePayoutAdjustments(): Query<PayoutAdjustment[]> {
+  return useResource((db) => [...db.payoutAdjustments].sort((a, b) => b.at - a.at))
+}
+
 export function usePayouts(): Query<PartnerPayout[]> {
   return useResource((db) => [...db.payouts].sort((a, b) => b.periodStart - a.periodStart || b.net - a.net))
 }
@@ -168,6 +173,7 @@ export function markPayoutPaid(id: string, reference: string) {
     const db = read()
     const p = db.payouts.find((x) => x.id === id) ?? fail('This payout no longer exists.')
     if (p.status !== 'approved') fail('Approve the payout before marking it paid.')
+    if (db.partners.find((x) => x.id === p.partnerId)?.status !== 'active') fail('This technician is not active — their payout is on hold.')
     if (p.approvedById === me.id && me.role !== 'Super Admin') fail('You approved this payout, so another admin has to mark it paid.')
     const ref = reference.trim().toUpperCase()
     if (!/^[A-Z0-9]{6,22}$/.test(ref)) fail('Enter the bank reference (UTR) — 6 to 22 letters or numbers.')

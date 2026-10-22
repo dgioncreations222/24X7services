@@ -47,6 +47,8 @@ export {
   isOwnAddition,
   normalPhone,
   reactivatePartner,
+  replaceKycDocument,
+  resubmitApplication,
   rejectPartner,
   reviewDoc,
   setPartnerSkills,
@@ -118,4 +120,4 @@ export {
   useTickets,
 } from './system'
 export { buildReport, useReport, type Report, type ReportRow } from './reports'
-export { MoneyError, approvePayouts, cashHeld, markPayoutPaid, settledJobs, transactions, useCashHeld, usePayouts, usePendingPayoutCount, useTransactions } from './money'
+export { MoneyError, approvePayouts, cashHeld, markPayoutPaid, settledJobs, transactions, useCashHeld, usePayoutAdjustments, usePayouts, usePendingPayoutCount, useTransactions } from './money'

@@ -6,7 +6,7 @@ import { BadgeCheck, ChevronDown, Download, Landmark, Wallet } from 'lucide-reac
 import { FormError, SortTh, rupees, useAction } from '@/components/catalog/parts'
 import { useTable } from '@/components/catalog/useTable'
 import { Async, Avatar, Button, Card, Chip, Empty, Field, Modal, Page, PageHeader, Pager, SearchInput, Tabs, TableWrap, inputClass, td, th, tr } from '@/components/ui'
-import { approvePayouts, markPayoutPaid, useAdminSession, useCan, usePartners, usePayouts, type Partner, type PartnerPayout } from '@/lib/data'
+import { approvePayouts, markPayoutPaid, useAdminSession, useCan, usePartners, usePayoutAdjustments, usePayouts, type Partner, type PartnerPayout } from '@/lib/data'
 import { cn } from '@/lib/cn'
 import { downloadCsv } from '@/lib/format'
 
@@ -27,9 +27,25 @@ const STATUS = {
 export default function PayoutsPage() {
   const payouts = usePayouts()
   const partners = usePartners()
+  const deductions = usePayoutAdjustments().data ?? []
   return (
     <Page>
       <PageHeader side="technician" title="Payouts" sub="One payout per technician per week: their share of paid jobs (after refunds and commission) minus the cash they collected, plus last week’s balance. Suspended and inactive technicians’ payouts stay on hold." />
+      {deductions.length > 0 && (
+        <Card className="mb-4 p-4">
+          <p className="text-sm font-bold">Waiting for the next payout</p>
+          <p className="mb-2 text-xs text-muted">Refunds on weeks already paid. Each comes off that technician’s next payout.</p>
+          <ul className="space-y-1 text-sm">
+            {deductions.map((a) => (
+              <li key={a.id} className="flex flex-wrap gap-x-2">
+                <span className="font-semibold">{partners.data?.find((p) => p.id === a.partnerId)?.name ?? a.partnerId}</span>
+                <span className="num text-danger">{rupees(a.amount)}</span>
+                <span className="text-muted">· {a.reason}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       <Card className="overflow-hidden">
         <Async query={payouts} empty={<Empty icon={<Wallet />} title="No payouts yet" />}>
           {(rows) => <PayoutTable rows={rows} partners={partners.data ?? []} />}

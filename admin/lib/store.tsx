@@ -42,7 +42,8 @@ import type {
 
 // v2: the control centre (roles, AI, content, catalogue) joined the state.
 // v3: the 'ibm' brand became 'ifb'; older saves hold prices and logos keyed to it.
-const KEY = 'admin.state.v3'
+// v4: one admin (Aditi) for now; older saves still hold the rest of the team.
+const KEY = 'admin.state.v4'
 
 /**
  * The admin using the console — who the older pages greet and the audit log

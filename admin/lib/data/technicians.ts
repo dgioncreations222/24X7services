@@ -11,7 +11,7 @@ import { useSyncExternalStore } from 'react'
 import { mockRequest } from '../mock/api'
 import { read, subscribe, write, type MockDb } from '../mock/db'
 import { currentAdmin } from './auth'
-import { assertCan } from './permissions'
+import { assertCan, guarded } from './permissions'
 import { audit } from './audit'
 import { bankKeyOf, digits, normalPhone } from '../identity'
 import { useResource, type Query } from './query'
@@ -110,10 +110,20 @@ function releaseJobs(d: MockDb, partnerId: string, why: string): MockDb {
   }
 }
 
-/** Unapproved payouts wait while the technician is suspended or inactive. */
+/**
+ * Payouts not yet paid wait while the technician is suspended or inactive —
+ * approved ones too. Released, they need approving again.
+ */
 function holdPayouts(d: MockDb, partnerId: string, hold: boolean): MockDb {
-  const [from, to] = hold ? (['pending', 'on_hold'] as const) : (['on_hold', 'pending'] as const)
-  return { ...d, payouts: d.payouts.map((p) => (p.partnerId === partnerId && p.status === from ? { ...p, status: to } : p)) }
+  return {
+    ...d,
+    payouts: d.payouts.map((p) => {
+      if (p.partnerId !== partnerId) return p
+      if (hold && (p.status === 'pending' || p.status === 'approved')) return { ...p, status: 'on_hold', approvedBy: undefined, approvedById: undefined, approvedAt: undefined }
+      if (!hold && p.status === 'on_hold') return { ...p, status: 'pending' }
+      return p
+    }),
+  }
 }
 
 const openJobsOf = (d: MockDb, partnerId: string) => d.bookings.filter((b) => b.technicianId === partnerId && b.status === 'assigned').length
@@ -125,7 +135,10 @@ export function reviewDoc(docId: string, decision: 'approved' | 'rejected', why?
     if (!doc) throw new PartnerError('This document is no longer there.')
     const p = partner(read(), doc.partnerId)
     if (p.status !== 'kyc_pending') throw new PartnerError('Documents can only be reviewed while the application is waiting.')
+    if (doc.status !== 'pending') throw new PartnerError('This document is already decided. Replace the file to review it again.')
     checkReviewer(p)
+    const me = currentAdmin()
+    if (doc.replacedById && me && doc.replacedById === me.id && me.role !== 'Super Admin') throw new PartnerError('You put this file in, so another admin reviews it.')
     const rejectReason = decision === 'rejected' ? reason(why, 'this document is rejected') : undefined
     write((d) => ({
       ...d,
@@ -301,7 +314,9 @@ export function addTechnician(input: NewTechnician, override = false) {
     if (!phone || !/^\+91[6-9]/.test(phone)) throw new PartnerError('Enter a 10-digit Indian mobile number.')
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new PartnerError('Enter the email they will sign in with.')
     if (!input.city.trim() || !input.area.trim()) throw new PartnerError('Enter their city and base area.')
-    if (!input.skills.length) throw new PartnerError('Pick at least one category they work in.')
+    const known = new Set(db.categories.map((c) => c.id))
+    if (!input.skills.length || input.skills.some((s) => !known.has(s))) throw new PartnerError('Pick at least one category they work in.')
+    if (!Number.isInteger(input.experienceYears) || input.experienceYears < 0 || input.experienceYears > 60) throw new PartnerError('Experience is a whole number of years, 0 to 60.')
     if (!/^\d{4}$/.test(input.aadhaarLast4)) throw new PartnerError('Enter the last 4 digits of the Aadhaar — never the full number.')
     if (!PAN.test(pan)) throw new PartnerError('PAN looks like ABCDE1234F.')
     let payout: PayoutDestination
@@ -379,9 +394,45 @@ export function addTechnician(input: NewTechnician, override = false) {
 
 /** Which categories they may take jobs in. At least one. */
 export function setPartnerSkills(id: string, skills: string[]) {
-  return mockRequest(() => {
-    if (!skills.length) throw new PartnerError('A technician needs at least one category.')
+  return guarded([['technicians', 'edit']], () => {
+    const p = partner(read(), id)
     const known = new Set(read().categories.map((c) => c.id))
-    setPartner(partner(read(), id).id, { skills: skills.filter((s) => known.has(s)) })
+    const next = [...new Set(skills.filter((s) => known.has(s)))]
+    if (!next.length) throw new PartnerError('A technician needs at least one category.')
+    setPartner(id, { skills: next })
+    audit('technicians', 'Changed categories', { target: p.name, old: p.skills.join(', '), new: next.join(', ') })
+  })
+}
+
+/**
+ * Put a new photo in place of a rejected document (the technician brought a
+ * clear one to the desk). It goes back to waiting for review.
+ */
+export function replaceKycDocument(docId: string, fileUrl: string) {
+  return guarded([['technicians', 'edit']], () => {
+    const me = currentAdmin()
+    const doc = read().kycDocs.find((d) => d.id === docId)
+    if (!doc) throw new PartnerError('This document is no longer there.')
+    const p = partner(read(), doc.partnerId)
+    if (p.status !== 'kyc_pending' && p.status !== 'rejected') throw new PartnerError('Documents are replaced only while the application is open or sent back.')
+    if (doc.status !== 'rejected') throw new PartnerError('Only a rejected document is replaced.')
+    if (!fileUrl) throw new PartnerError('Choose the new photo.')
+    write((d) => ({
+      ...d,
+      kycDocs: d.kycDocs.map((x) => (x.id === docId ? { ...x, fileUrl, status: 'pending', rejectReason: undefined, reviewedBy: undefined, reviewedById: undefined, reviewedAt: undefined, uploadedAt: Date.now(), replacedById: me?.id } : x)),
+    }))
+    audit('technicians', 'Replaced document', { target: `${p.name} · ${doc.type}` })
+  })
+}
+
+/** A sent-back application, once every rejected document is replaced, waits for review again. */
+export function resubmitApplication(id: string) {
+  return guarded([['technicians', 'edit']], () => {
+    const p = partner(read(), id)
+    if (p.status !== 'rejected') throw new PartnerError('Only a sent-back application is resubmitted.')
+    const left = read().kycDocs.filter((d) => d.partnerId === id && d.status === 'rejected').length
+    if (left) throw new PartnerError(`Replace the rejected document${left === 1 ? '' : 's'} first — ${left} left.`)
+    setPartner(id, { status: 'kyc_pending', statusReason: undefined, submittedAt: Date.now() })
+    audit('technicians', 'Resubmitted application', { target: p.name, old: 'Rejected', new: 'KYC to review' })
   })
 }

@@ -8,7 +8,7 @@
  */
 import { controlSeed } from '../control'
 import { seed } from '../seed'
-import type { AdminAccount, AdminBooking, AdminCustomer, AdminReview, AuditEntry, BusinessSettings, Coupon, HomeBanner, PartnerPayout, PlusPlan, RoleMatrix, SupportTicket, Category, KycDocument, Partner, Question, RateCardItem, Service, ServiceArea } from '../data/types'
+import type { AdminAccount, AdminBooking, AdminCustomer, AdminReview, AuditEntry, BusinessSettings, Coupon, HomeBanner, PartnerPayout, PayoutAdjustment, PlusPlan, RoleMatrix, SupportTicket, Category, KycDocument, Partner, Question, RateCardItem, Service, ServiceArea } from '../data/types'
 import { seedCatalog } from './catalogSeed'
 import { seedBookings } from './bookingSeed'
 import { seedCustomers } from './customerSeed'
@@ -37,6 +37,8 @@ export interface MockDb {
   roles: RoleMatrix
   settings: BusinessSettings
   payouts: PartnerPayout[]
+  /** Refunds on already-settled weeks, waiting for the next payout run. */
+  payoutAdjustments: PayoutAdjustment[]
 }
 
 function fresh(): MockDb {
@@ -49,7 +51,7 @@ function fresh(): MockDb {
   const active = people.partners.filter((p) => p.status === 'active').map((p) => p.id)
   // Completed jobs carry the commission percent they completed at.
   const bookings = seedBookings(catalog, active).bookings.map((b) => (b.status === 'completed' ? { ...b, commissionPct: system.settings.commissionPct } : b))
-  return { admins, ...catalog, ...people, bookings, ...seedCustomers(), ...seedGrowth(), ...system, ...seedPayouts(bookings, people.partners, system.settings.commissionPct) }
+  return { admins, ...catalog, ...people, bookings, ...seedCustomers(), ...seedGrowth(), ...system, ...seedPayouts(bookings, people.partners, system.settings.commissionPct), payoutAdjustments: [] }
 }
 
 let db: MockDb | null = null

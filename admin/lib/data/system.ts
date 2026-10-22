@@ -5,11 +5,11 @@
  * role may do, and the business settings. Every change is audited.
  */
 import { useSyncExternalStore } from 'react'
-import { mockRequest } from '../mock/api'
 import { read, subscribe, write } from '../mock/db'
 import { ADMIN_ROLES } from '../types'
 import { audit } from './audit'
 import { currentAdmin } from './auth'
+import { guarded } from './permissions'
 import { useResource, type Query } from './query'
 import type { AdminAccount, AdminRole, BusinessSettings, Module, Perm, RoleMatrix, SupportTicket, TicketPriority, TicketStatus } from './types'
 
@@ -50,7 +50,7 @@ function patchTicket(id: string, fn: (t: SupportTicket) => SupportTicket) {
 
 /** Answer the person. An open ticket moves to In progress and is yours if nobody had it. */
 export function replyToTicket(id: string, text: string) {
-  return mockRequest(() => {
+  return guarded([['support', 'edit']], () => {
     const t = ticket(id)
     if (t.status === 'resolved') fail('Reopen the ticket to reply.')
     const body = text.trim()
@@ -61,11 +61,12 @@ export function replyToTicket(id: string, text: string) {
       assignee: x.assignee ?? me(),
       messages: [...x.messages, { from: 'agent', text: body, at: Date.now(), by: me() }],
     }))
+    audit('support', 'Replied to ticket', { target: t.id })
   })
 }
 
 export function assignTicket(id: string, adminName: string) {
-  return mockRequest(() => {
+  return guarded([['support', 'edit']], () => {
     const t = ticket(id)
     patchTicket(id, (x) => ({ ...x, assignee: adminName, messages: [...x.messages, { from: 'system', text: `Assigned to ${adminName}`, at: Date.now(), by: me() }] }))
     audit('support', 'Assigned ticket', { target: t.id, old: t.assignee ?? 'Nobody', new: adminName })
@@ -73,7 +74,7 @@ export function assignTicket(id: string, adminName: string) {
 }
 
 export function setTicketStatus(id: string, status: TicketStatus) {
-  return mockRequest(() => {
+  return guarded([['support', 'edit']], () => {
     const t = ticket(id)
     if (t.status === status) return
     if (status === 'resolved' && !t.messages.some((m) => m.from === 'agent')) fail('Reply to the person before resolving.')
@@ -84,7 +85,7 @@ export function setTicketStatus(id: string, status: TicketStatus) {
 }
 
 export function setTicketPriority(id: string, priority: TicketPriority) {
-  return mockRequest(() => {
+  return guarded([['support', 'edit']], () => {
     const t = ticket(id)
     patchTicket(id, (x) => ({ ...x, priority }))
     audit('support', 'Changed ticket priority', { target: t.id, old: t.priority, new: priority })
@@ -97,15 +98,21 @@ export function useAdmins(): Query<AdminAccount[]> {
   return useResource((db) => [...db.admins].sort((a, b) => ADMIN_ROLES.indexOf(a.role) - ADMIN_ROLES.indexOf(b.role) || a.name.localeCompare(b.name)))
 }
 
+/** Only a Super Admin makes, unmakes or disables a Super Admin — otherwise a role could promote itself. */
+function superOnly() {
+  if (currentAdmin()?.role !== 'Super Admin') fail('Only a Super Admin can change a Super Admin.')
+}
+
 const activeSupers = (admins: AdminAccount[]) => admins.filter((a) => a.role === 'Super Admin' && a.status === 'active')
 
 export function inviteAdmin(input: { name: string; email: string; role: AdminRole }) {
-  return mockRequest(() => {
+  return guarded([['admins', 'create']], () => {
     const name = input.name.trim()
     const email = input.email.trim().toLowerCase()
     if (name.length < 2) fail('Enter their full name.')
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail('Enter a valid email address.')
     if (read().admins.some((a) => a.email === email)) fail('Someone with this email is already an admin.')
+    if (input.role === 'Super Admin') superOnly()
     const admin: AdminAccount = { id: `ADM-${Date.now().toString(36).toUpperCase()}`, name, email, role: input.role, status: 'invited', createdAt: Date.now() }
     write((d) => ({ ...d, admins: [...d.admins, admin] }))
     audit('admins', 'Invited admin', { target: name, new: input.role })
@@ -114,10 +121,11 @@ export function inviteAdmin(input: { name: string; email: string; role: AdminRol
 }
 
 export function setAdminRole(id: string, role: AdminRole) {
-  return mockRequest(() => {
+  return guarded([['admins', 'edit']], () => {
     const db = read()
     const a = db.admins.find((x) => x.id === id) ?? fail('This admin no longer exists.')
     if (a.id === currentAdmin()?.id) fail('You cannot change your own role. Ask another Super Admin.')
+    if (a.role === 'Super Admin' || role === 'Super Admin') superOnly()
     if (a.role === 'Super Admin' && role !== 'Super Admin' && activeSupers(db.admins).length <= 1) fail('Keep at least one active Super Admin.')
     write((d) => ({ ...d, admins: d.admins.map((x) => (x.id === id ? { ...x, role } : x)) }))
     audit('admins', 'Changed role', { target: a.name, old: a.role, new: role })
@@ -126,10 +134,11 @@ export function setAdminRole(id: string, role: AdminRole) {
 
 /** Disable or re-enable an admin; a disabled admin is signed out at once. */
 export function setAdminDisabled(id: string, disabled: boolean) {
-  return mockRequest(() => {
+  return guarded([['admins', 'edit']], () => {
     const db = read()
     const a = db.admins.find((x) => x.id === id) ?? fail('This admin no longer exists.')
     if (a.id === currentAdmin()?.id) fail('You cannot disable yourself.')
+    if (a.role === 'Super Admin') superOnly()
     if (disabled && a.role === 'Super Admin' && a.status === 'active' && activeSupers(db.admins).length <= 1) fail('Keep at least one active Super Admin.')
     const status = disabled ? 'disabled' : a.status === 'disabled' ? 'active' : a.status
     write((d) => ({ ...d, admins: d.admins.map((x) => (x.id === id ? { ...x, status } : x)) }))
@@ -145,7 +154,7 @@ export function useRoles(): Query<RoleMatrix> {
 
 /** Turn one permission on or off for a role in a module. Super Admin is fixed. */
 export function setRolePermission(role: AdminRole, module: Module, perm: Perm, on: boolean) {
-  return mockRequest(() => {
+  return guarded('super', () => {
     if (role === 'Super Admin') fail('Super Admin always has every permission.')
     const current = read().roles[role][module] ?? []
     let next = on ? [...new Set([...current, perm])] : current.filter((p) => p !== perm)
@@ -176,7 +185,7 @@ const LABEL: Record<keyof BusinessSettings, string> = {
 }
 
 export function saveSettings(next: BusinessSettings) {
-  return mockRequest(() => {
+  return guarded([['settings', 'edit']], () => {
     if (next.commissionPct < 0 || next.commissionPct > 50) fail('Commission must be 0–50%.')
     if (next.gstPct < 0 || next.gstPct > 28) fail('GST must be 0–28%.')
     if (next.offerTimeoutSec < 10 || next.offerTimeoutSec > 120) fail('Give technicians 10–120 seconds to answer an offer.')

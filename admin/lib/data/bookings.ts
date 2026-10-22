@@ -6,13 +6,13 @@
  * itself happens in the customer app; the console only records refunds.
  */
 import { useSyncExternalStore } from 'react'
-import { mockRequest } from '../mock/api'
 import { read, subscribe, write } from '../mock/db'
 import { currentAdmin } from './auth'
-import { bill } from '../money'
+import { bill, jobMoney, settleWeek } from '../money'
 import { audit } from './audit'
+import { guarded } from './permissions'
 import { useResource, type Query } from './query'
-import type { AdminBooking, BookingStatus, GeoPoint, Partner, Paise } from './types'
+import type { AdminBooking, BookingStatus, GeoPoint, Paise, Partner, PartnerPayout } from './types'
 
 export class BookingError extends Error {
   constructor(message: string) {
@@ -124,7 +124,7 @@ function patch(id: string, fn: (b: AdminBooking) => AdminBooking) {
  * has not started to someone else.
  */
 export function assignTechnician(bookingId: string, partnerId: string) {
-  return mockRequest(() => {
+  return guarded([['bookings', 'assign'], ['dispatch', 'assign']], () => {
     const b = booking(bookingId)
     if (b.status !== 'confirmed' && b.status !== 'assigned') throw new BookingError('Only a booking that has not started can be assigned.')
     const p = read().partners.find((x) => x.id === partnerId)
@@ -146,7 +146,7 @@ export function assignTechnician(bookingId: string, partnerId: string) {
 
 /** Cancel on the customer's or the network's behalf. Refunds are a separate step. */
 export function cancelBooking(bookingId: string, reason: string) {
-  return mockRequest(() => {
+  return guarded([['bookings', 'edit']], () => {
     const b = booking(bookingId)
     if (!OPEN_STATUSES.includes(b.status)) throw new BookingError('This booking is already finished or cancelled.')
     const r = reason.trim()
@@ -163,11 +163,72 @@ export function cancelBooking(bookingId: string, reason: string) {
 }
 
 /**
+ * Carry a refund into the technician's payout. If the job is in a week not
+ * yet paid, that week is worked out again — and an approved one goes back to
+ * waiting for approval, since its amount changed. If the week was already
+ * paid or carried forward, the technician's lost share is kept as a
+ * deduction for their next payout.
+ */
+/**
+ * Work a technician's open week out again, and pass any change in what it
+ * carries on to the weeks after it: a week that now ends at zero or below
+ * hands its balance to the next week, as the weekly run would have. A paid
+ * week cannot change, so a debt that reaches one becomes a deduction for
+ * the next payout instead.
+ */
+function resettleFrom(weekId: string, carriedIn: Paise) {
+  const db = read()
+  const pct = db.settings.commissionPct
+  const first = db.payouts.find((p) => p.id === weekId)!
+  const weeks = db.payouts.filter((p) => p.partnerId === first.partnerId && p.periodStart >= first.periodStart).sort((a, b) => a.periodStart - b.periodStart)
+  const changed = new Map<string, Partial<PartnerPayout>>()
+  let carry = carriedIn
+  for (const w of weeks) {
+    if (w.status === 'paid') {
+      if (carry < 0)
+        write((d) => ({
+          ...d,
+          payoutAdjustments: [...d.payoutAdjustments, { id: `ADJ-${Date.now().toString(36)}`, partnerId: w.partnerId, bookingId: '', amount: carry, reason: `Balance carried from week ${first.id} after a refund`, at: Date.now() }],
+        }))
+      break
+    }
+    if (w.id !== first.id && w.carriedIn === carry) break
+    const jobs = w.jobIds.map((id) => db.bookings.find((x) => x.id === id)).filter((x): x is AdminBooking => !!x)
+    const sums = settleWeek(jobs, pct, carry)
+    const status = sums.net <= 0 ? 'carried_forward' : w.status === 'on_hold' ? 'on_hold' : 'pending'
+    // Its amount changed, so an earlier approval no longer stands.
+    changed.set(w.id, { ...sums, status, approvedBy: undefined, approvedById: undefined, approvedAt: undefined })
+    audit('payouts', 'Payout worked out again after a refund', { target: w.id, old: `₹${w.net / 100}`, new: `₹${sums.net / 100}` })
+    carry = sums.net <= 0 ? sums.net : 0
+  }
+  write((d) => ({ ...d, payouts: d.payouts.map((p) => (changed.has(p.id) ? { ...p, ...changed.get(p.id) } : p)) }))
+}
+
+function reachPayout(bookingId: string, before: AdminBooking, why: string) {
+  const db = read()
+  const after = db.bookings.find((x) => x.id === bookingId)
+  const week = db.payouts.find((p) => p.jobIds.includes(bookingId))
+  if (!after?.technicianId || !week) return
+  const pct = db.settings.commissionPct
+  if (week.status === 'pending' || week.status === 'on_hold' || week.status === 'approved') {
+    resettleFrom(week.id, week.carriedIn)
+    return
+  }
+  const lost = jobMoney(after, pct).share - jobMoney(before, pct).share
+  if (lost >= 0) return
+  write((d) => ({
+    ...d,
+    payoutAdjustments: [...d.payoutAdjustments, { id: `ADJ-${Date.now().toString(36)}`, partnerId: after.technicianId!, bookingId, amount: lost, reason: why, at: Date.now() }],
+  }))
+  audit('payouts', 'Deduction for next payout', { target: `${after.technicianId} · ${before.displayId}`, new: `₹${lost / 100}` })
+}
+
+/**
  * Give money back. On a cancelled booking a full refund closes it as
  * Refunded; on a completed one it is a goodwill refund and it stays Completed.
  */
 export function refundBooking(bookingId: string, amount: Paise, reason: string) {
-  return mockRequest(() => {
+  return guarded([['payments', 'approve']], () => {
     const b = booking(bookingId)
     if (b.status !== 'cancelled' && b.status !== 'completed') throw new BookingError('Refunds are for cancelled or completed bookings.')
     const { refundable } = bill(b)
@@ -181,10 +242,12 @@ export function refundBooking(bookingId: string, amount: Paise, reason: string) 
     patch(bookingId, (x) => ({
       ...x,
       status: x.status === 'cancelled' && full ? 'refunded' : x.status,
-      payment: { ...x.payment, status: full ? 'refunded' : 'partially_refunded' },
+      // Keep how much came in, so a part-paid bill is never read as paid in full.
+      payment: { ...x.payment, status: full ? 'refunded' : 'partially_refunded', paidAmount: x.payment.paidAmount ?? (x.payment.status === 'partially_paid' ? 0 : undefined) },
       refunds: [...x.refunds, { amount: Math.round(amount), reason: r, at: now, by: who() }],
       timeline: x.status === 'cancelled' && full ? [...x.timeline, { status: 'refunded', at: now, by: who(), note: r }] : x.timeline,
     }))
+    reachPayout(bookingId, b, r)
     audit('payments', 'Refunded', { target: b.displayId, new: `₹${Math.round(amount / 100).toLocaleString('en-IN')} — ${r}` })
   })
 }
