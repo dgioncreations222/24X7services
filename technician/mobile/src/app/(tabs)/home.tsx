@@ -8,7 +8,7 @@ import { NEXT_STEP } from '@/components/job/nextStep'
 import { OfferTimeLeft } from '@/components/job/OfferTimeLeft'
 import { Async } from '@/components/ui/Async'
 import { Button, Card, EmptyState, Icon, Page, SectionTitle, SkeletonCard } from '@/components/ui'
-import { useJobs } from '@/lib/data'
+import { useDeviceSettings, useJobs, useProfile, type PartnerJob } from '@/lib/data'
 import { useT } from '@/lib/i18n'
 import { isToday } from '@/lib/when'
 
@@ -21,6 +21,11 @@ export default function HomeScreen() {
   const focused = useIsFocused()
   const ongoing = useJobs('ongoing')
   const offers = useJobs('offers')
+  const [settings] = useDeviceSettings()
+  // Same rule as OfferPopup: only while online does a request pop up instead of being timed here.
+  const profile = useProfile().data
+  const online = profile?.online ?? false
+  const popsUp = (o: PartnerJob) => online && (o.priority === 'emergency' ? settings.notify.emergency : settings.notify.requests)
   const upcoming = useJobs('upcoming')
 
   return (
@@ -49,13 +54,15 @@ export default function HomeScreen() {
           }}
         </Async>
 
-        {offers.data?.length ? (
+        {/* Offline means no new requests, even one still on its way from dispatch. */}
+        {online && offers.data?.length ? (
           <View>
             <SectionTitle count={offers.data.length}>{t('New requests')}</SectionTitle>
             <View className="gap-3">
               {offers.data.map((j) => (
                 <View key={j.id} className="gap-1.5">
-                  <OfferTimeLeft id={j.id} />
+                  {/* A request that pops up gets its 30 s then; one that waits here is timed here. */}
+                  {!profile || popsUp(j) ? null : <OfferTimeLeft id={j.id} />}
                   <JobCard job={j} />
                 </View>
               ))}

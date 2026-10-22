@@ -3,7 +3,7 @@ import { ActivityIndicator, View } from 'react-native'
 import { router } from 'expo-router'
 import { Clock, MapPin } from 'lucide-react-native'
 import { JobScreen } from '@/components/job/JobScreen'
-import { OFFER_SECONDS, useOfferCountdown } from '@/components/job/useOfferCountdown'
+import { answerOffer, OFFER_SECONDS, useOfferCountdown } from '@/components/job/useOfferCountdown'
 import { ActionDock, Button, Card, Icon, Label, Page, SectionTitle, Text } from '@/components/ui'
 import { acceptJob, rejectJob, type PartnerJob } from '@/lib/data'
 import { cn } from '@/lib/cn'
@@ -36,10 +36,10 @@ function Offer({ job }: { job: PartnerJob }) {
     setError(null)
     try {
       if (kind === 'accept') {
-        await acceptJob(job.id)
+        await answerOffer(job.id, () => acceptJob(job.id))
         router.replace(`/jobs/detail?id=${job.id}`)
       } else {
-        await rejectJob(job.id)
+        await answerOffer(job.id, () => rejectJob(job.id))
         router.replace('/home')
       }
     } catch {

@@ -57,12 +57,15 @@ export function customerPays(jobId: string) {
 let queued = false
 let counter = 0
 
-/** When no request is waiting, send one more after a short gap. */
+/** When the technician is online and no request is waiting, send one more after a short gap. */
 export function queueNextOffer() {
-  if (queued || read().jobs.some((j) => j.status === 'offered')) return
+  const db = read()
+  if (queued || !db.profile.online || db.jobs.some((j) => j.status === 'offered')) return
   queued = true
   setTimeout(() => {
     queued = false
+    // They may have gone offline during the gap.
+    if (!read().profile.online) return
     const base = toPartnerJob(lateRequest())
     if (!base) return
     counter += 1

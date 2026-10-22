@@ -10,6 +10,18 @@ const shownAt = new Map<string, number>()
 /** How long to wait before declining an expired offer again after a failure. */
 const RETRY_MS = 5_000
 const expired = new Set<string>()
+// Offers whose accept or reject is in flight: the clock must not decline them meanwhile.
+const answering = new Set<string>()
+
+/** Wrap the technician's own answer so the countdown holds off until it lands. */
+export async function answerOffer<T>(id: string, answer: () => Promise<T>): Promise<T> {
+  answering.add(id)
+  try {
+    return await answer()
+  } finally {
+    answering.delete(id)
+  }
+}
 
 /** The first time `id` was on screen; `now` the first time it is asked. */
 function firstShown(id: string, now: number): number {
@@ -25,7 +37,7 @@ function firstShown(id: string, now: number): number {
  * failure (already answered, gone) is final.
  */
 export function autoDecline(id: string, decline: (id: string) => Promise<unknown> = rejectJob) {
-  if (expired.has(id)) return
+  if (expired.has(id) || answering.has(id)) return
   expired.add(id)
   decline(id).catch((e: unknown) => {
     if (isNetworkError(e)) setTimeout(() => expired.delete(id), RETRY_MS)

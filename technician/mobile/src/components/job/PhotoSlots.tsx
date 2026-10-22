@@ -34,8 +34,14 @@ export function PhotoSlots({ job, kind }: { job: PartnerJob; kind: 'before' | 'a
     }
   }
 
+  const [pickError, setPickError] = useState(false)
+
   async function add() {
-    const uri = await capturePhoto({ max: 1280 })
+    setPickError(false)
+    const uri = await capturePhoto({ max: 1280 }).catch(() => {
+      setPickError(true)
+      return null
+    })
     if (!uri) return
     setPending((list) => [...list, { uri, progress: 0, failed: false }])
     await send(uri)
@@ -80,6 +86,7 @@ export function PhotoSlots({ job, kind }: { job: PartnerJob; kind: 'before' | 'a
           <Text className="text-xs font-extrabold text-brand">{t('Add photo')}</Text>
         </Tappable>
       ) : null}
+      {pickError ? <Text className="w-full text-sm font-semibold text-danger">{t('Couldn’t open the camera. Try again.')}</Text> : null}
     </View>
   )
 }

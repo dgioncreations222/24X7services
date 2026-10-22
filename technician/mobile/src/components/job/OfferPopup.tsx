@@ -14,7 +14,7 @@ import { clock, day } from '@/lib/when'
 import { Icon } from '../base/Icon'
 import { Text } from '../base/Text'
 import { Button } from '../ui/Button'
-import { OFFER_SECONDS, useOfferCountdown } from './useOfferCountdown'
+import { answerOffer, OFFER_SECONDS, useOfferCountdown } from './useOfferCountdown'
 
 /**
  * A new request takes the bottom of whatever screen is open, the way the
@@ -28,13 +28,20 @@ export function OfferPopup() {
   const offers = useJobs('offers')
   const profile = useProfile()
   const [settings] = useDeviceSettings()
-  const offer = offers.data?.find((o) => (o.priority === 'emergency' ? settings.notify.emergency : settings.notify.requests))
-  const shown = offer && profile.data?.online && !pathname.startsWith('/request') ? offer : undefined
+  // Kinds switched on in Alerts pop up one at a time, each with its own 30 s.
+  // The rest wait on Home with their clock running and shown.
+  // Until the profile has loaded, online is unknown: start no clocks yet, or
+  // every waiting request would begin its 30 s in that first moment.
+  if (!profile.data) return null
+  const online = profile.data.online
+  const popsUp = (o: PartnerJob) => online && (o.priority === 'emergency' ? settings.notify.emergency : settings.notify.requests)
+  const offer = offers.data?.find(popsUp)
+  const shown = offer && !pathname.startsWith('/request') ? offer : undefined
   return (
     <>
       {/* Every open offer keeps its clock running — popped up or waiting on
           Home — so one nobody answers is still declined and dispatch moves on. */}
-      {offers.data?.filter((o) => o.id !== shown?.id).map((o) => <OfferClock key={o.id} id={o.id} />)}
+      {offers.data?.filter((o) => o.id !== shown?.id && !popsUp(o)).map((o) => <OfferClock key={o.id} id={o.id} />)}
       {shown ? <OfferCard key={shown.id} offer={shown} sound={settings.notify.sound} /> : null}
     </>
   )
@@ -64,9 +71,9 @@ function OfferCard({ offer, sound }: { offer: PartnerJob; sound: boolean }) {
     setError(null)
     try {
       if (kind === 'accept') {
-        await acceptJob(offer.id)
+        await answerOffer(offer.id, () => acceptJob(offer.id))
         router.push(`/jobs/detail?id=${offer.id}`)
-      } else await rejectJob(offer.id)
+      } else await answerOffer(offer.id, () => rejectJob(offer.id))
     } catch {
       setError(t('Couldn’t reach the server. Try again.'))
       setBusy(null)

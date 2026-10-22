@@ -22,7 +22,7 @@ export default function ForgotScreen() {
       await sendPasswordReset(email)
       setSent(true)
     } catch (e) {
-      setError(e instanceof Error && e.name === 'AuthError' ? e.message : t('Couldn’t send the link. Check your internet and try again.'))
+      setError(e instanceof Error && e.name === 'AuthError' ? t(e.message) : t('Couldn’t send the link. Check your internet and try again.'))
     } finally {
       setBusy(false)
     }

@@ -69,7 +69,8 @@ const STATUS: Record<Job['status'], PartnerJobStatus | null> = {
 export function toPartnerJob(j: Job): PartnerJob | null {
   const status = STATUS[j.status]
   if (!status) return null
-  const bill = j.amount ?? j.estFee
+  // A cancelled job was never billed.
+  const bill = status === 'cancelled' ? 0 : (j.amount ?? j.estFee)
   const timeline = (
     [
       ['assigned', j.log.accepted ?? j.log.assigned],

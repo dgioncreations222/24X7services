@@ -62,7 +62,7 @@ export default function KycStatusScreen() {
             <Button size="lg" variant="secondary" onPress={() => void signOut()} className="flex-1">
               {t('Sign out')}
             </Button>
-            <Button size="lg" onPress={() => void Linking.openURL(telHref(BRAND.partnerDesk))} className="flex-[1.4]">
+            <Button size="lg" onPress={() => void Linking.openURL(telHref(BRAND.partnerDesk)).catch(() => setError(t('Call {phone} from your phone.', { phone: BRAND.partnerDesk })))} className="flex-[1.4]">
               <Icon as={Phone} className="size-5" />
               {t('Call partner desk')}
             </Button>

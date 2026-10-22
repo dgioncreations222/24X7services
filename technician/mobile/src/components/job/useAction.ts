@@ -18,7 +18,7 @@ export function useAction() {
       await action()
       then?.()
     } catch (e) {
-      setError(e instanceof Error && e.name === 'JobStepError' ? e.message : t('Couldn’t reach the server. Check your internet and try again.'))
+      setError(e instanceof Error && e.name === 'JobStepError' ? t(e.message) : t('Couldn’t reach the server. Check your internet and try again.'))
     } finally {
       setBusy(false)
     }

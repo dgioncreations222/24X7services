@@ -1,5 +1,6 @@
 /** The technician's own side: earnings, payouts, reviews and profile. */
 import { mockRequest } from '../mock/api'
+import { queueNextOffer } from '../mock/customer'
 import { split, write, type MockDb } from '../mock/db'
 import { useResource, type Query } from './query'
 import type { EarningLine, EarningsSummary, PartnerProfile, PartnerReview, Payout } from './types'
@@ -60,7 +61,17 @@ export function useProfile(): Query<PartnerProfile> {
   return useResource((db) => db.profile)
 }
 
-/** The Home toggle: online gets new requests, offline does not. */
-export function setOnline(online: boolean) {
-  return mockRequest(() => write((db) => ({ ...db, profile: { ...db.profile, online } })))
+/**
+ * The Home toggle: online gets new requests, offline does not. Going offline
+ * hands any open request back to dispatch; jobs already accepted stay.
+ */
+export async function setOnline(online: boolean) {
+  await mockRequest(() =>
+    write((db) => ({
+      ...db,
+      profile: { ...db.profile, online },
+      jobs: online ? db.jobs : db.jobs.filter((j) => j.status !== 'offered'),
+    }))
+  )
+  if (online) queueNextOffer()
 }
