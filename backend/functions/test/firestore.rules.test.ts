@@ -269,6 +269,26 @@ describe('users/{uid}/addresses', () => {
   })
 })
 
+describe('config/flags and function-only collections', () => {
+  it('anyone can read the flags; nobody can write them from a client, not even an admin', async () => {
+    await asAdminSdk((db) => setDoc(doc(db, 'config/flags'), { maps: false }))
+    await assertSucceeds(getDoc(doc(guest(), 'config/flags')))
+    await assertSucceeds(getDoc(doc(alice(), 'config/flags')))
+    await assertFails(setDoc(doc(alice(), 'config/flags'), { maps: true }))
+    await assertFails(setDoc(doc(admin(), 'config/flags'), { maps: true }))
+  })
+
+  it('rateLimits, idempotency and audit are closed to every client', async () => {
+    const paths = [`rateLimits/ping_v1:${ALICE}`, `idempotency/x_v1:${ALICE}:req12345`, 'audit/a1']
+    for (const p of paths) {
+      await asAdminSdk((db) => setDoc(doc(db, p), { x: 1 }))
+      await assertFails(getDoc(doc(alice(), p)))
+      await assertFails(getDoc(doc(admin(), p)))
+      await assertFails(setDoc(doc(alice(), p), { x: 2 }))
+    }
+  })
+})
+
 describe('everything else', () => {
   it('an unnamed collection is closed to everyone', async () => {
     await assertFails(getDoc(doc(admin(), 'bookings/b1')))

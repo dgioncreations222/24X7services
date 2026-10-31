@@ -1,6 +1,10 @@
 # Backend (Firebase)
 
 One backend for all three apps: customer, partner (technician) and admin.
+All Firestore rules stay in the one `firestore.rules`, all Storage rules in
+the one `storage.rules`, and all Cloud Functions in the one `functions`
+codebase, each organised in sections or folders per app. Never add a
+second rules file or a separate functions project for one app.
 Only the customer side is being built for now. Roles are already in place so
 partner and admin can be added without rewriting the rules.
 
@@ -12,8 +16,11 @@ partner and admin can be added without rewriting the rules.
 | `storage.rules` | Same, for uploaded files |
 | `firestore.indexes.json` | Composite indexes for queries |
 | `functions/src` | Cloud Functions (TypeScript, bundled with esbuild) |
-| `functions/test` | Rules tests, run against the emulator |
+| `functions/src/lib/callable.ts` | The wrapper every callable function is written with (see below) |
+| `functions/src/lib/flags.ts` | Feature flags in `config/flags`, and their defaults |
+| `functions/test` | Rules, wrapper and kill-switch tests, run against the emulator |
 | `functions/scripts` | One-off admin scripts (e.g. granting a role) |
+| `RUNBOOKS.md` | Deploy, undo, budget + kill-switch, alerts, backups, access |
 
 ## Roles
 
@@ -47,9 +54,42 @@ npm install
 | Command | What it does |
 |---|---|
 | `npm run emulators` | Runs Firestore/Auth/Functions/Storage locally. UI at http://localhost:4000. Uses a `demo-` project, so it can never touch real data |
-| `npm run test:rules` | Runs the Firestore and Storage rules tests against throwaway emulators |
+| `npm test` (same as `npm run test:rules`) | Runs all tests (rules, wrapper, kill-switch) against throwaway emulators. GitHub runs the same on every PR that touches `backend/` |
 | `npm run typecheck` | TypeScript check |
 | `npm run deploy:dev` | Builds, then deploys rules + functions to the dev project. Lead only. Never use a bare `firebase deploy`: it would upload whatever old build is on disk |
+
+## Writing a callable function
+
+Always through `defineCallable` in `functions/src/lib/callable.ts`, never a
+bare `onCall`. It runs eight checks in order: signed in, App Check, input
+(zod), permission, rate limit, idempotency, transaction, audit. A
+`mode: 'write'` handler gets a transaction and must do all its reads before
+its writes. Names carry a version: `createBooking_v1`. See `src/ops/ping.ts`
+for the smallest example.
+
+- **No call outside Firestore inside a handler** (any HTTP, any SDK that
+  sends something). A transaction can run the handler up to five times, and
+  each run would send again.
+- **Push, WhatsApp, SMS, email, Cloud Tasks, and anything to do with money go
+  ONLY through the outbox.** The handler writes an `outbox` document inside
+  its transaction; a trigger processes each entry exactly once. Never from
+  `after`, never from the handler.
+- **`after`** runs once after the commit (not on an idempotent replay) and is
+  best effort: a failure is only logged. Use it only for work whose loss
+  harms nothing, such as an analytics event or an extra log line.
+- **Audit**: `audit: 'booking.cancel'` on the spec writes one entry per call;
+  `ctx.audit({ target, before, after, meta })` adds detail. Reads can audit
+  too (an admin revealing a phone number). Never store a full phone, address,
+  bank or KYC value in an entry: mask it (`+91******3210`) or name the field.
+- **Partner and admin** calls are re-checked against `users/{uid}`: the role
+  must match and `suspended` must not be `true`. A suspension stops their
+  calls within a minute. Customers are not re-checked.
+- Expiry is always decided by an `expiresAt` field, never by whether a
+  document still exists: TTL deletion runs days late.
+- `requiresFlag: 'maps'` (etc.) refuses the call while the kill-switch or an
+  admin has that feature off.
+- A CPU-heavy function (PDF, CSV export) sets a low `concurrency` and more
+  `memory` in `options`.
 
 ## Rules the apps must follow
 
@@ -67,6 +107,12 @@ The rules reject anything else, so these are not suggestions:
   only one upload per change of photo. Compress before upload. The app
   cannot delete it, only replace it.
 - No `onSnapshot` on a whole collection; paginate instead.
+- **Feature flags**: read `config/flags` once at start-up (not a live
+  listener) and hide a feature whose flag is `false`. A missing field means
+  the default in `flags.ts`.
+- **Write calls** marked idempotent need a `requestId` beside the input:
+  8-64 characters of `A-Z a-z 0-9 _ -`, made once per user action and
+  reused on every retry of that action.
 
 ## Secrets
 
