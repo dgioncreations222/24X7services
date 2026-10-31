@@ -5,3 +5,5 @@
 import './lib/options'
 
 export { onUserCreate } from './auth/onUserCreate'
+export { onBudgetAlert } from './ops/killSwitch'
+export { ping_v1 } from './ops/ping'

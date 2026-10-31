@@ -1,0 +1,61 @@
+# Checks the backend on every pull request and push to main that touches it:
+# typecheck, build, and the rules + callable tests on the Firestore and Storage
+# emulators. Nothing here talks to a real Firebase project: the tests run on
+# the offline-only demo-customer-service project id.
+#
+# Limited to backend/ changes so app-only pull requests don't spend Actions
+# minutes on it.
+
+name: backend
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend/functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/functions/package-lock.json
+
+      # The Firestore emulator is a Java program.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Cache emulator downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-15.18.0
+
+      - run: npm ci
+      - run: npm install --global firebase-tools@15.18.0
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run test:rules

@@ -118,6 +118,12 @@ service cloud.firestore {
     // anything else private live in config/private, which no rule grants.
     match /config/public { allow read: if true; allow write: if false; }
 
+    // Feature flags (maps, tracking, whatsapp, ...). The apps read them to hide
+    // a feature that is switched off; only functions write them, the budget
+    // kill-switch among them. rateLimits, idempotency and audit are
+    // function-only and fall through to the catch-all below.
+    match /config/flags { allow read: if true; allow write: if false; }
+
     // -----------------------------------------------------------------------
     // Users: the one place a customer writes
     // -----------------------------------------------------------------------
